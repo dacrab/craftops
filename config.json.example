@@ -1,0 +1,37 @@
+{
+    "server": {
+        "minecraft_version": "1.21.1",
+        "modloader": "fabric",
+        "java": {
+            "min_memory": "4G",
+            "max_memory": "6G",
+            "flags": [
+                "-XX:+UseG1GC",
+                "-XX:+ParallelRefProcEnabled",
+                "-XX:MaxGCPauseMillis=200"
+            ]
+        }
+    },
+    "paths": {
+        "local_mods": "/path/to/mods",
+        "backups": "/path/to/backups",
+        "minecraft": "/path/to/minecraft",
+        "server_jar": "/path/to/server.jar"
+    },
+    "maintenance": {
+        "backup_retention_days": 7,
+        "warning_intervals": [
+            {"time": 15, "unit": "minutes"},
+            {"time": 5, "unit": "minutes"},
+            {"time": 1, "unit": "minute"}
+        ]
+    },
+    "notifications": {
+        "discord_webhook": "YOUR_WEBHOOK_URL_HERE",
+        "enabled": true
+    },
+    "modrinth_urls": [
+        "https://modrinth.com/mod/example1",
+        "https://modrinth.com/mod/example2"
+    ]
+} 
