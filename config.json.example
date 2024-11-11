@@ -1,37 +1,93 @@
 {
-    "server": {
-        "minecraft_version": "1.21.1",
-        "modloader": "fabric",
-        "java": {
-            "min_memory": "4G",
-            "max_memory": "6G",
-            "flags": [
-                "-XX:+UseG1GC",
-                "-XX:+ParallelRefProcEnabled",
-                "-XX:MaxGCPauseMillis=200"
-            ]
-        }
-    },
+    // Paths to important directories and files
     "paths": {
-        "local_mods": "/path/to/mods",
-        "backups": "/path/to/backups",
-        "minecraft": "/path/to/minecraft",
-        "server_jar": "/path/to/server.jar"
+        "local_mods": "/home/Minecraft/mods",      // Directory containing server mods
+        "backups": "/home/Minecraft/backups",      // Directory for server backups
+        "minecraft": "/home/Minecraft",            // Main Minecraft server directory
+        "server_jar": "/home/Minecraft/server.jar", // Path to server JAR file
+        "logs": "/home/Minecraft/logs/mod_manager.log" // Log file location
     },
-    "maintenance": {
-        "backup_retention_days": 7,
-        "warning_intervals": [
-            {"time": 15, "unit": "minutes"},
-            {"time": 5, "unit": "minutes"},
-            {"time": 1, "unit": "minute"}
+
+    // Minecraft server configuration
+    "minecraft": {
+        "version": "1.21.1",    // Minecraft version
+        "modloader": "fabric"    // Mod loader type (fabric/forge/quilt)
+    },
+
+    // Server performance settings
+    "server": {
+        "memory": {
+            "min": "4G",        // Minimum allocated RAM
+            "max": "6G"         // Maximum allocated RAM
+        },
+        // Optimized Java garbage collection flags
+        "java_flags": [
+            "-XX:+UseG1GC",
+            "-XX:+ParallelRefProcEnabled", 
+            "-XX:MaxGCPauseMillis=200",
+            "-XX:+UnlockExperimentalVMOptions",
+            "-XX:+DisableExplicitGC",
+            "-XX:+AlwaysPreTouch",
+            "-XX:G1NewSizePercent=30",
+            "-XX:G1MaxNewSizePercent=40",
+            "-XX:G1HeapRegionSize=8M",
+            "-XX:G1ReservePercent=20",
+            "-XX:G1HeapWastePercent=5",
+            "-XX:G1MixedGCCountTarget=4",
+            "-XX:InitiatingHeapOccupancyPercent=15",
+            "-XX:G1MixedGCLiveThresholdPercent=90",
+            "-XX:G1RSetUpdatingPauseTimePercent=5",
+            "-XX:SurvivorRatio=32",
+            "-XX:+PerfDisableSharedMem",
+            "-XX:MaxTenuringThreshold=1"
         ]
     },
-    "notifications": {
-        "discord_webhook": "YOUR_WEBHOOK_URL_HERE",
-        "enabled": true
+
+    // Maintenance and backup settings
+    "maintenance": {
+        "backup_retention_days": 7,    // How many days to keep backups
+        "backup_name_format": "minecraft-%Y.%m.%d-%H.%M",  // Backup file naming format
+        // Server restart warning intervals
+        "warning_intervals": [
+            {"time": 15, "unit": "minutes"},
+            {"time": 10, "unit": "minutes"},
+            {"time": 5, "unit": "minutes"},
+            {"time": 1, "unit": "minute"},
+            {"time": 30, "unit": "seconds"},
+            {"time": 10, "unit": "seconds"},
+            {"time": 5, "unit": "seconds"}
+        ]
     },
+
+    // Discord notification settings
+    "notifications": {
+        "discord_webhook": "YOUR_DISCORD_WEBHOOK_URL_HERE"  // Replace with your Discord webhook URL
+    },
+
+    // API and networking settings
+    "api": {
+        "user_agent": "MinecraftModManager/1.0",  // User agent for API requests
+        "max_retries": 5,       // Maximum retry attempts for failed requests
+        "base_delay": 3,        // Base delay between retries (seconds)
+        "chunk_size": 10,       // Number of items to process in batch
+        "startup_timeout": 120   // Server startup timeout (seconds)
+    },
+
+    // Logging configuration
+    "logging": {
+        "max_lines": {
+            "status_check": 50,     // Maximum lines to keep for status checks
+            "startup_check": 5,      // Maximum lines to keep for startup logs
+            "server_check": 100      // Maximum lines to keep for server checks
+        }
+    },
+
+    // List of mod URLs from Modrinth
+
     "modrinth_urls": [
-        "https://modrinth.com/mod/example1",
-        "https://modrinth.com/mod/example2"
+        // Example mod URL format: "https://modrinth.com/mod/<MOD_ID>"
+        "https://modrinth.com/mod/TWsbC6jW",  // Add mod name as comment for clarity
+        // ... Add more mod URLs as needed
+        "https://modrinth.com/mod/6AQIaxuO"
     ]
-} 
+}

@@ -24,81 +24,63 @@ class MinecraftModManager:
         self.logger: Optional[logging.Logger] = None
         self.setup_logging()
         
-        # Config paths
-        self.server_jar_path: Optional[Path] = None
-        self.local_mods_path: Optional[Path] = None 
-        self.backup_path: Optional[Path] = None
-        self.minecraft_path: Optional[Path] = None
-        
-        # Config settings
-        self.minecraft_version: str = "1.21.1"
-        self.modloader: str = "fabric"
-        self.modrinth_urls: List[str] = []
-        self.discord_webhook: Optional[str] = None
-        
         # Load config
         config_path = Path(config_path)
         if not config_path.is_absolute():
             config_path = Path(__file__).parent / config_path
             
         try:
-            self.load_config(config_path)
+            self.config = json.loads(config_path.read_text())
+            self._validate_config()
+            self._ensure_directories()
             self._validate_server_jar()
         except Exception as e:
             self.logger.error(f"Initialization failed: {str(e)}")
             raise
 
     #region Configuration
-    def load_config(self, config_path: Path) -> None:
-        """Load configuration from JSON file."""
-        try:
-            config = json.loads(config_path.read_text())
-            
-            # Load paths with server-specific defaults
-            paths_config = config.get('paths', {})
-            self.local_mods_path = Path(paths_config.get('local_mods', '/home/Minecraft/mods')).expanduser()
-            self.backup_path = Path(paths_config.get('backups', '/home/Minecraft/backups')).expanduser()
-            self.minecraft_path = Path(paths_config.get('minecraft', '/home/Minecraft')).expanduser()
-            self.server_jar_path = Path(paths_config.get('server_jar', 
-                                             self.minecraft_path / "server.jar")).expanduser()
-            
-            # Load other settings
-            self.minecraft_version = config.get('minecraft_version', self.minecraft_version)
-            self.modloader = config.get('modloader', self.modloader).lower()
-            self.modrinth_urls = config.get('modrinth_urls', [])
-            self.discord_webhook = config.get('notifications', {}).get('discord_webhook')
-
-            self._validate_config()
-            self._ensure_directories()
-
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error loading config: {str(e)}")
-            raise
-
     def _validate_config(self) -> None:
         """Validate required configuration fields."""
         required_config = {
-            'local_mods_path': 'Local mods directory',
-            'minecraft_path': 'Minecraft directory',
-            'modloader': 'Modloader type'
+            'paths': {
+                'local_mods': 'Local mods directory',
+                'minecraft': 'Minecraft directory'
+            },
+            'minecraft': {
+                'modloader': 'Modloader type'
+            }
         }
         
-        missing = [name for field, name in required_config.items() 
-                  if not getattr(self, field, None)]
+        missing = []
+        
+        # Check paths
+        if 'paths' not in self.config:
+            missing.extend(f"{desc}" for desc in required_config['paths'].values())
+        else:
+            for key, desc in required_config['paths'].items():
+                if key not in self.config['paths']:
+                    missing.append(desc)
+        
+        # Check minecraft settings
+        if 'minecraft' not in self.config:
+            missing.extend(f"{desc}" for desc in required_config['minecraft'].values())
+        else:
+            for key, desc in required_config['minecraft'].items():
+                if key not in self.config['minecraft']:
+                    missing.append(desc)
         
         if missing:
             raise ValueError(f"Missing required config: {', '.join(missing)}")
             
         # Validate modloader value
         valid_modloaders = ['fabric', 'forge', 'quilt']
-        if self.modloader.lower() not in valid_modloaders:
-            raise ValueError(f"Invalid modloader: {self.modloader}. Must be one of: {', '.join(valid_modloaders)}")
+        if self.config['minecraft']['modloader'].lower() not in valid_modloaders:
+            raise ValueError(f"Invalid modloader: {self.config['minecraft']['modloader']}. Must be one of: {', '.join(valid_modloaders)}")
 
     def _validate_server_jar(self) -> None:
         """Validate server.jar exists in correct location."""
-        if not self.server_jar_path.exists():
-            raise FileNotFoundError(f"server.jar not found at {self.server_jar_path}")
+        if not Path(self.config['paths']['server_jar']).exists():
+            raise FileNotFoundError(f"server.jar not found at {self.config['paths']['server_jar']}")
 
     def setup_logging(self) -> None:
         """Configure logging with file and console handlers."""
@@ -107,7 +89,7 @@ class MinecraftModManager:
         self.logger.handlers = []
         
         # Use minecraft directory for logs
-        log_path = self.minecraft_path / "logs" / "mod_manager.log" if hasattr(self, 'minecraft_path') else Path("/home/Minecraft/logs/mod_manager.log")
+        log_path = Path(self.config['paths']['minecraft']) / "logs" / "mod_manager.log" if hasattr(self, 'config') and 'paths' in self.config and 'minecraft' in self.config['paths'] else Path("/home/Minecraft/logs/mod_manager.log")
         os.makedirs(log_path.parent, exist_ok=True)
         
         # File handler
@@ -148,7 +130,7 @@ class MinecraftModManager:
     def get_player_count(self) -> int:
         """Get current number of online players."""
         try:
-            log_file = self.minecraft_path / "logs/latest.log"
+            log_file = Path(self.config['paths']['minecraft']) / "logs/latest.log"
             if log_file.exists():
                 lines = log_file.read_text(encoding='utf-8').splitlines()[-50:]
                 for line in reversed(lines):
@@ -181,7 +163,7 @@ class MinecraftModManager:
                 return False
 
             # Check server log
-            log_file = self.minecraft_path / "logs" / "latest.log"
+            log_file = Path(self.config['paths']['minecraft']) / "logs" / "latest.log"
             if not log_file.exists():
                 self.logger.debug("Server log file not found")
                 return False
@@ -263,31 +245,11 @@ class MinecraftModManager:
             self.send_discord_notification("Server Status", f"❌ Server shutdown failed: {str(e)}", True)
             return False
 
-    def _build_java_command(self) -> str:
-        """Build Java command from config."""
-        java_config = self.config.get('server', {}).get('java', {})
-        
-        # Get memory settings
-        min_mem = java_config.get('min_memory', '4G')
-        max_mem = java_config.get('max_memory', '6G')
-        
-        # Get additional flags
-        flags = java_config.get('flags', [])
-        
-        # Build command
-        cmd = [
-            f"-Xms{min_mem}",
-            f"-Xmx{max_mem}"
-        ]
-        cmd.extend(flags)
-        
-        return ' '.join(cmd)
-
     def restart_server(self) -> bool:
         """Restart the Minecraft server."""
         try:
-            if not self.server_jar_path.exists():
-                raise FileNotFoundError(f"server.jar not found at {self.server_jar_path}")
+            if not Path(self.config['paths']['server_jar']).exists():
+                raise FileNotFoundError(f"server.jar not found at {self.config['paths']['server_jar']}")
             
             # Stop if running
             if self.verify_server_status():
@@ -296,19 +258,20 @@ class MinecraftModManager:
                     raise Exception("Failed to stop existing server")
             
             # Setup directories and logs
-            os.makedirs(self.minecraft_path / "logs", exist_ok=True)
+            os.makedirs(Path(self.config['paths']['minecraft']) / "logs", exist_ok=True)
             
-            log_file = self.minecraft_path / "logs" / "latest.log"
+            log_file = Path(self.config['paths']['minecraft']) / "logs" / "latest.log"
             if log_file.exists():
                 os.remove(log_file)
             
-            # Get Java flags from config
-            java_flags = self._build_java_command()
+            # Optimized Java flags
+            java_flags = " ".join(self.config['server']['java_flags'])
+            memory_flags = f"-Xms{self.config['server']['memory']['min']} -Xmx{self.config['server']['memory']['max']}"
             
             # Start server
             start_cmd = (
-                f"cd {self.minecraft_path} && "
-                f"nohup java {java_flags} -jar {self.server_jar_path} nogui "
+                f"cd {self.config['paths']['minecraft']} && "
+                f"nohup java {memory_flags} {java_flags} -jar {self.config['paths']['server_jar']} nogui "
                 f"> logs/latest.log 2>&1 &"
             )
             
@@ -319,7 +282,7 @@ class MinecraftModManager:
             # Wait for startup
             time.sleep(5)
             
-            startup_timeout = 120  # 2 minutes
+            startup_timeout = self.config['api']['startup_timeout']  # 2 minutes
             self.logger.info(f"Waiting up to {startup_timeout} seconds for server to start...")
             
             for i in range(startup_timeout // 5):
@@ -336,7 +299,7 @@ class MinecraftModManager:
                     self.logger.info(f"Still waiting for server to start... ({i*5} seconds)")
                     # Log recent activity
                     try:
-                        log_file = self.minecraft_path / "logs" / "latest.log"
+                        log_file = Path(self.config['paths']['minecraft']) / "logs" / "latest.log"
                         if log_file.exists():
                             with open(log_file, 'r') as f:
                                 last_lines = f.readlines()[-5:]
@@ -356,7 +319,7 @@ class MinecraftModManager:
     async def fetch_latest_mod_versions(self) -> Dict[str, dict]:
         """Fetch latest compatible mod versions from Modrinth."""
         headers = {
-            "User-Agent": "MinecraftModManager/1.0",
+            "User-Agent": self.config['api']['user_agent'],
             "Accept": "application/json"
         }
         mod_info = {}
@@ -366,15 +329,15 @@ class MinecraftModManager:
         connector = aiohttp.TCPConnector(limit=10)
         timeout = aiohttp.ClientTimeout(total=300)
         
-        progress_bar = tqdm(total=len(self.modrinth_urls), desc="Checking mod versions")
+        progress_bar = tqdm(total=len(self.config['modrinth_urls']), desc="Checking mod versions")
         
         async with aiohttp.ClientSession(headers=headers, 
                                        connector=connector, 
                                        timeout=timeout) as session:
             # Process in chunks to avoid rate limits
-            chunk_size = 10
-            for i in range(0, len(self.modrinth_urls), chunk_size):
-                chunk = self.modrinth_urls[i:i + chunk_size]
+            chunk_size = self.config['api']['chunk_size']
+            for i in range(0, len(self.config['modrinth_urls']), chunk_size):
+                chunk = self.config['modrinth_urls'][i:i + chunk_size]
                 tasks = []
                 
                 for url in chunk:
@@ -382,7 +345,7 @@ class MinecraftModManager:
                 
                 await asyncio.gather(*tasks)
                 
-                if i + chunk_size < len(self.modrinth_urls):
+                if i + chunk_size < len(self.config['modrinth_urls']):
                     await asyncio.sleep(2)  # Rate limiting delay
         
         progress_bar.close()
@@ -399,8 +362,8 @@ class MinecraftModManager:
     async def _fetch_mod_info(self, session: aiohttp.ClientSession, url: str, 
                             mod_info: Dict, failed_mods: List, progress_bar: tqdm) -> None:
         """Fetch info for a single mod."""
-        max_retries = 5
-        base_delay = 3
+        max_retries = self.config['api']['max_retries']
+        base_delay = self.config['api']['base_delay']
         
         async def make_request(endpoint: str, retry_count: int = 0):
             try:
@@ -439,8 +402,8 @@ class MinecraftModManager:
             
             compatible_versions = [
                 v for v in versions
-                if self.minecraft_version in v.get('game_versions', []) and
-                self.modloader in [loader.lower() for loader in v.get('loaders', [])]
+                if self.config['minecraft']['version'] in v.get('game_versions', []) and
+                self.config['minecraft']['modloader'].lower() in [loader.lower() for loader in v.get('loaders', [])]
             ]
 
             if compatible_versions:
@@ -455,12 +418,12 @@ class MinecraftModManager:
             else:
                 self.logger.warning(
                     f"No compatible version for {mod_name}. "
-                    f"Required MC version: {self.minecraft_version}, "
-                    f"Required modloader: {self.modloader}, "
+                    f"Required MC version: {self.config['minecraft']['version']}, "
+                    f"Required modloader: {self.config['minecraft']['modloader']}, "
                     f"Available versions: {[v.get('game_versions', []) for v in versions[:3]]}"
                 )
                 failed_mods.append(
-                    f"{mod_name} (no compatible version for MC {self.minecraft_version} with {self.modloader})"
+                    f"{mod_name} (no compatible version for MC {self.config['minecraft']['version']} with {self.config['minecraft']['modloader']})"
                 )
 
         except Exception as e:
@@ -473,9 +436,6 @@ class MinecraftModManager:
     async def update_mods(self) -> None:
         """Update all mods to latest versions."""
         try:
-            backup_dir = self.local_mods_path / "mods_backup"
-            backup_dir.mkdir(exist_ok=True)
-            
             mod_info = await self.fetch_latest_mod_versions()
             if not mod_info:
                 self.send_discord_notification("Mod Updates", "✅ All mods are up to date!")
@@ -484,14 +444,19 @@ class MinecraftModManager:
             updated_mods = []
             skipped_mods = []
             failed_mods = []
+            newly_added_mods = []
             
             progress_bar = tqdm(total=len(mod_info), desc="Downloading mods")
             
             async with aiohttp.ClientSession() as session:
                 tasks = []
                 for url, info in mod_info.items():
-                    tasks.append(self._update_single_mod(session, info, backup_dir, 
-                                                       updated_mods, skipped_mods, failed_mods, progress_bar))
+                    tasks.append(self._update_single_mod(
+                        session, info,
+                        updated_mods, skipped_mods, failed_mods, 
+                        newly_added_mods, 
+                        progress_bar
+                    ))
                 await asyncio.gather(*tasks)
             
             progress_bar.close()
@@ -503,13 +468,14 @@ class MinecraftModManager:
             self.send_discord_notification("Mod Update Error", str(e), True)
             raise
 
-    async def _update_single_mod(self, session: aiohttp.ClientSession, info: Dict, 
-                               backup_dir: Path, updated_mods: List, skipped_mods: List, 
-                               failed_mods: List, progress_bar: tqdm) -> None:
+    async def _update_single_mod(self, session: aiohttp.ClientSession, info: Dict,
+                               updated_mods: List, skipped_mods: List, 
+                               failed_mods: List, newly_added_mods: List, 
+                               progress_bar: tqdm) -> None:
         """Update a single mod and track its status."""
         try:
             mod_name = info['project_name']
-            current_mod_path = self.local_mods_path / info['filename']
+            current_mod_path = Path(self.config['paths']['local_mods']) / info['filename']
             
             if current_mod_path.exists():
                 current_size = current_mod_path.stat().st_size
@@ -520,11 +486,13 @@ class MinecraftModManager:
                     skipped_mods.append(f"• {mod_name} ({info['version_number']})")
                     progress_bar.update(1)
                     return
+                
+                # Remove old version
+                os.system(f"sudo rm {current_mod_path}")
+            else:
+                newly_added_mods.append(f"• {mod_name} ({info['version_number']})")
             
-            if current_mod_path.exists():
-                backup_name = f"{mod_name}-{info['version_number']}.jar.backup"
-                current_mod_path.rename(backup_dir / backup_name)
-            
+            # Download and save new version
             async with session.get(info['download_url']) as response:
                 content = await response.read()
                 current_mod_path.write_bytes(content)
@@ -585,10 +553,10 @@ class MinecraftModManager:
             
             if self.get_player_count() > 0:
                 self.send_discord_notification(
-                    "Update Skipped", 
-                    "⚠️ Players online - will try again later"
+                    "Server Update", 
+                    "🔄 Players online - initiating shutdown countdown"
                 )
-                return
+                self._warn_players()
             
             self.send_discord_notification("Update Started", "🔄 Beginning update process...")
             self.run_maintenance()
@@ -601,7 +569,7 @@ class MinecraftModManager:
     #region Utilities
     def send_discord_notification(self, title: str, message: str, is_error: bool = False) -> None:
         """Send Discord webhook notification."""
-        if not self.discord_webhook:
+        if not self.config['notifications']['discord_webhook']:
             return
             
         try:
@@ -616,7 +584,7 @@ class MinecraftModManager:
             }
             
             response = requests.post(
-                self.discord_webhook,
+                self.config['notifications']['discord_webhook'],
                 json=payload,
                 headers={'Content-Type': 'application/json'}
             )
@@ -629,33 +597,48 @@ class MinecraftModManager:
 
     def _ensure_directories(self) -> None:
         """Ensure all required directories exist."""
-        for directory in [self.local_mods_path, self.backup_path, self.minecraft_path]:
+        for directory in [Path(self.config['paths']['local_mods']), Path(self.config['paths']['backups']), Path(self.config['paths']['minecraft'])]:
             if directory and not directory.exists():
                 os.system(f"sudo mkdir -p {directory}")
                 os.system(f"sudo chown -R $USER:$USER {directory}")
                 self.logger.info(f"Created directory: {directory}")
 
+    def _safe_operation(self, operation_name: str, func: callable, *args, **kwargs) -> bool:
+        """Execute an operation safely with standard error handling."""
+        try:
+            result = func(*args, **kwargs)
+            self.logger.info(f"{operation_name} completed successfully")
+            return result
+        except Exception as e:
+            self.logger.error(f"{operation_name} failed: {str(e)}")
+            self._notify_error(f"{operation_name} Failed", e)
+            return False
+
     def create_backup(self) -> bool:
         """Create server backup of mods and config files."""
+        return self._safe_operation("Backup", self._create_backup_internal)
+
+    def _create_backup_internal(self) -> bool:
         try:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            backup_path = self.backup_path / f"server_backup_{timestamp}.tar.gz"
+            # Use backup name format from config
+            timestamp = datetime.now().strftime(self.config['maintenance']['backup_name_format'])
+            backup_path = Path(self.config['paths']['backups']) / f"{timestamp}.tar.gz"
             
             # Setup backup directory
-            os.system(f"sudo mkdir -p {self.backup_path}")
-            os.system(f"sudo chown -R $USER:$USER {self.backup_path}")
-            os.system(f"sudo chmod -R a+r {self.minecraft_path}")
+            os.system(f"sudo mkdir -p {self.config['paths']['backups']}")
+            os.system(f"sudo chown -R $USER:$USER {self.config['paths']['backups']}")
+            os.system(f"sudo chmod -R a+r {self.config['paths']['minecraft']}")
             
             # Create temp directory
-            temp_backup_dir = self.backup_path / "temp_backup"
+            temp_backup_dir = Path(self.config['paths']['backups']) / "temp_backup"
             os.system(f"sudo rm -rf {temp_backup_dir}")
             os.system(f"sudo mkdir -p {temp_backup_dir}")
             os.system(f"sudo chown -R $USER:$USER {temp_backup_dir}")
             
             # Copy files
-            os.system(f"sudo cp -r {self.local_mods_path} {temp_backup_dir}/mods")
-            os.system(f"sudo cp -r {self.minecraft_path}/config {temp_backup_dir}/config")
-            os.system(f"sudo cp -r {self.minecraft_path}/world {temp_backup_dir}/world")
+            os.system(f"sudo cp -r {self.config['paths']['local_mods']} {temp_backup_dir}/mods")
+            os.system(f"sudo cp -r {self.config['paths']['minecraft']}/config {temp_backup_dir}/config")
+            os.system(f"sudo cp -r {self.config['paths']['minecraft']}/world {temp_backup_dir}/world")
             os.system(f"sudo chown -R $USER:$USER {temp_backup_dir}")
             
             # Create archive
@@ -670,7 +653,7 @@ class MinecraftModManager:
             self.logger.info(f"Created backup at {backup_path}")
             self.send_discord_notification(
                 "Server Backup",
-                f"✅ Created backup: server_backup_{timestamp}.tar.gz"
+                f"✅ Created backup: {timestamp}.tar.gz"
             )
             return True
             
@@ -687,7 +670,7 @@ class MinecraftModManager:
         """Remove backups older than specified days."""
         try:
             now = time.time()
-            for backup in self.backup_path.glob('server_backup_*.tar.gz'):
+            for backup in Path(self.config['paths']['backups']).glob('server_backup_*.tar.gz'):
                 if backup.stat().st_mtime < now - (keep_days * 86400):
                     os.system(f"sudo rm {backup}")
                     self.logger.info(f"Removed old backup: {backup.name}")
@@ -697,15 +680,7 @@ class MinecraftModManager:
 
     def _warn_players(self) -> None:
         """Send countdown warnings to players."""
-        warnings = [
-            (15, "minutes"),
-            (10, "minutes"),
-            (5, "minutes"),
-            (1, "minute"),
-            (30, "seconds"),
-            (10, "seconds"),
-            (5, "seconds")
-        ]
+        warnings = self.config['maintenance']['warning_intervals']
         
         try:
             for time_val, unit in warnings:
@@ -746,6 +721,44 @@ class MinecraftModManager:
                 "Mod Updates",
                 f"✅ All {total_mods} mods are up to date!"
             )
+
+    def _get_path(self, key: str) -> Path:
+        """Get a Path object from config paths."""
+        return Path(self.config['paths'][key]).expanduser()
+
+    def _notify_success(self, title: str, message: str) -> None:
+        """Send a success notification to Discord."""
+        self.send_discord_notification(title, f"✅ {message}")
+
+    def _notify_error(self, title: str, error: Exception) -> None:
+        """Send an error notification to Discord."""
+        self.send_discord_notification(title, f"❌ {str(error)}", True)
+
+    def _read_last_lines(self, log_type: str) -> List[str]:
+        """Read last N lines from log file based on config."""
+        log_file = self._get_path('minecraft') / "logs/latest.log"
+        max_lines = self.config['logging']['max_lines'][log_type]
+        
+        if not log_file.exists():
+            return []
+            
+        try:
+            with open(log_file, 'r', encoding='utf-8') as f:
+                return f.readlines()[-max_lines:]
+        except Exception as e:
+            self.logger.error(f"Error reading log file: {str(e)}")
+            return []
+
+    def _check_server_process(self) -> Optional[str]:
+        """Check if server process is running and return PID if found."""
+        try:
+            result = os.popen("ps aux | grep '[j]ava.*server.jar'").read().strip()
+            if not result:
+                return None
+            return result.split()[1]  # PID
+        except Exception as e:
+            self.logger.error(f"Error checking server process: {str(e)}")
+            return None
     #endregion
 
 def main():
