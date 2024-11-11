@@ -29,7 +29,6 @@ A Python-based tool for managing Minecraft server mods and maintenance.
 ## 🚀 Installation
 
 ### 1. Install Python and pip
-
 ```bash
 # Ubuntu/Debian
 sudo apt update
@@ -77,27 +76,32 @@ Edit `config.json` with your settings:
 
 ```json
 {
-    "server": {
-        "minecraft_version": "1.21.1",
-        "modloader": "fabric",
-        "java": {
-            "min_memory": "4G",
-            "max_memory": "6G",
-            "flags": [
-                "-XX:+UseG1GC",
-                "-XX:+ParallelRefProcEnabled",
-                "-XX:MaxGCPauseMillis=200"
-            ]
-        }
-    },
     "paths": {
-        "local_mods": "/path/to/mods",
-        "backups": "/path/to/backups",
-        "minecraft": "/path/to/minecraft",
-        "server_jar": "/path/to/server.jar"
+        "local_mods": "/home/Minecraft/mods",
+        "backups": "/home/Minecraft/backups",
+        "minecraft": "/home/Minecraft",
+        "server_jar": "/home/Minecraft/server.jar",
+        "logs": "/home/Minecraft/logs/mod_manager.log"
+    },
+    "minecraft": {
+        "version": "1.21.1",
+        "modloader": "fabric"
+    },
+    "server": {
+        "memory": {
+            "min": "4G",
+            "max": "6G"
+        },
+        "java_flags": [
+            "-XX:+UseG1GC",
+            "-XX:+ParallelRefProcEnabled",
+            "-XX:MaxGCPauseMillis=200"
+            // ... additional optimization flags available
+        ]
     },
     "maintenance": {
         "backup_retention_days": 7,
+        "backup_name_format": "minecraft-%Y.%m.%d-%H.%M",
         "warning_intervals": [
             {"time": 15, "unit": "minutes"},
             {"time": 5, "unit": "minutes"},
@@ -105,8 +109,21 @@ Edit `config.json` with your settings:
         ]
     },
     "notifications": {
-        "discord_webhook": "YOUR_WEBHOOK_URL_HERE",
-        "enabled": true
+        "discord_webhook": "YOUR_DISCORD_WEBHOOK_URL_HERE"
+    },
+    "api": {
+        "user_agent": "MinecraftModManager/1.0",
+        "max_retries": 5,
+        "base_delay": 3,
+        "chunk_size": 10,
+        "startup_timeout": 120
+    },
+    "logging": {
+        "max_lines": {
+            "status_check": 50,
+            "startup_check": 5,
+            "server_check": 100
+        }
     },
     "modrinth_urls": [
         "https://modrinth.com/mod/example1",
