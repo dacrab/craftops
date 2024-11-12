@@ -17,6 +17,9 @@ A Python-based tool for managing Minecraft server mods and maintenance.
 - 🔔 Discord webhook notifications
 - ⚙️ Configurable Java settings (custom & flags.sh)
 - 📊 Server status monitoring
+- ⏰ Configurable maintenance warnings
+- 🔄 Smart mod version compatibility checking
+- 📝 Detailed logging system
 
 ## 📋 Requirements
 
@@ -62,50 +65,100 @@ cp config.json.example config.json
 ## 🔧 Configuration
 
 ### Basic Setup
-Edit `config.json` with your settings:
+Edit `config.json` with your settings. Here are the key configuration sections:
+
+### 1. Paths Configuration
 ```json
 {
     "paths": {
         "minecraft": "/home/Minecraft",
         "local_mods": "/home/Minecraft/mods",
-        "server_jar": "/home/Minecraft/server.jar"
-    },
-    "minecraft": {
-        "version": "1.21.1",
-        "modloader": "fabric"
+        "backups": "/home/Minecraft/backups",
+        "server_jar": "/home/Minecraft/server.jar",
+        "logs": "/home/Minecraft/logs/mod_manager.log"
     }
 }
 ```
 
-### Java Flags Setup
-Choose between:
+### 2. Minecraft Settings
+```json
+{
+    "minecraft": {
+        "version": "1.21.1",
+        "modloader": "fabric"  // fabric/forge/quilt
+    }
+}
+```
 
-1. **flags.sh** (Recommended):
-   - Visit [flags.sh](https://flags.sh/)
-   - Copy generated flags
-   - Add to config:
-   ```json
-   {
-       "server": {
-           "java_flags": {
-               "source": "flags_sh",
-               "flags_sh": "YOUR_FLAGS_FROM_FLAGS_SH"
-           }
-       }
-   }
-   ```
+### 3. Server Memory & Java Flags
+Choose between flags.sh or custom configuration:
 
-2. **Custom Flags**:
-   ```json
-   {
-       "server": {
-           "java_flags": {
-               "source": "custom",
-               "custom": ["-XX:+UseG1GC", "..."]
-           }
-       }
-   }
-   ```
+```json
+{
+    "server": {
+        "memory": {
+            "source": "flags_sh",  // or "custom"
+            "min": "4G",           // used if source is "custom"
+            "max": "6G"
+        },
+        "java_flags": {
+            "source": "custom",    // or "flags_sh"
+            "flags_sh": "",        // paste flags.sh output here
+            "custom": [
+                "-XX:+UseG1GC",
+                "-XX:+ParallelRefProcEnabled",
+                // ... other flags
+            ]
+        }
+    }
+}
+```
+
+### 4. Maintenance Configuration
+```json
+{
+    "maintenance": {
+        "backup_retention_days": 7,
+        "backup_name_format": "minecraft-%Y.%m.%d-%H.%M",
+        "warning_intervals": [
+            {"time": 15, "unit": "minutes"},
+            {"time": 5, "unit": "minutes"},
+            {"time": 1, "unit": "minute"}
+        ]
+    }
+}
+```
+
+### 5. Discord Notifications
+```json
+{
+    "notifications": {
+        "discord_webhook": "YOUR_DISCORD_WEBHOOK_URL_HERE"
+    }
+}
+```
+
+### 6. API Settings
+```json
+{
+    "api": {
+        "max_retries": 5,
+        "base_delay": 3,
+        "chunk_size": 10,
+        "startup_timeout": 120
+    }
+}
+```
+
+### 7. Mod List
+```json
+{
+    "modrinth_urls": [
+        "https://modrinth.com/mod/MOD_ID_1",
+        "https://modrinth.com/mod/MOD_ID_2"
+    ]
+}
+```
 
 ## 🎮 Usage
 
@@ -133,6 +186,8 @@ Common fixes:
 - **Java flags issues**: Verify flags.sh output format
 - **Package conflicts**: Try alternative installation method
 - **Dependencies missing**: Use package manager installation
+- **Mod compatibility issues**: Check Minecraft version and modloader settings
+- **API rate limits**: Adjust api.max_retries and api.base_delay in config
 
 ## 📝 License
 
