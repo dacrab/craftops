@@ -1,53 +1,63 @@
 {
-    // Paths to important directories and files
+    // Paths Configuration - Defines file system locations for server components
     "paths": {
-        "local_mods": "/home/Minecraft/mods",      // Directory containing server mods
-        "backups": "/home/Minecraft/backups",      // Directory for server backups
-        "minecraft": "/home/Minecraft",            // Main Minecraft server directory
-        "server_jar": "/home/Minecraft/server.jar", // Path to server JAR file
-        "logs": "/home/Minecraft/logs/mod_manager.log" // Log file location
+        "minecraft": "/home/Minecraft",                    // Main Minecraft server directory
+        "local_mods": "/home/Minecraft/mods",             // Directory containing server mods
+        "backups": "/home/Minecraft/backups",             // Directory for server backups
+        "server_jar": "/home/Minecraft/server.jar",       // Path to server JAR file
+        "logs": "/home/Minecraft/logs/mod_manager.log"    // Log file location
     },
 
-    // Minecraft server configuration
+    // Minecraft Configuration - Basic server version settings
     "minecraft": {
-        "version": "1.21.1",    // Minecraft version
-        "modloader": "fabric"    // Mod loader type (fabric/forge/quilt)
+        "version": "1.21.1",     // Minecraft version
+        "modloader": "fabric"     // Mod loader type (fabric/forge/quilt)
     },
 
-    // Server performance settings
+    // Server Configuration - Memory and Java runtime settings
     "server": {
         "memory": {
-            "min": "4G",        // Minimum allocated RAM
-            "max": "6G"         // Maximum allocated RAM
+            "source": "flags_sh",   // Can be "custom" or "flags_sh"
+            "min": "4G",            // Only used when source is "custom"
+            "max": "6G"             // Only used when source is "custom"
         },
-        // Optimized Java garbage collection flags
-        "java_flags": [
-            "-XX:+UseG1GC",
-            "-XX:+ParallelRefProcEnabled", 
-            "-XX:MaxGCPauseMillis=200",
-            "-XX:+UnlockExperimentalVMOptions",
-            "-XX:+DisableExplicitGC",
-            "-XX:+AlwaysPreTouch",
-            "-XX:G1NewSizePercent=30",
-            "-XX:G1MaxNewSizePercent=40",
-            "-XX:G1HeapRegionSize=8M",
-            "-XX:G1ReservePercent=20",
-            "-XX:G1HeapWastePercent=5",
-            "-XX:G1MixedGCCountTarget=4",
-            "-XX:InitiatingHeapOccupancyPercent=15",
-            "-XX:G1MixedGCLiveThresholdPercent=90",
-            "-XX:G1RSetUpdatingPauseTimePercent=5",
-            "-XX:SurvivorRatio=32",
-            "-XX:+PerfDisableSharedMem",
-            "-XX:MaxTenuringThreshold=1"
-        ]
+        "java_flags": {
+            "source": "custom",     // Can be "custom" or "flags_sh"
+            "flags_sh": "",         // Paste the complete flags.sh output here when using "flags_sh" source
+            "custom": [             // Used when source is "custom"
+                // GC Configuration
+                "-XX:+UseG1GC",
+                "-XX:+ParallelRefProcEnabled",
+                "-XX:MaxGCPauseMillis=200",
+                
+                // G1GC Tuning
+                "-XX:G1NewSizePercent=30",
+                "-XX:G1MaxNewSizePercent=40", 
+                "-XX:G1HeapRegionSize=8M",
+                "-XX:G1ReservePercent=20",
+                "-XX:G1HeapWastePercent=5",
+                "-XX:G1MixedGCCountTarget=4",
+                "-XX:G1MixedGCLiveThresholdPercent=90",
+                "-XX:G1RSetUpdatingPauseTimePercent=5",
+                
+                // Memory Management
+                "-XX:+AlwaysPreTouch",
+                "-XX:InitiatingHeapOccupancyPercent=15",
+                "-XX:SurvivorRatio=32",
+                "-XX:MaxTenuringThreshold=1",
+                
+                // Performance Optimizations
+                "-XX:+UnlockExperimentalVMOptions",
+                "-XX:+DisableExplicitGC",
+                "-XX:+PerfDisableSharedMem"
+            ]
+        }
     },
 
-    // Maintenance and backup settings
+    // Maintenance Configuration - Backup and warning settings
     "maintenance": {
-        "backup_retention_days": 7,    // How many days to keep backups
-        "backup_name_format": "minecraft-%Y.%m.%d-%H.%M",  // Backup file naming format
-        // Server restart warning intervals
+        "backup_retention_days": 7,                          // How many days to keep backups
+        "backup_name_format": "minecraft-%Y.%m.%d-%H.%M",   // Backup file naming format
         "warning_intervals": [
             {"time": 15, "unit": "minutes"},
             {"time": 10, "unit": "minutes"},
@@ -59,35 +69,32 @@
         ]
     },
 
-    // Discord notification settings
+    // Discord Notifications Configuration - Webhook settings
     "notifications": {
-        "discord_webhook": "YOUR_DISCORD_WEBHOOK_URL_HERE"  // Replace with your Discord webhook URL
+        "discord_webhook": "YOUR_DISCORD_WEBHOOK_URL_HERE"   // Replace with your Discord webhook URL
     },
 
-    // API and networking settings
+    // API Configuration - Settings for external API interactions
     "api": {
-        "user_agent": "MinecraftModManager/1.0",  // User agent for API requests
-        "max_retries": 5,       // Maximum retry attempts for failed requests
-        "base_delay": 3,        // Base delay between retries (seconds)
-        "chunk_size": 10,       // Number of items to process in batch
-        "startup_timeout": 120   // Server startup timeout (seconds)
+        "max_retries": 5,                          // Maximum retry attempts for failed requests
+        "base_delay": 3,                           // Base delay between retries (seconds)
+        "chunk_size": 10,                          // Number of items to process in batch
+        "startup_timeout": 120                     // Server startup timeout (seconds)
     },
 
-    // Logging configuration
+    // Logging Configuration - Log file size management
     "logging": {
         "max_lines": {
-            "status_check": 50,     // Maximum lines to keep for status checks
+            "status_check": 50,      // Maximum lines to keep for status checks
             "startup_check": 5,      // Maximum lines to keep for startup logs
             "server_check": 100      // Maximum lines to keep for server checks
         }
     },
 
-    // List of mod URLs from Modrinth
-
+    // Modrinth Mod List - URLs for mods to be managed
     "modrinth_urls": [
         // Example mod URL format: "https://modrinth.com/mod/<MOD_ID>"
-        "https://modrinth.com/mod/TWsbC6jW",  // Add mod name as comment for clarity
-        // ... Add more mod URLs as needed
-        "https://modrinth.com/mod/6AQIaxuO"
+        "https://modrinth.com/mod/TWsbC6jW",    // Add mod name as comment for clarity
+        "https://modrinth.com/mod/6AQIaxuO"     // Add more mod URLs as needed
     ]
 }
