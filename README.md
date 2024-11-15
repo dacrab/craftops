@@ -13,161 +13,131 @@ A Python-based tool for managing Minecraft server mods and maintenance.
 ## ✨ Features
 
 - 🔄 Automated mod updates from Modrinth
-- 💾 Automated backups with retention policy
-- 🔔 Discord webhook notifications
-- ⚙️ Configurable Java settings (custom & flags.sh)
-- 📊 Server status monitoring
-- ⏰ Configurable maintenance warnings
-- 🔄 Smart mod version compatibility checking
-- 📝 Detailed logging system
+- 💾 Smart backup system with retention policies
+- 🔔 Discord webhook notifications for server events
+- ⚙️ Configurable Java memory and optimization flags
+- 📊 Server status monitoring and player count tracking
+- ⏰ Customizable maintenance warnings with countdown
+- 🔄 Intelligent mod version compatibility checking
+- 📝 Comprehensive logging system
+- 🛠️ Command-line interface for server management
 
 ## 📋 Requirements
 
 - Python 3.7+
 - Linux environment
 - Java (for Minecraft server)
+- Required Python packages: aiohttp, requests, tqdm
 
 ## 🚀 Installation
 
-### 1. Install Python & Dependencies
-
-**Method A: Using Package Manager (Recommended for Beginners)**
 ```bash
-# Ubuntu/Debian
-sudo apt update
-sudo apt install python3 python3-pip python3-aiohttp python3-requests python3-tqdm
-
-# CentOS/RHEL
-sudo dnf install python3 python3-pip python3-aiohttp python3-requests python3-tqdm
-
-# Arch Linux
-sudo pacman -S python python-pip python-aiohttp python-requests python-tqdm
-```
-
-**Method B: Using pip (Recommended for Advanced Users)**
-```bash
-# First install Python & pip
-sudo apt update && sudo apt install python3 python3-pip  # Ubuntu/Debian
-sudo dnf install python3 python3-pip                     # CentOS/RHEL
-sudo pacman -S python python-pip                         # Arch Linux
-
-# Then install dependencies
-pip3 install aiohttp requests tqdm
-```
-
-### 2. Setup
-```bash
-git clone https://github.com/dacrab/minecraft-mod-manager.git
+# Clone repository
+git clone https://github.com/yourusername/minecraft-mod-manager.git
 cd minecraft-mod-manager
+
+# Install dependencies
+pip3 install aiohttp requests tqdm
+
+# Create config file
 cp config.json.example config.json
 ```
 
 ## 🔧 Configuration
 
-### Basic Setup
-Edit `config.json` with your settings. Here are the key configuration sections:
+Edit `config.json` with your settings:
 
-### 1. Paths Configuration
-```json
-{
-    "paths": {
-        "minecraft": "/home/Minecraft",
-        "local_mods": "/home/Minecraft/mods",
-        "backups": "/home/Minecraft/backups",
-        "server_jar": "/home/Minecraft/server.jar",
-        "logs": "/home/Minecraft/logs/mod_manager.log"
-    }
-}
-```
-
-### 2. Minecraft Settings
-```json
-{
-    "minecraft": {
-        "version": "1.21.1",
-        "modloader": "fabric"  // fabric/forge/quilt
-    }
-}
-```
-
-### 3. Server Memory & Java Flags
-Choose between flags.sh or custom configuration:
-
+### Server Configuration
 ```json
 {
     "server": {
-        "memory": {
-            "source": "flags_sh",  // or "custom"
-            "min": "4G",           // used if source is "custom"
-            "max": "6G"
-        },
-        "java_flags": {
-            "source": "custom",    // or "flags_sh"
-            "flags_sh": "",        // paste flags.sh output here
-            "custom": [
+        "minecraft_version": "1.21.1",
+        "modloader": "fabric",
+        "java": {
+            "min_memory": "4G",
+            "max_memory": "6G",
+            "flags": [
                 "-XX:+UseG1GC",
                 "-XX:+ParallelRefProcEnabled",
-                // ... other flags
+                // ... other optimization flags
             ]
         }
     }
 }
 ```
 
-### 4. Maintenance Configuration
+### Paths Configuration
+```json
+{
+    "paths": {
+        "local_mods": "/home/Minecraft/mods",
+        "backups": "/home/Minecraft/backups",
+        "minecraft": "/home/Minecraft",
+        "server_jar": "/home/Minecraft/server.jar"
+    }
+}
+```
+
+### Maintenance Settings
 ```json
 {
     "maintenance": {
         "backup_retention_days": 7,
-        "backup_name_format": "minecraft-%Y.%m.%d-%H.%M",
         "warning_intervals": [
             {"time": 15, "unit": "minutes"},
+            {"time": 10, "unit": "minutes"},
             {"time": 5, "unit": "minutes"},
-            {"time": 1, "unit": "minute"}
+            {"time": 1, "unit": "minute"},
+            {"time": 30, "unit": "seconds"},
+            {"time": 10, "unit": "seconds"},
+            {"time": 5, "unit": "seconds"}
         ]
     }
 }
 ```
 
-### 5. Discord Notifications
+### Discord Notifications
 ```json
 {
     "notifications": {
-        "discord_webhook": "YOUR_DISCORD_WEBHOOK_URL_HERE"
+        "discord_webhook": "YOUR_WEBHOOK_URL_HERE",
+        "enabled": true
     }
 }
 ```
 
-### 6. API Settings
-```json
-{
-    "api": {
-        "max_retries": 5,
-        "base_delay": 3,
-        "chunk_size": 10,
-        "startup_timeout": 120
-    }
-}
-```
-
-### 7. Mod List
+### Mod List
 ```json
 {
     "modrinth_urls": [
-        "https://modrinth.com/mod/MOD_ID_1",
-        "https://modrinth.com/mod/MOD_ID_2"
+        "https://modrinth.com/mod/example1",
+        "https://modrinth.com/mod/example2"
     ]
 }
 ```
 
 ## 🎮 Usage
 
-### Manual Run
+### Command Line Interface
+
 ```bash
+# Check server status
+python3 MinecraftModManager.py --status
+
+# Start server
+python3 MinecraftModManager.py --start
+
+# Stop server
+python3 MinecraftModManager.py --stop
+
+# Run automated update
+python3 MinecraftModManager.py --auto-update
+
+# Run manual maintenance
 python3 MinecraftModManager.py
 ```
 
-### Automated (Cron)
+### Automated Updates (Cron)
 ```bash
 # Daily at 4 AM
 0 4 * * * /usr/bin/python3 /path/to/MinecraftModManager.py --auto-update
@@ -175,19 +145,28 @@ python3 MinecraftModManager.py
 
 ## 🔍 Troubleshooting
 
-Check logs:
-```bash
-tail -f /home/Minecraft/logs/mod_manager.log
-```
+Common issues and solutions:
 
-Common fixes:
-- **Server won't start**: Check Java version & memory settings
-- **Permission errors**: Run `sudo chown -R $USER:$USER /home/Minecraft`
-- **Java flags issues**: Verify flags.sh output format
-- **Package conflicts**: Try alternative installation method
-- **Dependencies missing**: Use package manager installation
-- **Mod compatibility issues**: Check Minecraft version and modloader settings
-- **API rate limits**: Adjust api.max_retries and api.base_delay in config
+- **Server won't start**: 
+  - Check Java version compatibility
+  - Verify memory settings in config
+  - Check server.jar path
+  - Review logs for startup errors
+
+- **Mod update failures**: 
+  - Verify Modrinth URLs
+  - Check version compatibility
+  - Ensure proper permissions on mods directory
+
+- **Backup issues**: 
+  - Verify backup directory permissions
+  - Check available disk space
+  - Ensure proper path configuration
+
+- **Discord notifications not working**: 
+  - Verify webhook URL
+  - Check notifications.enabled setting
+  - Test webhook URL manually
 
 ## 📝 License
 
