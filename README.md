@@ -40,15 +40,15 @@ cd minecraft-mod-manager
 pip3 install aiohttp requests tqdm
 
 # Create config file
-cp config.json.example config.json
+cp config.jsonc.example config.jsonc
 ```
 
 ## 🔧 Configuration
 
-Edit `config.json` with your settings:
+Edit `config.jsonc` with your settings:
 
 ### Server Configuration
-```json
+```jsonc
 {
     "server": {
         "minecraft_version": "1.21.1",
@@ -59,7 +59,10 @@ Edit `config.json` with your settings:
             "flags": [
                 "-XX:+UseG1GC",
                 "-XX:+ParallelRefProcEnabled",
-                // ... other optimization flags
+                "-XX:MaxGCPauseMillis=200",
+                "-XX:+UnlockExperimentalVMOptions",
+                "-XX:+DisableExplicitGC",
+                "-XX:+AlwaysPreTouch"
             ]
         }
     }
@@ -67,7 +70,7 @@ Edit `config.json` with your settings:
 ```
 
 ### Paths Configuration
-```json
+```jsonc
 {
     "paths": {
         "local_mods": "/home/Minecraft/mods",
@@ -79,7 +82,7 @@ Edit `config.json` with your settings:
 ```
 
 ### Maintenance Settings
-```json
+```jsonc
 {
     "maintenance": {
         "backup_retention_days": 7,
@@ -97,7 +100,7 @@ Edit `config.json` with your settings:
 ```
 
 ### Discord Notifications
-```json
+```jsonc
 {
     "notifications": {
         "discord_webhook": "YOUR_WEBHOOK_URL_HERE",
@@ -107,7 +110,7 @@ Edit `config.json` with your settings:
 ```
 
 ### Mod List
-```json
+```jsonc
 {
     "modrinth_urls": [
         "https://modrinth.com/mod/example1",
@@ -129,6 +132,9 @@ python3 MinecraftModManager.py --start
 
 # Stop server
 python3 MinecraftModManager.py --stop
+
+# Restart server
+python3 MinecraftModManager.py --restart
 
 # Run automated update
 python3 MinecraftModManager.py --auto-update
