@@ -15,7 +15,6 @@ import sys
 import tarfile
 import time
 import subprocess
-import re
 
 # Third party imports
 import aiohttp
@@ -31,25 +30,6 @@ class LoggingManager:
     """Handles logging configuration and setup."""
     # Logging setup code
 
-def parse_jsonc(jsonc_str: str) -> dict:
-    """
-    Parse JSONC (JSON with Comments) into a Python dictionary.
-    Handles both single-line (//) and multi-line (/* */) comments.
-    """
-    # Remove multi-line comments
-    jsonc_str = re.sub(r'/\*.*?\*/', '', jsonc_str, flags=re.DOTALL)
-    
-    # Remove single-line comments
-    jsonc_str = re.sub(r'//.*$', '', jsonc_str, flags=re.MULTILINE)
-    
-    # Remove empty lines and leading/trailing whitespace
-    jsonc_str = '\n'.join(line.strip() for line in jsonc_str.splitlines() if line.strip())
-    
-    try:
-        return json.loads(jsonc_str)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSONC format: {str(e)}")
-
 class MinecraftModManager:
     """
     Main class that manages all aspects of a Minecraft server including:
@@ -60,7 +40,7 @@ class MinecraftModManager:
     - Player warnings for maintenance
     """
     
-    def __init__(self, config_path: str = "config.jsonc"):
+    def __init__(self, config_path: str = "config.json"):
         """
         Initialize the mod manager by:
         1. Loading and validating config
@@ -74,9 +54,8 @@ class MinecraftModManager:
             config_path = Path(__file__).parent / config_path
             
         try:
-            # Load and parse JSONC config
-            config_text = config_path.read_text(encoding='utf-8')
-            self.config = parse_jsonc(config_text)
+            # Load and parse config JSON
+            self.config = json.loads(config_path.read_text())
             
             # Initialize logging
             self.logger: Optional[logging.Logger] = None
