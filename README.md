@@ -33,59 +33,110 @@ A Python-based tool for managing Minecraft server mods and maintenance.
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/minecraft-mod-manager.git
+git clone https://github.com/dacrab/minecraft-mod-manager.git
 cd minecraft-mod-manager
 
 # Install dependencies
+# Via pip
 pip3 install aiohttp requests tqdm
 
+# Via package manager
+# Debian/Ubuntu
+sudo apt-get install python3 python3-aiohttp python3-requests python3-tqdm
+
+# Fedora
+sudo dnf install python3 python3-aiohttp python3-requests python3-tqdm
+
+# Arch Linux
+sudo pacman -S python python-aiohttp python-requests python-tqdm
+
 # Create config file
-cp config.jsonc.example config.jsonc
+cp config.json.example config.json
 ```
 
 ## 🔧 Configuration
 
-Edit `config.jsonc` with your settings:
+Edit `config.json` with your settings:
 
-### Server Configuration
-```jsonc
+```json
 {
-    "server": {
-        "minecraft_version": "1.21.1",
-        "modloader": "fabric",
-        "java": {
-            "min_memory": "4G",
-            "max_memory": "6G",
-            "flags": [
-                "-XX:+UseG1GC",
-                "-XX:+ParallelRefProcEnabled",
-                "-XX:MaxGCPauseMillis=200",
-                "-XX:+UnlockExperimentalVMOptions",
-                "-XX:+DisableExplicitGC",
-                "-XX:+AlwaysPreTouch"
-            ]
-        }
-    }
-}
-```
+    // Basic Minecraft server configuration
+    "minecraft": {
+        "version": "1.21.1",        // Minecraft version to use
+        "modloader": "fabric"       // Mod loader type (fabric/forge)
+    },
 
-### Paths Configuration
-```jsonc
-{
+    // File system paths configuration
     "paths": {
-        "local_mods": "/home/Minecraft/mods",
-        "backups": "/home/Minecraft/backups",
-        "minecraft": "/home/Minecraft",
-        "server_jar": "/home/Minecraft/server.jar"
-    }
-}
-```
+        "minecraft": "/home/Minecraft",                      // Root Minecraft directory
+        "server_jar": "/home/Minecraft/server.jar",         // Server executable path
+        "local_mods": "/home/Minecraft/mods",               // Mods directory
+        "backups": "/home/Minecraft/backups",               // Backup storage location
+        "logs": "/home/Minecraft/logs/mod_manager.log"      // Log file location
+    },
 
-### Maintenance Settings
-```jsonc
-{
+    // Server runtime configuration
+    "server": {
+        "flags_source": "custom",   // Use custom JVM flags
+        "custom_flags": "java -Xms8192M -Xmx8192M --add-modules=jdk.incubator.vector -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20",
+        
+        // Memory allocation settings
+        "memory": {
+            "min": "6G",           // Minimum heap size
+            "max": "8G"            // Maximum heap size
+        },
+
+        // JVM optimization flags
+        "java_flags": [
+            "-XX:+UseG1GC",                    // Use G1 Garbage Collector
+            "-XX:+ParallelRefProcEnabled",     // Enable parallel reference processing
+            "-XX:MaxGCPauseMillis=200",        // Target max GC pause time
+            "-XX:+UnlockExperimentalVMOptions",// Allow experimental options
+            "-XX:+DisableExplicitGC",          // Disable explicit GC calls
+            "-XX:G1NewSizePercent=30",         // New generation size
+            "-XX:G1MaxNewSizePercent=40",      // Max new generation size
+            "-XX:G1HeapRegionSize=8M",         // G1 region size
+            "-XX:G1ReservePercent=20",         // Reserve memory percentage
+            "-XX:G1HeapWastePercent=5"         // Acceptable waste percentage
+        ],
+
+        // Server startup settings
+        "startup": {
+            "max_retries": 3,      // Maximum startup attempts
+            "retry_delay": 10      // Delay between retries (seconds)
+        },
+
+        // RCON configuration for remote control
+        "rcon": {
+            "enabled": true,                       // Enable RCON
+            "port": 25575,                        // RCON port
+            "password": "YOUR_RCON_PASSWORD_HERE"  // RCON password
+        }
+    },
+
+    // API interaction settings
+    "api": {
+        "user_agent": "MinecraftModManager/1.0",  // User agent for API requests
+        "max_retries": 5,                         // Maximum API retry attempts
+        "base_delay": 3,                          // Base delay between retries
+        "chunk_size": 10                          // Download chunk size
+    },
+
+    // Logging configuration
+    "logging": {
+        "max_lines": {
+            "server_check": 100,    // Max lines for server checks
+            "startup_check": 5,     // Max lines for startup logs
+            "status_check": 50      // Max lines for status checks
+        }
+    },
+
+    // Maintenance and backup settings
     "maintenance": {
-        "backup_retention_days": 7,
+        "backup_retention_days": 7,    // Days to keep backups
+        "max_backups": 5,             // Maximum number of backups
+        "backup_name_format": "minecraft-%Y.%m.%d-%H.%M",  // Backup filename format
+        // Warning intervals before maintenance
         "warning_intervals": [
             {"time": 15, "unit": "minutes"},
             {"time": 10, "unit": "minutes"},
@@ -95,26 +146,27 @@ Edit `config.jsonc` with your settings:
             {"time": 10, "unit": "seconds"},
             {"time": 5, "unit": "seconds"}
         ]
-    }
-}
-```
+    },
 
-### Discord Notifications
-```jsonc
-{
+    // Discord notification settings
     "notifications": {
-        "discord_webhook": "YOUR_WEBHOOK_URL_HERE",
-        "enabled": true
-    }
-}
-```
+        "discord_webhook": "YOUR_WEBHOOK_URL_HERE"  // Discord webhook URL
+    },
 
-### Mod List
-```jsonc
-{
-    "modrinth_urls": [
-        "https://modrinth.com/mod/example1",
-        "https://modrinth.com/mod/example2"
+    // Server validation settings
+    "validation": {
+        "required_files": [          // Required server files
+            "server.jar",
+            "eula.txt"
+        ],
+        "eula_accepted": true        // EULA acceptance flag
+    },
+
+    // Mod configuration
+    "modrinth_urls": [              // Modrinth mod URLs to manage
+        "https://modrinth.com/mod/1IjD5062",
+        "https://modrinth.com/mod/1bokaNcj",
+        "https://modrinth.com/mod/ZJTGwAND"
     ]
 }
 ```
