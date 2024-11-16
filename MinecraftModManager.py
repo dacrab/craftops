@@ -668,16 +668,43 @@ class MinecraftModManager:
         if not server_jar.exists():
             raise FileNotFoundError(f"Server jar not found at {server_jar}")
 
-    def stop_server(self) -> bool:
+    def control_server(self, action: str) -> bool:
         """
-        Stop Minecraft server:
-        1. Try graceful SIGTERM
-        2. Force kill if still running after timeout
+        Unified server control method for start/stop/restart operations.
+        Args:
+            action: One of 'start', 'stop', or 'restart'
         """
+        try:
+            server_running = self.verify_server_status()
+            
+            if action == 'stop':
+                if not server_running:
+                    return True
+                return self._stop_server_process()
+            
+            elif action == 'start':
+                if server_running:
+                    return True
+                return self._start_server_process()
+            
+            elif action == 'restart':
+                if server_running and not self._stop_server_process():
+                    return False
+                return self._start_server_process()
+            
+            else:
+                raise ValueError(f"Invalid server action: {action}")
+            
+        except Exception as e:
+            self._handle_operation_error(f"Server {action}", e)
+            return False
+
+    def _stop_server_process(self) -> bool:
+        """Internal method to stop the server process"""
         try:
             pid = self._get_server_pid()
             if not pid:
-                return True  # Already stopped
+                return True
             
             # Try graceful shutdown
             self._run_command(f"sudo kill -TERM {pid}")
@@ -696,50 +723,45 @@ class MinecraftModManager:
             return not bool(self._get_server_pid())
             
         except Exception as e:
-            self._handle_operation_error("Server Stop", e)
-            return False
+            raise RuntimeError(f"Failed to stop server: {str(e)}")
 
-    def restart_server(self) -> bool:
-        """Start/restart Minecraft server."""
+    def _start_server_process(self) -> bool:
+        """Internal method to start the server process"""
         try:
-            # Stop if running
-            if self.verify_server_status():
-                if not self.stop_server():
-                    return False
-            
-            # Change to server directory
             os.chdir(self.config['paths']['minecraft'])
             
-            # Build command based on flags_source
-            if self.config['server'].get('flags_source') == 'custom':
-                command = f"{self.config['server']['custom_flags']} -jar {self.config['paths']['server_jar']} nogui"
-            else:
-                command = self._build_default_command()
+            command = (self.config['server'].get('custom_flags') 
+                      if self.config['server'].get('flags_source') == 'custom'
+                      else self._build_default_command())
+            command = f"{command} -jar {self.config['paths']['server_jar']} nogui"
             
-            # Start server
             self.logger.info(f"Starting server with command: {command}")
             self._run_command(f"nohup {command} > /dev/null 2>&1 &")
             
-            # Wait for startup
-            max_wait = 120
-            start_time = time.time()
-            
-            while time.time() - start_time < max_wait:
-                if self.verify_server_status():
-                    self.logger.info("Server is now online and ready!")
-                    self.send_discord_notification(
-                        "Server Status",
-                        "✅ Server is now online and ready!"
-                    )
-                    return True
-                time.sleep(5)
-                
-            self.logger.error("Server did not start within the expected time")
-            return False
+            return self._wait_for_server_ready()
             
         except Exception as e:
-            self._handle_operation_error("Server Restart", e)
-            return False
+            raise RuntimeError(f"Failed to start server: {str(e)}")
+
+    def _wait_for_server_ready(self, max_wait: int = 120) -> bool:
+        """Wait for server to be fully initialized"""
+        start_time = time.time()
+        
+        while time.time() - start_time < max_wait:
+            if self.verify_server_status():
+                log_lines = self._read_server_log(100)
+                for line in reversed(log_lines):
+                    if "Done" in line and "For help, type" in line:
+                        self.logger.info("Server is now online and ready!")
+                        self.send_discord_notification(
+                            "Server Status",
+                            "✅ Server is now online and ready!"
+                        )
+                        return True
+            time.sleep(2)
+        
+        self.logger.error("Server did not start within the expected time")
+        return False
 
     def send_server_message(self, message: str) -> None:
         """Send in-game message (requires RCON support)"""
@@ -780,57 +802,49 @@ def main():
     Command-line interface entry point.
     Supports:
     - Auto-update
-    - Server start/stop
+    - Server start/stop/restart
     - Status check
     - Manual maintenance
     """
     parser = argparse.ArgumentParser(description='Minecraft Mod Manager')
     
-    # Add command arguments
-    parser.add_argument('--auto-update', action='store_true', 
+    # Create a mutually exclusive group for server control commands
+    server_group = parser.add_mutually_exclusive_group()
+    server_group.add_argument('--start', action='store_true',
+                            help='Start the Minecraft server')
+    server_group.add_argument('--stop', action='store_true',
+                            help='Stop the Minecraft server')
+    server_group.add_argument('--restart', action='store_true',
+                            help='Restart the Minecraft server')
+    server_group.add_argument('--status', action='store_true',
+                            help='Check server status')
+    
+    parser.add_argument('--auto-update', action='store_true',
                        help='Run automated update process')
-    parser.add_argument('--start', action='store_true',
-                       help='Start the Minecraft server')
-    parser.add_argument('--stop', action='store_true',
-                       help='Stop the Minecraft server')
-    parser.add_argument('--status', action='store_true',
-                       help='Check server status')
     
     args = parser.parse_args()
 
     try:
         manager = MinecraftModManager()
         
-        # Handle commands
+        # Handle server control commands
         if args.status:
             status = "running" if manager.verify_server_status() else "stopped"
             players = manager.get_player_count() if status == "running" else 0
             print(f"Server is {status} with {players} players online")
             sys.exit(0)
             
-        elif args.start:
-            if manager.verify_server_status():
-                print("Server is already running")
-                sys.exit(0)
-            if manager.restart_server():
-                print("Server started successfully")
-                sys.exit(0)
-            else:
-                print("Failed to start server")
-                sys.exit(1)
+        for action in ['start', 'stop', 'restart']:
+            if getattr(args, action):
+                print(f"{action.capitalize()}ing server...")
+                if manager.control_server(action):
+                    print(f"Server {action}ed successfully")
+                    sys.exit(0)
+                else:
+                    print(f"Failed to {action} server")
+                    sys.exit(1)
                 
-        elif args.stop:
-            if not manager.verify_server_status():
-                print("Server is not running")
-                sys.exit(0)
-            if manager.stop_server():
-                print("Server stopped successfully")
-                sys.exit(0)
-            else:
-                print("Failed to stop server")
-                sys.exit(1)
-                
-        elif args.auto_update:
+        if args.auto_update:
             manager.run_automated_update()
             
         else:
