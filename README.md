@@ -24,6 +24,10 @@ A Python-based tool for managing Minecraft server mods and maintenance.
 
 ## 📋 Quick Start
 
+There are two ways to install the Minecraft Mod Manager:
+
+### Method 1: Python Package (for Python users)
+
 1. **Install the Package**:
    ```bash
    pip install minecraft-mod-manager
@@ -38,7 +42,29 @@ A Python-based tool for managing Minecraft server mods and maintenance.
    cp $(pip show minecraft-mod-manager | grep Location | cut -d' ' -f2)/minecraft_mod_manager/config.jsonc.example ~/.config/minecraft-mod-manager/config.jsonc
    ```
 
-3. **Edit Configuration**:
+### Method 2: Standalone Executable (for non-Python users)
+
+1. **Download the Executable**:
+   - Go to [Releases](https://github.com/dacrab/minecraft-mod-manager/releases/latest)
+   - Download the `minecraft-mod-manager` file
+
+2. **Make it Executable**:
+   ```bash
+   chmod +x minecraft-mod-manager
+   ```
+
+3. **Create Configuration**:
+   ```bash
+   # Create config directory
+   mkdir -p ~/.config/minecraft-mod-manager
+   
+   # Initialize config (this will create an example config)
+   ./minecraft-mod-manager --init
+   ```
+
+### Common Steps (for both methods)
+
+1. **Edit Configuration**:
    ```bash
    # Edit the config file with your settings
    nano ~/.config/minecraft-mod-manager/config.jsonc
@@ -49,19 +75,19 @@ A Python-based tool for managing Minecraft server mods and maintenance.
    - Add your Discord webhook URL
    - Add your Modrinth mod URLs
 
-4. **Test the Setup**:
+2. **Test the Setup**:
    ```bash
    # Check server status
-   minecraft-mod-manager --status
+   minecraft-mod-manager --status  # or ./minecraft-mod-manager --status for executable
    
    # Run a manual update
-   minecraft-mod-manager --auto-update
+   minecraft-mod-manager --auto-update  # or ./minecraft-mod-manager --auto-update for executable
    ```
 
-5. **Set up Auto-updates** (optional):
+3. **Set up Auto-updates** (optional):
    ```bash
    # Add to crontab (runs daily at 4 AM)
-   (crontab -l 2>/dev/null; echo "0 4 * * * minecraft-mod-manager --auto-update") | crontab -
+   (crontab -l 2>/dev/null; echo "0 4 * * * $(pwd)/minecraft-mod-manager --auto-update") | crontab -
    ```
 
 ## 📋 Requirements
@@ -202,7 +228,7 @@ minecraft_mod_manager/
 │   ├── mod.py              # Mod updates
 │   └── notification.py     # Notifications
 ├── utils/
-│   ├── constants.py        # Shared constants
+��   ├── constants.py        # Shared constants
 │   └── jsonc.py           # JSONC file handling
 ├── __init__.py            # Package initialization
 ├── __main__.py            # Command-line interface
