@@ -155,7 +155,8 @@ class ModManager:
             else:
                 self._log_compatibility_warning(mod_name, versions)
                 failed_mods.append(
-                    f"{mod_name} (no compatible version for MC {self.config['minecraft']['version']} "
+                    f"{mod_name} (no compatible version for "
+                    f"MC {self.config['minecraft']['version']} "
                     f"with {self.config['minecraft']['modloader']})"
                 )
                 
@@ -169,7 +170,10 @@ class ModManager:
         try:
             mod_info = await self.fetch_latest_versions()
             if not mod_info:
-                self.notification.send_discord_notification("Mod Updates", "✅ All mods are up to date!")
+                self.notification.send_discord_notification(
+                    "Mod Updates", 
+                    "✅ All mods are up to date!"
+                )
                 return
             
             # Track update status
