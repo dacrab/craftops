@@ -1,115 +1,97 @@
-# 🎮 Minecraft Mod Manager
+# Minecraft Mod Manager
 
-<div align="center">
+A comprehensive command-line tool for managing Minecraft server mods, designed to simplify the process of maintaining and updating mods while ensuring server stability.
 
-![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)
+## Features
 
-A Python-based tool for managing Minecraft server mods and maintenance.
+- 🎮 Server Management
+  - Start, stop, and restart server with ease
+  - Check server status and player count
+  - Automated server maintenance
+  - RCON support for server control
+  
+- 🔄 Mod Management
+  - Automatic mod updates from Modrinth
+  - Smart backup system with retention policies
+  - Configurable backup rotation
+  - Mod compatibility checking
+  
+- 🔔 Notifications
+  - Discord webhook integration
+  - Customizable player warnings
+  - Detailed update and maintenance notifications
+  - Progressive countdown notifications
+  
+- ⚙️ Advanced Configuration
+  - Optimized Java flags for better performance
+  - Flexible memory management
+  - Detailed logging system
+  - Comprehensive mod list management
 
-</div>
+## Installation
 
-## ✨ Features
+### Requirements
+- Linux operating system
+- Java (for Minecraft server)
 
-- 🔄 Automated mod updates from Modrinth
-- 💾 Smart backup system with retention policies
-- 🔔 Discord webhook notifications for server events
-- ⚙️ Configurable Java memory and optimization flags
-- 📊 Server status monitoring and player count tracking
-- ⏰ Customizable maintenance warnings with countdown
-- 🔄 Intelligent mod version compatibility checking
-- 📝 Comprehensive logging system
-- 🛠️ Command-line interface for server management
-
-## 📋 Quick Start
-
-There are two ways to install the Minecraft Mod Manager:
-
-### Method 1: Python Package (for Python users)
-
-1. **Install the Package**:
-   ```bash
-   pip install minecraft-mod-manager
-   ```
-
-2. **Create Configuration**:
-   ```bash
-   # Create config directory
-   mkdir -p ~/.config/minecraft-mod-manager
-   
-   # Copy example config
-   cp $(pip show minecraft-mod-manager | grep Location | cut -d' ' -f2)/minecraft_mod_manager/config.jsonc.example ~/.config/minecraft-mod-manager/config.jsonc
-   ```
-
-### Method 2: Standalone Executable (for non-Python users)
-
-1. **Download the Executable**:
-   - Go to [Releases](https://github.com/dacrab/minecraft-mod-manager/releases/latest)
-   - Download the `minecraft-mod-manager` file
-
-2. **Make it Executable**:
+### Installation Steps
+1. Download the latest release from the [Releases page](https://github.com/dacrab/minecraft-mod-manager/releases/latest)
+2. Make the file executable:
    ```bash
    chmod +x minecraft-mod-manager
    ```
-
-3. **Create Configuration**:
+3. Optionally, move it to a directory in your PATH for easier access:
    ```bash
-   # Create config directory
-   mkdir -p ~/.config/minecraft-mod-manager
-   
-   # Initialize config (this will create an example config)
-   ./minecraft-mod-manager --init
+   sudo mv minecraft-mod-manager /usr/local/bin/
    ```
 
-### Common Steps (for both methods)
+## Usage
 
-1. **Edit Configuration**:
-   ```bash
-   # Edit the config file with your settings
-   nano ~/.config/minecraft-mod-manager/config.jsonc
-   ```
-   Key things to update:
-   - Set correct Minecraft paths
-   - Configure server memory and Java flags
-   - Add your Discord webhook URL
-   - Add your Modrinth mod URLs
+### Basic Commands
 
-2. **Test the Setup**:
-   ```bash
-   # Check server status
-   minecraft-mod-manager --status  # or ./minecraft-mod-manager --status for executable
-   
-   # Run a manual update
-   minecraft-mod-manager --auto-update  # or ./minecraft-mod-manager --auto-update for executable
-   ```
+Check server status:
+```bash
+minecraft-mod-manager --status
+```
 
-3. **Set up Auto-updates** (optional):
-   ```bash
-   # Add to crontab (runs daily at 4 AM)
-   (crontab -l 2>/dev/null; echo "0 4 * * * $(pwd)/minecraft-mod-manager --auto-update") | crontab -
-   ```
+Start the server:
+```bash
+minecraft-mod-manager --start
+```
 
-## 📋 Requirements
+Stop the server:
+```bash
+minecraft-mod-manager --stop
+```
 
-- Python 3.9 or newer
-- Linux environment
-- Java (for Minecraft server)
-- Internet connection for mod updates
+Restart the server:
+```bash
+minecraft-mod-manager --restart
+```
 
-## 🔧 Configuration
+### Mod Management
 
-The configuration file (`config.jsonc`) supports comments and includes these sections:
+Run automated update process with player warnings:
+```bash
+minecraft-mod-manager --auto-update
+```
+
+Use custom configuration file:
+```bash
+minecraft-mod-manager --config custom_config.jsonc --auto-update
+```
+
+## Configuration
+
+Create a configuration file (`config.jsonc`) with the following structure:
 
 ```jsonc
 {
-    // Minecraft server configuration
     "minecraft": {
-        "version": "1.20.1",        // Minecraft version
-        "modloader": "fabric"       // Mod loader (fabric/forge)
+        "version": "1.21.1",
+        "modloader": "fabric"
     },
 
-    // File paths
     "paths": {
         "minecraft": "/path/to/minecraft",
         "server_jar": "/path/to/minecraft/server.jar",
@@ -118,17 +100,12 @@ The configuration file (`config.jsonc`) supports comments and includes these sec
         "logs": "/path/to/minecraft/logs/mod_manager.log"
     },
 
-    // Server process settings
     "server": {
-        "flags_source": "default",  // Use "default" or "custom"
-        "custom_flags": "java -Xms8G -Xmx8G -XX:+UseG1GC -jar",  // Used if flags_source is "custom"
+        "flags_source": "custom",
+        "custom_flags": "java -Xms8G -Xmx8G [your-java-flags]",
         "memory": {
-            "min": "6G",           // Used if flags_source is "default"
+            "min": "6G",
             "max": "8G"
-        },
-        "startup": {
-            "max_retries": 3,
-            "retry_delay": 10
         },
         "rcon": {
             "enabled": true,
@@ -137,159 +114,47 @@ The configuration file (`config.jsonc`) supports comments and includes these sec
         }
     },
 
-    // API settings
-    "api": {
-        "user_agent": "MinecraftModManager/1.0",
-        "max_retries": 5,
-        "base_delay": 3,
-        "chunk_size": 10
-    },
-
-    // Maintenance settings
     "maintenance": {
+        "backup_retention_days": 7,
+        "max_backups": 5,
         "warning_intervals": [
-            {"time": 30, "unit": "minutes"},
             {"time": 15, "unit": "minutes"},
             {"time": 5, "unit": "minutes"},
-            {"time": 1, "unit": "minutes"}
-        ],
-        "backup_name_format": "%Y-%m-%d_%H-%M-%S",
-        "backup_retention_days": 7,
-        "max_backups": 10
+            {"time": 1, "unit": "minute"}
+        ]
     },
 
-    // Discord webhook for notifications
     "notifications": {
         "discord_webhook": "YOUR_WEBHOOK_URL"
     },
 
-    // List of mods to manage
     "modrinth_urls": [
-        // Essential mods
-        "https://modrinth.com/mod/fabric-api",      // Required for most mods
-        "https://modrinth.com/mod/lithium",         // Performance improvements
-        "https://modrinth.com/mod/starlight",       // Light engine optimization
-        
-        // Performance mods
-        "https://modrinth.com/mod/ferrite-core",    // Memory optimization
-        "https://modrinth.com/mod/lazydfu",         // Startup optimization
-        "https://modrinth.com/mod/krypton",         // Network optimization
-        
-        // Utility mods
-        "https://modrinth.com/mod/carpet",          // Server tools
-        "https://modrinth.com/mod/spark"            // Performance profiler
+        "https://modrinth.com/mod/fabric-api",
+        "https://modrinth.com/mod/lithium",
+        "https://modrinth.com/mod/starlight",
+        // Add your desired mods here
     ]
 }
 ```
 
-## 🎮 Usage
+### Key Configuration Options
 
-### Command Line Interface
+- **Minecraft Settings**: Specify your Minecraft version and mod loader
+- **Paths**: Configure all necessary file paths for your server
+- **Server Settings**: 
+  - Customize Java flags for optimal performance
+  - Configure memory allocation
+  - Set up RCON for remote server control
+- **Maintenance**:
+  - Set backup retention policies
+  - Configure warning intervals for server restarts
+- **Notifications**: Set up Discord webhooks for alerts
+- **Mod Management**: List all your Modrinth mod URLs for automatic updates
 
-```bash
-# Check server status
-minecraft-mod-manager --status
+## License
 
-# Start server
-minecraft-mod-manager --start
+This project is licensed under the MIT License.
 
-# Stop server
-minecraft-mod-manager --stop
+## Contributing
 
-# Restart server
-minecraft-mod-manager --restart
-
-# Run automated update
-minecraft-mod-manager --auto-update
-
-# Run manual maintenance (interactive)
-minecraft-mod-manager
-
-# Use custom config file
-minecraft-mod-manager --config path/to/config.jsonc
-```
-
-### Automated Updates (Cron)
-```bash
-# Daily at 4 AM
-0 4 * * * minecraft-mod-manager --auto-update
-```
-
-## 📦 Package Structure
-
-```
-minecraft_mod_manager/
-├── config/
-│   └── config.py           # Configuration management
-├── controllers/
-│   └── server.py           # Server process control
-├── managers/
-│   ├── backup.py           # Backup management
-│   ├── mod.py              # Mod updates
-│   └── notification.py     # Notifications
-├── utils/
-��   ├── constants.py        # Shared constants
-│   └── jsonc.py           # JSONC file handling
-├── __init__.py            # Package initialization
-├── __main__.py            # Command-line interface
-└── minecraft_mod_manager.py # Main orchestration
-```
-
-## 🔍 Troubleshooting
-
-Common issues and solutions:
-
-- **Server won't start**: 
-  - Check Java version compatibility
-  - Verify memory settings in config
-  - Check server.jar path
-  - Review logs for startup errors
-
-- **Mod update failures**: 
-  - Verify Modrinth URLs
-  - Check version compatibility
-  - Ensure proper permissions on mods directory
-  - Check network connectivity
-
-- **Backup issues**: 
-  - Verify backup directory permissions
-  - Check available disk space
-  - Ensure proper path configuration
-
-- **Discord notifications not working**: 
-  - Verify webhook URL
-  - Test webhook URL manually
-  - Check network connectivity
-
-## 📝 Distribution
-
-### Building from Source
-
-1. **Clone and Build**:
-   ```bash
-   git clone https://github.com/dacrab/minecraft-mod-manager.git
-   cd minecraft-mod-manager
-   ./build.sh
-   ```
-
-2. **Install the Built Package**:
-   ```bash
-   pip install dist/*.whl
-   ```
-
-### Direct Installation
-
-You can also install directly from GitHub:
-
-```bash
-pip install https://github.com/dacrab/minecraft-mod-manager/releases/latest/download/minecraft-mod-manager.whl
-```
-
-## 📝 License
-
-MIT License
-
----
-<div align="center">
-Made with ❤️ for Minecraft servers
-</div>
+Contributions are welcome! Please feel free to submit a Pull Request.
