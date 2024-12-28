@@ -12,6 +12,7 @@ from ..config.config import Config
 from ..managers.notification import NotificationManager
 from ..utils.constants import DEFAULT_TIMEOUT
 
+
 class ModFile(TypedDict):
     """Type definition for mod file data."""
     url: str

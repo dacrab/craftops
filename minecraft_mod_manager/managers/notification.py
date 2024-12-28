@@ -17,6 +17,7 @@ from ..utils.constants import (
     WARNING_SLEEP_SECONDS,
 )
 
+
 class NotificationManager:
     """Handles Discord notifications and player warnings."""
     

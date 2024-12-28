@@ -8,6 +8,7 @@ import textwrap
 from .minecraft_mod_manager import MinecraftModManager
 from .utils.constants import DEFAULT_CONFIG_PATH
 
+
 def parse_args() -> argparse.Namespace:
     """Parse and validate command line arguments."""
     parser = argparse.ArgumentParser(

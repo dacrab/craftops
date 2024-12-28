@@ -10,6 +10,7 @@ from .managers.backup import BackupManager
 from .managers.mod import ModManager
 from .managers.notification import NotificationManager
 
+
 class MinecraftModManager:
     """Main class that orchestrates server management and mod updates."""
     
