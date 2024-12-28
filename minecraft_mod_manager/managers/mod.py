@@ -1,10 +1,11 @@
 """Mod updates and version checking via Modrinth API."""
 
+import asyncio
 import logging
 import os
-import asyncio
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Any, TypedDict, cast, Sequence
+from typing import Dict, List, Optional, TypedDict, cast, NotRequired, Any
 
 import aiohttp
 from tqdm import tqdm
@@ -13,13 +14,19 @@ from ..config.config import Config
 from ..managers.notification import NotificationManager
 from ..utils.constants import DEFAULT_TIMEOUT
 
+class ModFile(TypedDict):
+    """Type definition for mod file data."""
+    url: str
+    filename: str
+    size: NotRequired[int]
+
 class ModVersion(TypedDict):
     """Type definition for mod version data."""
     id: str
     version_number: str
     game_versions: List[str]
     loaders: List[str]
-    files: List[Dict[str, str]]
+    files: List[ModFile]
 
 class ModInfo(TypedDict):
     """Type definition for mod info data."""
@@ -50,10 +57,34 @@ class ModManager:
         )
         return self
     
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, *exc_info) -> None:
         """Cleanup async context."""
         if self.session:
             await self.session.close()
+    
+    async def make_request(self, endpoint: str, retry_count: int = 0) -> Dict[str, Any]:
+        """Make API request with retry logic."""
+        if not self.session:
+            raise RuntimeError("Session not initialized")
+            
+        try:
+            await asyncio.sleep(1)  # Rate limiting delay
+            async with self.session.get(endpoint) as response:
+                if response.status == 429:  # Rate limited
+                    if retry_count < self.config['api']['max_retries']:
+                        retry_delay = self.config['api']['base_delay'] * (2 ** retry_count)
+                        self.logger.warning(f"Rate limited, waiting {retry_delay} seconds...")
+                        await asyncio.sleep(retry_delay)
+                        return await self.make_request(endpoint, retry_count + 1)
+                    raise Exception(f"Rate limit exceeded after {self.config['api']['max_retries']} retries")
+                
+                if response.status != 200:
+                    raise Exception(f"API returned status {response.status}")
+                
+                return await response.json()
+                
+        except Exception as e:
+            raise Exception(f"Request failed: {str(e)}")
     
     async def fetch_latest_versions(self) -> Dict[str, ModInfo]:
         """Query Modrinth API for latest versions of all configured mods."""
@@ -72,10 +103,10 @@ class ModManager:
             chunk_size = self.config['api']['chunk_size']
             for i in range(0, len(modrinth_urls), chunk_size):
                 chunk = modrinth_urls[i:i + chunk_size]
-                tasks = []
-                
-                for url in chunk:
-                    tasks.append(self._fetch_mod_info(url, mod_info, failed_mods))
+                tasks = [
+                    self._fetch_mod_info(url, mod_info, failed_mods)
+                    for url in chunk
+                ]
                 
                 await asyncio.gather(*tasks)
                 
@@ -90,30 +121,6 @@ class ModManager:
             if failed_mods:
                 self._notify_failures(failed_mods)
     
-    async def make_request(self, endpoint: str, retry_count: int = 0) -> Dict[str, Any]:
-        """Make API request with retry logic."""
-        if not self.session:
-            raise RuntimeError("Session not initialized")
-            
-        try:
-            await asyncio.sleep(2)  # Rate limiting delay
-            async with self.session.get(endpoint) as response:
-                if response.status == 429:  # Rate limited
-                    if retry_count < self.config['api']['max_retries']:
-                        retry_delay = self.config['api']['base_delay'] * (2 ** retry_count)
-                        self.logger.warning(f"Rate limited, waiting {retry_delay} seconds...")
-                        await asyncio.sleep(retry_delay)
-                        return await self.make_request(endpoint, retry_count + 1)
-                    raise Exception(f"Rate limit exceeded after {self.config['api']['max_retries']} retries")
-                
-                if response.status != 200:
-                    raise Exception(f"API returned status {response.status}")
-                
-                return await response.json()
-                
-        except Exception as e:
-            raise Exception(f"Request failed: {str(e)}")
-
     async def _fetch_mod_info(self, url: str, mod_info: Dict[str, ModInfo], 
                             failed_mods: List[str]) -> None:
         """Fetch version info for a single mod."""
@@ -152,31 +159,11 @@ class ModManager:
                     f"{mod_name} (no compatible version for MC {self.config['minecraft']['version']} "
                     f"with {self.config['minecraft']['modloader']})"
                 )
-
+                
         except Exception as e:
             mod_name = project_id if 'mod_name' not in locals() else mod_name
             failed_mods.append(f"{mod_name} ({str(e)})")
             self.logger.error(f"Error processing mod {url}: {str(e)}")
-    
-    def _log_compatibility_warning(self, mod_name: str, versions: Sequence[ModVersion]) -> None:
-        """Log warning about mod compatibility."""
-        # Get first 3 versions for display
-        display_versions = versions[:3] if len(versions) > 3 else versions
-        
-        self.logger.warning(
-            f"No compatible version for {mod_name}. "
-            f"Required MC version: {self.config['minecraft']['version']}, "
-            f"Required modloader: {self.config['minecraft']['modloader']}, "
-            f"Available versions: {[v['game_versions'] for v in display_versions]}"
-        )
-    
-    def _notify_failures(self, failed_mods: List[str]) -> None:
-        """Send notification about failed mod updates."""
-        self.notification.send_discord_notification(
-            "Mod Update Issues",
-            "Failed to process:\n" + "\n".join(failed_mods),
-            True
-        )
     
     async def update_mods(self) -> None:
         """Update all mods to their latest compatible versions."""
@@ -197,13 +184,14 @@ class ModManager:
             try:
                 # Download mods in parallel
                 async with aiohttp.ClientSession() as session:
-                    tasks = []
-                    for url, info in mod_info.items():
-                        tasks.append(self._update_single_mod(
+                    tasks = [
+                        self._update_single_mod(
                             session, info,
                             updated_mods, skipped_mods, failed_mods, 
                             newly_added_mods
-                        ))
+                        )
+                        for url, info in mod_info.items()
+                    ]
                     await asyncio.gather(*tasks)
             
             finally:
@@ -236,7 +224,7 @@ class ModManager:
                     return
                 
                 # Remove old version
-                os.remove(current_mod_path)
+                current_mod_path.unlink()
             else:
                 newly_added_mods.append(f"• {mod_name} ({info['version_number']})")
             
@@ -250,29 +238,28 @@ class ModManager:
         except Exception as e:
             failed_mods.append(f"• {mod_name}: {str(e)}")
     
+    def _notify_failures(self, failed_mods: List[str]) -> None:
+        """Send notification about failed mod updates."""
+        message = "Failed to process the following mods:\n" + "\n".join(failed_mods)
+        self.notification.send_discord_notification("Mod Update Issues", message, True)
+    
+    def _log_compatibility_warning(self, mod_name: str, versions: List[ModVersion]) -> None:
+        """Log warning about mod version compatibility."""
+        self.logger.warning(
+            f"No compatible version found for {mod_name}. "
+            f"Available versions: {', '.join(v['version_number'] for v in versions[:5])}"
+        )
+    
     def _send_update_summary(self, updated_mods: List[str], skipped_mods: List[str],
                            failed_mods: List[str], total_mods: int) -> None:
-        """Send formatted update summary notification."""
-        summary = []
+        """Send summary of mod update results."""
+        message = f"📊 Mod Update Summary ({total_mods} total):\n\n"
         
         if updated_mods:
-            summary.append("📦 **Updated Mods:**\n" + "\n".join(updated_mods))
-            if failed_mods:
-                summary.append("❌ **Failed Mods:**\n" + "\n".join(failed_mods))
-        else:
-            summary.append(f"✅ All mods are up to date! ({len(skipped_mods)}/{total_mods})")
+            message += "✅ Updated:\n" + "\n".join(updated_mods) + "\n\n"
+        if skipped_mods:
+            message += "⏭️ Skipped (up to date):\n" + "\n".join(skipped_mods) + "\n\n"
+        if failed_mods:
+            message += "❌ Failed:\n" + "\n".join(failed_mods)
         
-        stats = (
-            f"📊 **Statistics:**\n"
-            f"Total Mods: {total_mods}\n"
-            f"Updated: {len(updated_mods)}\n"
-            f"Up to date: {len(skipped_mods)}\n"
-            f"Failed: {len(failed_mods)}"
-        )
-        
-        summary.append(stats)
-        
-        self.notification.send_discord_notification(
-            "Mod Update Summary",
-            "\n\n".join(summary)
-        ) 
+        self.notification.send_discord_notification("Mod Update Complete", message) 

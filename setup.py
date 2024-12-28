@@ -25,19 +25,21 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Games/Entertainment",
         "Topic :: System :: Systems Administration",
     ],
     python_requires=">=3.9",
     install_requires=[
-        "aiohttp>=3.8.0",
-        "requests>=2.26.0",
-        "tqdm>=4.65.0",
-        "typing-extensions>=4.0.0",  # For Python 3.9 compatibility
+        "aiohttp>=3.9.1",
+        "requests>=2.31.0",
+        "tqdm>=4.66.1",
+        "typing-extensions>=4.9.0",
     ],
     setup_requires=[
-        "wheel>=0.37.0",
-        "setuptools>=42.0.0",
+        "wheel>=0.42.0",
+        "setuptools>=69.0.2",
+        "build>=1.0.3",
     ],
     entry_points={
         "console_scripts": [
