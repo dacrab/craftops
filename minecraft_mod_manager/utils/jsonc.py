@@ -4,6 +4,7 @@ import json
 import re
 from typing import Any, Dict
 
+
 def load_jsonc(file_path: str) -> Dict[str, Any]:
     """
     Load a JSONC file and return a dictionary.
