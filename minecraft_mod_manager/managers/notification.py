@@ -1,7 +1,6 @@
 """Discord notifications and player warnings."""
 
 import logging
-import time
 from datetime import datetime, timezone
 from typing import Union
 
@@ -13,8 +12,6 @@ from ..utils.constants import (
     DISCORD_FOOTER_TEXT,
     DISCORD_MAX_LENGTH,
     DISCORD_SUCCESS_COLOR,
-    WARNING_SLEEP_MINUTES,
-    WARNING_SLEEP_SECONDS,
 )
 
 
@@ -72,53 +69,13 @@ class NotificationManager:
             self.logger.error(f"Discord API request failed: {str(e)}")
         except Exception as e:
             self.logger.error(f"Failed to send Discord notification: {str(e)}")
-    
+
     def warn_players(self) -> None:
-        """Send countdown warnings to players before maintenance."""
-        warnings = self.config['maintenance']['warning_intervals']
-        if not warnings:
-            self.logger.warning("No warning intervals configured - skipping player warnings")
-            return
-        
-        try:
-            for warning in warnings:
-                time_val = warning['time']
-                unit = warning['unit'].lower()
-                
-                if not isinstance(time_val, (int, float)) or time_val <= 0:
-                    self.logger.warning(f"Invalid warning time value: {time_val}")
-                    continue
-                
-                if unit not in ('minutes', 'seconds'):
-                    self.logger.warning(f"Invalid warning time unit: {unit}")
-                    continue
-                
-                self._send_warning_message(time_val, unit)
-                sleep_time = (WARNING_SLEEP_MINUTES if unit == 'minutes' 
-                            else WARNING_SLEEP_SECONDS)
-                time.sleep(sleep_time)
-                
-            self._send_final_warning()
-            
-        except Exception as e:
-            self.logger.error(f"Failed to send player warnings: {str(e)}")
-    
-    def _send_warning_message(self, time_val: Union[int, float], unit: str) -> None:
-        """Send a single warning message to players."""
-        try:
-            self.send_server_message(
-                f"§c[WARNING] Server maintenance in {time_val} {unit}!"
-            )
-        except Exception as e:
-            self.logger.error(f"Failed to send warning message: {str(e)}")
-    
-    def _send_final_warning(self) -> None:
-        """Send final warning message before maintenance."""
-        try:
-            self.send_server_message("§c[WARNING] Starting maintenance now!")
-        except Exception as e:
-            self.logger.error(f"Failed to send final warning: {str(e)}")
-    
-    def send_server_message(self, message: str) -> None:
-        """Send in-game message (requires RCON support)."""
-        self.logger.warning("Server messages not implemented - no RCON support") 
+        """Send warning messages to online players about upcoming server restart."""
+        # TODO: Implement actual player warning via server commands
+        # For now just log the warning
+        self.logger.info("Server restart warning would be sent to players")
+        self.send_discord_notification(
+            "Server Warning",
+            "Server will restart soon for updates"
+        )

@@ -4,7 +4,6 @@ import argparse
 import asyncio
 import sys
 from enum import Enum, auto
-from typing import NoReturn
 
 from .minecraft_mod_manager import MinecraftModManager
 from .utils.constants import DEFAULT_CONFIG_PATH
@@ -114,4 +113,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

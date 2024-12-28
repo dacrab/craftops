@@ -116,6 +116,6 @@ class BackupManager:
     def _send_success_notification(self, timestamp: str) -> None:
         """Send backup success notification."""
         self.notification.send_discord_notification(
-            "Server Backup",
+            "Server Backup", 
             f"✅ Created backup: {timestamp}.tar.gz"
-        ) 
+        )
