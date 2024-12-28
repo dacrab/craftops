@@ -50,8 +50,14 @@ minecraft_mod_manager = ["config.jsonc.example"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+
+[tool.ruff.lint]
 select = ["E", "F", "B", "I"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["minecraft_mod_manager"]
+combine-as-imports = true
 
 [tool.mypy]
 python_version = "3.9"

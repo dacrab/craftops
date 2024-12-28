@@ -1,9 +1,7 @@
 """Server process control and status monitoring."""
 
 import logging
-import os
 import re
-import signal
 import subprocess
 import time
 from pathlib import Path
