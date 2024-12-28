@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, NotRequired, Optional, TypedDict, cast
+from typing import Any, Dict, List, NotRequired, Optional, TypedDict, cast, Final
 
 import aiohttp
 from tqdm import tqdm
@@ -12,7 +12,7 @@ from ..config.config import Config
 from ..managers.notification import NotificationManager
 from ..utils.constants import DEFAULT_TIMEOUT
 
-
+# Type definitions
 class ModFile(TypedDict):
     """Type definition for mod file data."""
     url: str
@@ -35,15 +35,23 @@ class ModInfo(TypedDict):
     filename: str
     project_name: str
 
+# Constants
+API_BASE_URL: Final[str] = "https://api.modrinth.com/v2"
+RATE_LIMIT_STATUS: Final[int] = 429
+
 class ModManager:
     """Handles mod updates and version checking via Modrinth API."""
     
-    def __init__(self, config: Config, logger: logging.Logger):
+    def __init__(self, config: Config, logger: logging.Logger) -> None:
+        """Initialize the mod manager."""
         self.config = config
         self.logger = logger
         self.session: Optional[aiohttp.ClientSession] = None
         self.mods_dir = Path(config['paths']['local_mods'])
         self.notification = NotificationManager(config, logger)
+        
+        # Ensure mods directory exists
+        self.mods_dir.mkdir(parents=True, exist_ok=True)
     
     async def __aenter__(self) -> 'ModManager':
         """Setup async context with connection pooling."""

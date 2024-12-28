@@ -1,8 +1,9 @@
 """Main class for Minecraft Mod Manager."""
 
 import logging
+from enum import Enum, auto
 from pathlib import Path
-from typing import Optional, Union
+from typing import Final, Literal, Optional, Union
 
 from .config.config import Config
 from .controllers.server import ServerController
@@ -11,10 +12,23 @@ from .managers.mod import ModManager
 from .managers.notification import NotificationManager
 
 
+class ServerAction(Enum):
+    """Server control actions."""
+    START = auto()
+    STOP = auto()
+    RESTART = auto()
+
+
+# Constants
+DEFAULT_CONFIG_FILE: Final[str] = "config.jsonc"
+LOG_FORMAT: Final[str] = "%(asctime)s - %(levelname)s - %(message)s"
+DETAILED_LOG_FORMAT: Final[str] = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+
 class MinecraftModManager:
     """Main class that orchestrates server management and mod updates."""
     
-    def __init__(self, config_path: Union[str, Path] = "config.jsonc"):
+    def __init__(self, config_path: Union[str, Path] = DEFAULT_CONFIG_FILE) -> None:
         """Initialize manager with configuration."""
         # Setup logging
         self.logger = logging.getLogger("MinecraftModManager")
@@ -36,9 +50,7 @@ class MinecraftModManager:
         # Console handler
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
-        console.setFormatter(logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(message)s'
-        ))
+        console.setFormatter(logging.Formatter(LOG_FORMAT))
         self.logger.addHandler(console)
         
         # File handler (if configured)
@@ -48,9 +60,7 @@ class MinecraftModManager:
             
             file_handler = logging.FileHandler(log_path)
             file_handler.setLevel(logging.DEBUG)
-            file_handler.setFormatter(logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            ))
+            file_handler.setFormatter(logging.Formatter(DETAILED_LOG_FORMAT))
             self.logger.addHandler(file_handler)
     
     def verify_server_status(self) -> bool:
@@ -61,8 +71,10 @@ class MinecraftModManager:
         """Get number of online players."""
         return self.server.get_player_count()
     
-    def control_server(self, action: str) -> bool:
+    def control_server(self, action: Union[str, ServerAction]) -> bool:
         """Control server process (start/stop/restart)."""
+        if isinstance(action, ServerAction):
+            action = action.name.lower()
         return self.server.control(action)
     
     async def run_automated_update(self) -> None:
@@ -86,7 +98,7 @@ class MinecraftModManager:
             self.notification.warn_players()
             
             # Stop server
-            if not self.control_server('stop'):
+            if not self.control_server(ServerAction.STOP):
                 raise RuntimeError("Failed to stop server")
             
             # Create backup
@@ -98,7 +110,7 @@ class MinecraftModManager:
                 await mm.update_mods()
             
             # Start server
-            if not self.control_server('start'):
+            if not self.control_server(ServerAction.START):
                 raise RuntimeError("Failed to start server")
             
             # Send completion notification
