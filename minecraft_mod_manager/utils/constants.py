@@ -20,14 +20,14 @@ WARNING_SLEEP_MINUTES: Final[int] = 60  # Sleep time between minute warnings
 WARNING_SLEEP_SECONDS: Final[int] = 10  # Sleep time between second warnings
 
 # Server settings
-DEFAULT_MEMORY = "2G"
-DEFAULT_MAX_WAIT = 120
-DEFAULT_CHUNK_SIZE = 10
-DEFAULT_MAX_RETRIES = 3
-DEFAULT_BASE_DELAY = 2
+DEFAULT_MEMORY: Final[str] = "2G"
+DEFAULT_MAX_WAIT: Final[int] = 120
+DEFAULT_CHUNK_SIZE: Final[int] = 10
+DEFAULT_MAX_RETRIES: Final[int] = 3
+DEFAULT_BASE_DELAY: Final[int] = 2
 
 # Server process settings
-SHUTDOWN_TIMEOUT = 20  # seconds to wait for graceful shutdown
-STARTUP_CHECK_INTERVAL = 2  # seconds between startup checks
-LOG_CHECK_LINES = 100  # number of log lines to check for startup
-PLAYER_CHECK_LINES = 50  # number of log lines to check for player count 
+SHUTDOWN_TIMEOUT: Final[int] = 20  # seconds to wait for graceful shutdown
+STARTUP_CHECK_INTERVAL: Final[int] = 2  # seconds between startup checks
+LOG_CHECK_LINES: Final[int] = 100  # number of log lines to check for startup
+PLAYER_CHECK_LINES: Final[int] = 50  # number of log lines to check for player count 

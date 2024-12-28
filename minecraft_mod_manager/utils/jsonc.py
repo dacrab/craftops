@@ -24,7 +24,7 @@ def load_jsonc(file_path: str) -> Dict[str, Any]:
         Exception: For other errors during loading
     """
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
         # Remove single-line comments
