@@ -3,7 +3,7 @@
 import logging
 from enum import Enum, auto
 from pathlib import Path
-from typing import Final, Literal, Optional, Union
+from typing import Final, Optional, Union
 
 from .config.config import Config
 from .controllers.server import ServerController
@@ -164,4 +164,4 @@ class MinecraftModManager:
                 f"❌ Error during maintenance: {str(e)}",
                 True
             )
-            raise 
+            raise

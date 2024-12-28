@@ -27,11 +27,6 @@ class ServerController:
             
         return self.process.poll() is None
     
-    def get_player_count(self) -> int:
-        """Get number of online players."""
-        # TODO: Implement RCON support for accurate player count
-        return 0
-    
     def control(self, action: str) -> bool:
         """Control server process (start/stop/restart)."""
         action = action.lower()
@@ -97,28 +92,16 @@ class ServerController:
         self.process = None
     
     def _get_server_flags(self) -> list[str]:
-        """Get Java flags for server process."""
-        if self.config['server']['flags_source'] == 'custom':
-            # Use custom flags
-            flags_str = self.config['server']['custom_flags']
-        else:
-            # Use default flags
-            memory = self.config['server'].get('memory', '4G')
-            flags_str = (
-                f"java -Xms{memory} -Xmx{memory} "
-                "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 "
-                "-XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC "
-                "-XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 "
-                "-XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 "
-                "-XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 "
-                "-XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 "
-                "-XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1"
-            )
+        """Get server startup flags from config."""
+        flags = []
         
-        # Split into list and append jar
-        flags = flags_str.split()
-        flags.extend(['-jar', str(self.server_jar), 'nogui'])
-        
+        # Add memory allocation if configured
+        if 'memory' in self.config['server']:
+            flags.extend([
+                f"-Xms{self.config['server']['memory']}",
+                f"-Xmx{self.config['server']['memory']}"
+            ])
+            
         return flags
     
     def _wait_for_startup(self, timeout: int = 300) -> None:
@@ -145,4 +128,12 @@ class ServerController:
             
             # Check timeout
             if time.time() - start_time > timeout:
-                raise TimeoutError("Server startup timed out") 
+                raise TimeoutError("Server startup timed out")
+    
+    def get_player_count(self) -> int:
+        """Get number of currently online players."""
+        # TODO: Implement actual player count checking via server query
+        # For now just return 0 if server is not running
+        if not self.verify_status():
+            return 0
+        return 0

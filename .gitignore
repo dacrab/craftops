@@ -35,4 +35,31 @@ wheels/
 *.swo
 
 # Backups
-backups/ 
+backups/
+
+# Virtual Environment
+venv/
+.venv/
+ENV/
+
+# Testing and Coverage
+.coverage
+coverage.xml
+.pytest_cache/
+htmlcov/
+
+# Build and Distribution
+*.spec
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.manifest
+*.spec
+
+# Misc
+.DS_Store
+.env
+*.bak
+*.tmp
+*~ 

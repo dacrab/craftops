@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, TypeVar, Union, overload
+from typing import Any, Dict, List, TypeVar, Union
 
 T = TypeVar('T')
 
@@ -54,12 +54,6 @@ class Config:
                 if field not in self.config[section]:
                     raise RuntimeError(f"Missing required field: {section}.{field}")
     
-    @overload
-    def __getitem__(self, key: str) -> Dict[str, Any]: ...
-    
-    @overload
-    def __getitem__(self, key: str) -> Any: ...
-    
     def __getitem__(self, key: str) -> Any:
         """Access configuration values."""
         return self.config[key]
@@ -73,4 +67,4 @@ class Config:
         value = self.config.get(key, default if default is not None else [])
         if not isinstance(value, list):
             raise TypeError(f"Configuration value for {key} must be a list")
-        return value 
+        return value

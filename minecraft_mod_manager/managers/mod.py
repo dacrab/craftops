@@ -264,31 +264,6 @@ class ModManager:
             f"Available versions: {version_list}"
         )
     
-    def _check_version_compatibility(self, version: ModVersion) -> bool:
-        """Check if a mod version is compatible with current server."""
-        mc_version = self.config['minecraft']['version']
-        modloader = self.config['minecraft']['modloader'].lower()
-        return (
-            mc_version in version['game_versions'] and
-            modloader in [loader.lower() for loader in version['loaders']]
-        )
-    
-    def _format_mod_failure(self, mod_name: str) -> str:
-        """Format mod failure message."""
-        mc_version = self.config['minecraft']['version']
-        modloader = self.config['minecraft']['modloader']
-        return (
-            f"{mod_name} (no compatible version for "
-            f"MC {mc_version} with {modloader})"
-        )
-    
-    def _send_update_notification(self) -> None:
-        """Send notification about up-to-date mods."""
-        self.notification.send_discord_notification(
-            "Mod Updates",
-            "✅ All mods are up to date!"
-        )
-    
     def _send_update_summary(self, updated_mods: List[str], skipped_mods: List[str],
                            failed_mods: List[str], total_mods: int) -> None:
         """Send summary of mod update results."""
@@ -301,4 +276,4 @@ class ModManager:
         if failed_mods:
             message += "❌ Failed:\n" + "\n".join(failed_mods)
         
-        self.notification.send_discord_notification("Mod Update Complete", message) 
+        self.notification.send_discord_notification("Mod Update Complete", message)
