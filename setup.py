@@ -34,7 +34,6 @@ setup(
         "aiohttp>=3.9.1",
         "requests>=2.31.0",
         "tqdm>=4.66.1",
-        "typing-extensions>=4.9.0",
     ],
     setup_requires=[
         "wheel>=0.42.0",

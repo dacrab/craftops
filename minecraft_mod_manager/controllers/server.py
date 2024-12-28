@@ -5,13 +5,18 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Dict
 
 from ..config.config import Config
 
-
 class ServerController:
     """Handles server process control and status monitoring."""
+    
+    MODLOADER_JARS = {
+        'fabric': 'fabric-server-launch.jar',
+        'forge': 'forge-server.jar',
+        'quilt': 'quilt-server-launch.jar'
+    }
     
     def __init__(self, config: Config, logger: logging.Logger):
         self.config = config
@@ -19,6 +24,22 @@ class ServerController:
         self.minecraft_dir = Path(config['paths']['minecraft'])
         self.server_jar = Path(config['paths']['server_jar'])
         self.process: Optional[subprocess.Popen] = None
+        self.modloader = config['minecraft']['modloader'].lower()
+        
+        # Validate modloader-specific requirements
+        self._validate_modloader_setup()
+    
+    def _validate_modloader_setup(self) -> None:
+        """Validate modloader-specific requirements."""
+        if not self.server_jar.exists():
+            raise RuntimeError(f"Server JAR not found: {self.server_jar}")
+            
+        modloader_jar = self.minecraft_dir / self.MODLOADER_JARS.get(self.modloader, '')
+        if self.modloader != 'vanilla' and not modloader_jar.exists():
+            raise RuntimeError(
+                f"Modloader JAR not found: {modloader_jar}\n"
+                f"Please install {self.modloader} for Minecraft {self.config['minecraft']['version']}"
+            )
     
     def verify_status(self) -> bool:
         """Check if server process is running."""
@@ -48,6 +69,35 @@ class ServerController:
             self.logger.error(f"Server control error ({action}): {str(e)}")
             return False
     
+    def _get_server_flags(self) -> List[str]:
+        """Get server startup flags based on configuration."""
+        flags = ['java']
+        
+        # Add memory settings
+        if 'memory' in self.config['server']:
+            memory = self.config['server']['memory']
+            flags.extend([
+                f"-Xms{memory['min']}",
+                f"-Xmx{memory['max']}"
+            ])
+        
+        # Add custom flags if configured
+        if 'flags_source' in self.config['server']:
+            if self.config['server']['flags_source'] == 'custom':
+                custom_flags = self.config['server']['custom_flags'].split()
+                # Remove 'java' if it's the first flag
+                if custom_flags and custom_flags[0].lower() == 'java':
+                    custom_flags = custom_flags[1:]
+                flags.extend(custom_flags)
+            else:
+                # Add default JVM flags
+                flags.extend(self.config['server'].get('java_flags', []))
+        
+        # Add server jar
+        flags.extend(['-jar', str(self.server_jar), 'nogui'])
+        
+        return flags
+    
     def _start_server(self) -> None:
         """Start server process."""
         if self.verify_status():
@@ -66,7 +116,7 @@ class ServerController:
             universal_newlines=True
         )
         
-        self.logger.info("Server process started")
+        self.logger.info(f"Starting {self.modloader} server for Minecraft {self.config['minecraft']['version']}")
         
         # Wait for server to start
         self._wait_for_startup()
@@ -90,19 +140,6 @@ class ServerController:
         
         self.logger.info("Server process stopped")
         self.process = None
-    
-    def _get_server_flags(self) -> list[str]:
-        """Get server startup flags from config."""
-        flags = []
-        
-        # Add memory allocation if configured
-        if 'memory' in self.config['server']:
-            flags.extend([
-                f"-Xms{self.config['server']['memory']}",
-                f"-Xmx{self.config['server']['memory']}"
-            ])
-            
-        return flags
     
     def _wait_for_startup(self, timeout: int = 300) -> None:
         """Wait for server to complete startup."""

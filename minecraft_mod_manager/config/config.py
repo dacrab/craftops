@@ -7,6 +7,8 @@ from typing import Any, Dict, List, TypeVar, Union
 
 T = TypeVar('T')
 
+SUPPORTED_MODLOADERS = ['fabric', 'forge', 'quilt']
+
 class Config:
     """Handles configuration loading and validation."""
     
@@ -38,6 +40,7 @@ class Config:
     
     def _validate_config(self) -> None:
         """Validate required configuration sections and fields."""
+        # Basic structure validation
         required_sections = {
             'paths': ['minecraft', 'backups', 'local_mods', 'logs'],
             'minecraft': ['version', 'modloader'],
@@ -53,6 +56,37 @@ class Config:
             for field in fields:
                 if field not in self.config[section]:
                     raise RuntimeError(f"Missing required field: {section}.{field}")
+        
+        # Validate modloader
+        modloader = self.config['minecraft']['modloader'].lower()
+        if modloader not in SUPPORTED_MODLOADERS:
+            raise RuntimeError(
+                f"Unsupported modloader: {modloader}. "
+                f"Supported modloaders: {', '.join(SUPPORTED_MODLOADERS)}"
+            )
+        
+        # Validate version format (basic check)
+        version = self.config['minecraft']['version']
+        if not isinstance(version, str) or not version.count('.') >= 1:
+            raise RuntimeError(
+                f"Invalid Minecraft version format: {version}. "
+                "Expected format: X.Y.Z or X.Y"
+            )
+        
+        # Validate paths exist or can be created
+        for path_key in ['minecraft', 'backups', 'local_mods']:
+            path = Path(self.config['paths'][path_key])
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                raise RuntimeError(f"Failed to create directory {path}: {str(e)}")
+        
+        # Validate server configuration if present
+        if 'server' in self.config:
+            if 'memory' in self.config['server']:
+                memory = self.config['server']['memory']
+                if not isinstance(memory, dict) or 'min' not in memory or 'max' not in memory:
+                    raise RuntimeError("Server memory configuration must include 'min' and 'max' values")
     
     def __getitem__(self, key: str) -> Any:
         """Access configuration values."""
