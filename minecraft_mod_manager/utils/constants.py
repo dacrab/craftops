@@ -1,25 +1,30 @@
-"""Constants used throughout the Minecraft Mod Manager."""
+"""Constants used throughout the application."""
 
-# Configuration
-DEFAULT_CONFIG_PATH = "config.jsonc"
+from pathlib import Path
+from typing import Final
+
+# Default paths
+DEFAULT_CONFIG_PATH: Final[str] = str(Path.home() / ".config" / "minecraft-mod-manager" / "config.jsonc")
+
+# API timeouts
+DEFAULT_TIMEOUT: Final[int] = 30  # seconds
+
+# Discord message settings
+DISCORD_MAX_LENGTH: Final[int] = 2000
+DISCORD_SUCCESS_COLOR: Final[int] = 0x00FF00  # Green
+DISCORD_ERROR_COLOR: Final[int] = 0xFF0000    # Red
+DISCORD_FOOTER_TEXT: Final[str] = "Minecraft Mod Manager"
+
+# Warning intervals
+WARNING_SLEEP_MINUTES: Final[int] = 60  # Sleep time between minute warnings
+WARNING_SLEEP_SECONDS: Final[int] = 10  # Sleep time between second warnings
 
 # Server settings
 DEFAULT_MEMORY = "2G"
 DEFAULT_MAX_WAIT = 120
 DEFAULT_CHUNK_SIZE = 10
-DEFAULT_TIMEOUT = 300
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_BASE_DELAY = 2
-
-# Discord webhook settings
-DISCORD_SUCCESS_COLOR = 0x00FF00
-DISCORD_ERROR_COLOR = 0xFF0000
-DISCORD_MAX_LENGTH = 2000
-DISCORD_FOOTER_TEXT = "Minecraft Mod Manager"
-
-# Warning intervals
-WARNING_SLEEP_MINUTES = 60
-WARNING_SLEEP_SECONDS = 5
 
 # Server process settings
 SHUTDOWN_TIMEOUT = 20  # seconds to wait for graceful shutdown

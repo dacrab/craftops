@@ -1,11 +1,32 @@
 #!/bin/bash
 
 # Clean previous builds
-rm -rf dist/ build/ *.egg-info/
+rm -rf build/ dist/ *.egg-info/
 
-# Create source distribution
-python setup.py sdist bdist_wheel
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
 
-echo "Build complete! Distribution files are in the dist/ directory."
-echo "You can install the package directly using:"
-echo "pip install dist/*.whl" 
+# Install build dependencies
+pip install --upgrade pip
+pip install build wheel
+
+# Build package
+python -m build
+
+# Install locally for testing
+pip install -e .
+
+# Create config directory and copy example config
+mkdir -p ~/.config/minecraft-mod-manager
+cp minecraft_mod_manager/config/config.jsonc.example ~/.config/minecraft-mod-manager/config.jsonc
+
+echo "Build complete! You can now test the package."
+echo "The virtual environment is activated. Use 'deactivate' when done."
+echo ""
+echo "The example config has been copied to ~/.config/minecraft-mod-manager/config.jsonc"
+echo "Edit ~/.config/minecraft-mod-manager/config.jsonc with your server paths before testing."
+echo ""
+echo "Try these commands:"
+echo "minecraft-mod-manager --help"
+echo "minecraft-mod-manager --status" 

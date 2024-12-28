@@ -3,10 +3,19 @@
 import argparse
 import asyncio
 import sys
-import textwrap
+from enum import Enum, auto
+from typing import NoReturn
 
 from .minecraft_mod_manager import MinecraftModManager
 from .utils.constants import DEFAULT_CONFIG_PATH
+
+
+class ServerAction(Enum):
+    """Server control actions."""
+    START = auto()
+    STOP = auto()
+    RESTART = auto()
+    STATUS = auto()
 
 
 def parse_args() -> argparse.Namespace:
@@ -14,37 +23,23 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Minecraft Mod Manager - Server management and mod update tool',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent("""
+        epilog="""
             Examples:
               %(prog)s --status
               %(prog)s --start
               %(prog)s --auto-update
               %(prog)s --config custom_config.jsonc --auto-update
-        """)
+        """
     )
     
     # Server control group
     server_group = parser.add_mutually_exclusive_group()
-    server_group.add_argument(
-        '--start',
-        action='store_true',
-        help='Start the Minecraft server'
-    )
-    server_group.add_argument(
-        '--stop',
-        action='store_true',
-        help='Stop the Minecraft server'
-    )
-    server_group.add_argument(
-        '--restart',
-        action='store_true',
-        help='Restart the Minecraft server'
-    )
-    server_group.add_argument(
-        '--status',
-        action='store_true',
-        help='Check server status and player count'
-    )
+    for action in ServerAction:
+        server_group.add_argument(
+            f'--{action.name.lower()}',
+            action='store_true',
+            help=f'{action.name.capitalize()} the Minecraft server'
+        )
     
     # Update options
     parser.add_argument(
@@ -62,59 +57,53 @@ def parse_args() -> argparse.Namespace:
     
     return parser.parse_args()
 
-def main() -> int:
-    """
-    Command-line interface entry point.
-    Supports:
-    - Auto-update
-    - Server start/stop/restart
-    - Status check
-    - Manual maintenance
-    
-    Returns:
-        int: Exit code (0 for success, 1 for error)
-    """
-    try:
-        args = parse_args()
-        
-        # Initialize manager
-        manager = MinecraftModManager(config_path=args.config)
-        
-        # Handle server status check
-        if args.status:
+
+def handle_server_action(manager: MinecraftModManager, action: ServerAction) -> int:
+    """Handle server control actions."""
+    match action:
+        case ServerAction.STATUS:
             status = "running" if manager.verify_server_status() else "stopped"
             players = manager.get_player_count() if status == "running" else 0
             print(f"Server is {status} with {players} players online")
             return 0
+            
+        case ServerAction.START | ServerAction.STOP | ServerAction.RESTART:
+            action_name = action.name.lower()
+            print(f"{action_name.capitalize()}ing server...")
+            if manager.control_server(action_name):
+                print(f"Server {action_name}ed successfully")
+                return 0
+            print(f"Failed to {action_name} server")
+            return 1
+
+
+def main() -> int:
+    """Command-line interface entry point."""
+    try:
+        args = parse_args()
+        manager = MinecraftModManager(config_path=args.config)
         
-        # Handle server control commands
-        for action in ['start', 'stop', 'restart']:
-            if getattr(args, action):
-                print(f"{action.capitalize()}ing server...")
-                if manager.control_server(action):
-                    print(f"Server {action}ed successfully")
-                    return 0
-                else:
-                    print(f"Failed to {action} server")
-                    return 1
+        # Handle server actions
+        for action in ServerAction:
+            if getattr(args, action.name.lower()):
+                return handle_server_action(manager, action)
         
         # Handle update commands
         if args.auto_update:
             print("Starting automated update process...")
             asyncio.run(manager.run_automated_update())
             return 0
-            
-        else:
-            # Manual maintenance mode
-            print("\nWarning: This will update all mods and restart the server.")
-            print("Players will be warned with a countdown if any are online.")
-            try:
-                input("Press Enter to continue or Ctrl+C to cancel...")
-                asyncio.run(manager.run_maintenance())
-                return 0
-            except KeyboardInterrupt:
-                print("\nOperation cancelled by user")
-                return 0
+        
+        # Manual maintenance mode
+        print("\nWarning: This will update all mods and restart the server.")
+        print("Players will be warned with a countdown if any are online.")
+        try:
+            input("Press Enter to continue or Ctrl+C to cancel...")
+            asyncio.run(manager.run_maintenance())
+            return 0
+        except KeyboardInterrupt:
+            print("\nOperation cancelled by user")
+            return 0
 
     except KeyboardInterrupt:
         print("\nOperation cancelled by user")
@@ -123,5 +112,6 @@ def main() -> int:
         print(f"Error: {str(e)}", file=sys.stderr)
         return 1
 
+
 if __name__ == "__main__":
-    main() 
+    sys.exit(main()) 
