@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, Union, TypeVar, overload, List
+from typing import Any, Dict, List, TypeVar, Union, overload
 
 T = TypeVar('T')
 
@@ -29,12 +29,12 @@ class Config:
                         content += line
                 self.config = json.loads(content)
                 
-        except FileNotFoundError:
-            raise RuntimeError(f"Configuration file not found: {self.config_path}")
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Invalid JSON in configuration: {str(e)}")
-        except Exception as e:
-            raise RuntimeError(f"Failed to load configuration: {str(e)}")
+        except FileNotFoundError as err:
+            raise RuntimeError(f"Configuration file not found: {self.config_path}") from err
+        except json.JSONDecodeError as err:
+            raise RuntimeError(f"Invalid JSON in configuration: {str(err)}") from err
+        except Exception as err:
+            raise RuntimeError(f"Failed to load configuration: {str(err)}") from err
     
     def _validate_config(self) -> None:
         """Validate required configuration sections and fields."""

@@ -3,18 +3,18 @@
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Dict, Union
+from typing import Union
 
 import requests
 
 from ..config.config import Config
 from ..utils.constants import (
-    DISCORD_SUCCESS_COLOR,
     DISCORD_ERROR_COLOR,
-    DISCORD_MAX_LENGTH,
     DISCORD_FOOTER_TEXT,
+    DISCORD_MAX_LENGTH,
+    DISCORD_SUCCESS_COLOR,
     WARNING_SLEEP_MINUTES,
-    WARNING_SLEEP_SECONDS
+    WARNING_SLEEP_SECONDS,
 )
 
 class NotificationManager:
