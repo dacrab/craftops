@@ -89,8 +89,17 @@
     },
 
     "modrinth_urls": [
-        "https://modrinth.com/mod/1IjD5062",
-        "https://modrinth.com/mod/1bokaNcj",
-        "https://modrinth.com/mod/ZJTGwAND"
+        "https://modrinth.com/mod/fabric-api",
+        "https://modrinth.com/mod/lithium",
+        "https://modrinth.com/mod/starlight",
+        "https://modrinth.com/mod/phosphor",
+        "https://modrinth.com/mod/ferrite-core",
+        "https://modrinth.com/mod/lazydfu",
+        "https://modrinth.com/mod/krypton",
+        "https://modrinth.com/mod/c2me-fabric",
+        "https://modrinth.com/mod/servux",
+        "https://modrinth.com/mod/carpet",
+        "https://modrinth.com/mod/dynmap",
+        "https://modrinth.com/mod/spark"
     ]
 }
