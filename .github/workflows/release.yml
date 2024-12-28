@@ -48,14 +48,16 @@ jobs:
             dist/minecraft-mod-manager
           generate_release_notes: true
           body: |
-            ## Installation Methods
+            ## 🚀 Installation Methods
             
-            ### Python Package (for Python users)
-            ```bash
-            pip install minecraft-mod-manager
-            ```
+            1. 📥 Download the `minecraft-mod-manager` executable from the assets below
+            2. 🔓 Make it executable:
+               ```bash
+               chmod +x minecraft-mod-manager
+               ```
+            3. 🎮 Run it:
+               ```bash
+               ./minecraft-mod-manager --help
+               ```
             
-            ### Standalone Executable (for non-Python users)
-            1. Download the `minecraft-mod-manager` executable
-            2. Make it executable: `chmod +x minecraft-mod-manager`
-            3. Run it: `./minecraft-mod-manager --help` 
+            For detailed usage instructions, please visit our [documentation](https://github.com/dacrab/minecraft-mod-manager#readme).
