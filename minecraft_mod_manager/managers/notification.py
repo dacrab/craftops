@@ -1,8 +1,8 @@
 """Discord notifications and player warnings."""
 
-from datetime import datetime, timezone
 import logging
 import time
+from datetime import datetime, timezone
 from typing import Union
 
 import requests
