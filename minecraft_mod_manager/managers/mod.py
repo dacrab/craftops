@@ -138,8 +138,9 @@ class ModManager:
             # Filter for compatible versions
             compatible_versions = [
                 v for v in versions
-                if self.config['minecraft']['version'] in v['game_versions'] and
-                self.config['minecraft']['modloader'].lower() in [loader.lower() for loader in v['loaders']]
+                if (self.config['minecraft']['version'] in v['game_versions'] and
+                    any(loader.lower() == self.config['minecraft']['modloader'].lower()
+                        for loader in v['loaders']))
             ]
 
             if compatible_versions:
