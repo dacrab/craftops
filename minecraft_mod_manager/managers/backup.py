@@ -1,7 +1,6 @@
 """Server backup creation and cleanup."""
 
 import logging
-import shutil
 import tarfile
 import time
 from datetime import datetime
@@ -89,7 +88,13 @@ class BackupManager:
     def _get_backup_pattern(self) -> str:
         """Get glob pattern for matching backup files."""
         format_str = self.config['maintenance']['backup_name_format']
-        return f"*{format_str.replace('%Y','*').replace('%m','*').replace('%d','*').replace('%H','*').replace('%M','*')}.tar.gz"
+        replacements = {
+            '%Y': '*', '%m': '*', '%d': '*',
+            '%H': '*', '%M': '*'
+        }
+        for old, new in replacements.items():
+            format_str = format_str.replace(old, new)
+        return f"*{format_str}.tar.gz"
     
     def _get_sorted_backups(self, pattern: str) -> List[Tuple[Path, float]]:
         """Get list of backups sorted by modification time (newest first)."""

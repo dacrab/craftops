@@ -2,10 +2,8 @@
 
 import asyncio
 import logging
-import os
-from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Dict, List, Optional, TypedDict, cast, NotRequired, Any
+from typing import Any, Dict, List, NotRequired, Optional, TypedDict, cast
 
 import aiohttp
 from tqdm import tqdm
@@ -76,15 +74,16 @@ class ModManager:
                         self.logger.warning(f"Rate limited, waiting {retry_delay} seconds...")
                         await asyncio.sleep(retry_delay)
                         return await self.make_request(endpoint, retry_count + 1)
-                    raise Exception(f"Rate limit exceeded after {self.config['api']['max_retries']} retries")
+                    max_retries = self.config['api']['max_retries']
+                    raise RuntimeError(f"Rate limit exceeded after {max_retries} retries") from None
                 
                 if response.status != 200:
-                    raise Exception(f"API returned status {response.status}")
+                    raise RuntimeError(f"API returned status {response.status}") from None
                 
                 return await response.json()
                 
         except Exception as e:
-            raise Exception(f"Request failed: {str(e)}")
+            raise RuntimeError(f"Request failed: {str(e)}") from e
     
     async def fetch_latest_versions(self) -> Dict[str, ModInfo]:
         """Query Modrinth API for latest versions of all configured mods."""
@@ -245,9 +244,19 @@ class ModManager:
     
     def _log_compatibility_warning(self, mod_name: str, versions: List[ModVersion]) -> None:
         """Log warning about mod version compatibility."""
+        version_list = ', '.join(v['version_number'] for v in versions[:5])
         self.logger.warning(
             f"No compatible version found for {mod_name}. "
-            f"Available versions: {', '.join(v['version_number'] for v in versions[:5])}"
+            f"Available versions: {version_list}"
+        )
+    
+    def _check_version_compatibility(self, version: ModVersion) -> bool:
+        """Check if a mod version is compatible with current server."""
+        mc_version = self.config['minecraft']['version']
+        modloader = self.config['minecraft']['modloader'].lower()
+        return (
+            mc_version in version['game_versions'] and
+            modloader in [loader.lower() for loader in version['loaders']]
         )
     
     def _send_update_summary(self, updated_mods: List[str], skipped_mods: List[str],
