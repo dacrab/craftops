@@ -8,13 +8,17 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
     steps:
       - uses: actions/checkout@v4
       
       - name: Set up Python 3.12
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: 'pip'
           
       - name: Install dependencies
         run: |
@@ -36,11 +40,13 @@ jobs:
             
       - name: Create Release
         uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             dist/*.whl
             dist/*.tar.gz
             dist/minecraft-mod-manager
+          generate_release_notes: true
           body: |
             ## Installation Methods
             
