@@ -61,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     
     return parser.parse_args()
 
-def main() -> None:
+def main() -> int:
     """
     Command-line interface entry point.
     Supports:
@@ -69,6 +69,9 @@ def main() -> None:
     - Server start/stop/restart
     - Status check
     - Manual maintenance
+    
+    Returns:
+        int: Exit code (0 for success, 1 for error)
     """
     try:
         args = parse_args()
@@ -81,7 +84,7 @@ def main() -> None:
             status = "running" if manager.verify_server_status() else "stopped"
             players = manager.get_player_count() if status == "running" else 0
             print(f"Server is {status} with {players} players online")
-            return
+            return 0
         
         # Handle server control commands
         for action in ['start', 'stop', 'restart']:
@@ -89,15 +92,16 @@ def main() -> None:
                 print(f"{action.capitalize()}ing server...")
                 if manager.control_server(action):
                     print(f"Server {action}ed successfully")
-                    return
+                    return 0
                 else:
                     print(f"Failed to {action} server")
-                    sys.exit(1)
+                    return 1
         
         # Handle update commands
         if args.auto_update:
             print("Starting automated update process...")
             asyncio.run(manager.run_automated_update())
+            return 0
             
         else:
             # Manual maintenance mode
@@ -106,15 +110,17 @@ def main() -> None:
             try:
                 input("Press Enter to continue or Ctrl+C to cancel...")
                 asyncio.run(manager.run_maintenance())
+                return 0
             except KeyboardInterrupt:
                 print("\nOperation cancelled by user")
-                return
-            
+                return 0
+
     except KeyboardInterrupt:
         print("\nOperation cancelled by user")
+        return 0
     except Exception as e:
         print(f"Error: {str(e)}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
 if __name__ == "__main__":
     main() 
