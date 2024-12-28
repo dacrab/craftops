@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Dict, Any
+from typing import Any, Dict
 
 def load_jsonc(file_path: str) -> Dict[str, Any]:
     """
@@ -33,13 +33,13 @@ def load_jsonc(file_path: str) -> Dict[str, Any]:
         
         return json.loads(content)
         
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Configuration file not found: {file_path}")
-    except json.JSONDecodeError as e:
+    except FileNotFoundError as err:
+        raise FileNotFoundError(f"Configuration file not found: {file_path}") from err
+    except json.JSONDecodeError as err:
         raise json.JSONDecodeError(
-            f"Invalid JSON in configuration file: {str(e)}",
-            e.doc,
-            e.pos
-        )
-    except Exception as e:
-        raise Exception(f"Error loading configuration file: {str(e)}") 
+            f"Invalid JSON in configuration file: {str(err)}",
+            err.doc,
+            err.pos
+        ) from err
+    except Exception as err:
+        raise RuntimeError(f"Error loading configuration file: {str(err)}") from err 

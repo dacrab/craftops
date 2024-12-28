@@ -259,6 +259,22 @@ class ModManager:
             modloader in [loader.lower() for loader in version['loaders']]
         )
     
+    def _format_mod_failure(self, mod_name: str) -> str:
+        """Format mod failure message."""
+        mc_version = self.config['minecraft']['version']
+        modloader = self.config['minecraft']['modloader']
+        return (
+            f"{mod_name} (no compatible version for "
+            f"MC {mc_version} with {modloader})"
+        )
+    
+    def _send_update_notification(self) -> None:
+        """Send notification about up-to-date mods."""
+        self.notification.send_discord_notification(
+            "Mod Updates",
+            "✅ All mods are up to date!"
+        )
+    
     def _send_update_summary(self, updated_mods: List[str], skipped_mods: List[str],
                            failed_mods: List[str], total_mods: int) -> None:
         """Send summary of mod update results."""
