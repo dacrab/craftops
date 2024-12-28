@@ -1,0 +1,24 @@
+{
+    "include": [
+        "minecraft_mod_manager"
+    ],
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__"
+    ],
+    "ignore": [],
+    "defineConstant": {},
+    "stubPath": "",
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "pythonVersion": "3.9",
+    "pythonPlatform": "Linux",
+    "executionEnvironments": [
+        {
+            "root": "minecraft_mod_manager",
+            "extraPaths": [
+                "."
+            ]
+        }
+    ]
+} 

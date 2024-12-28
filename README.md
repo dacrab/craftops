@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)
+![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)
 
@@ -22,151 +22,136 @@ A Python-based tool for managing Minecraft server mods and maintenance.
 - 📝 Comprehensive logging system
 - 🛠️ Command-line interface for server management
 
+## 📋 Quick Start
+
+1. **Install the Package**:
+   ```bash
+   pip install minecraft-mod-manager
+   ```
+
+2. **Create Configuration**:
+   ```bash
+   # Create config directory
+   mkdir -p ~/.config/minecraft-mod-manager
+   
+   # Copy example config
+   cp $(pip show minecraft-mod-manager | grep Location | cut -d' ' -f2)/minecraft_mod_manager/config.jsonc.example ~/.config/minecraft-mod-manager/config.jsonc
+   ```
+
+3. **Edit Configuration**:
+   ```bash
+   # Edit the config file with your settings
+   nano ~/.config/minecraft-mod-manager/config.jsonc
+   ```
+   Key things to update:
+   - Set correct Minecraft paths
+   - Configure server memory and Java flags
+   - Add your Discord webhook URL
+   - Add your Modrinth mod URLs
+
+4. **Test the Setup**:
+   ```bash
+   # Check server status
+   minecraft-mod-manager --status
+   
+   # Run a manual update
+   minecraft-mod-manager --auto-update
+   ```
+
+5. **Set up Auto-updates** (optional):
+   ```bash
+   # Add to crontab (runs daily at 4 AM)
+   (crontab -l 2>/dev/null; echo "0 4 * * * minecraft-mod-manager --auto-update") | crontab -
+   ```
+
 ## 📋 Requirements
 
-- Python 3.7+
+- Python 3.9 or newer
 - Linux environment
 - Java (for Minecraft server)
-- Required Python packages: aiohttp, requests, tqdm
-
-## 🚀 Installation
-
-```bash
-# Clone repository
-git clone https://github.com/dacrab/minecraft-mod-manager.git
-cd minecraft-mod-manager
-
-# Install dependencies
-# Via pip
-pip3 install aiohttp requests tqdm
-
-# Via package manager
-# Debian/Ubuntu
-sudo apt-get install python3 python3-aiohttp python3-requests python3-tqdm
-
-# Fedora
-sudo dnf install python3 python3-aiohttp python3-requests python3-tqdm
-
-# Arch Linux
-sudo pacman -S python python-aiohttp python-requests python-tqdm
-
-# Create config file
-cp config.json.example config.json
-```
+- Internet connection for mod updates
 
 ## 🔧 Configuration
 
-Edit `config.json` with your settings:
+The configuration file (`config.jsonc`) supports comments and includes these sections:
 
-```json
+```jsonc
 {
-    // Basic Minecraft server configuration
+    // Minecraft server configuration
     "minecraft": {
-        "version": "1.21.1",        // Minecraft version to use
-        "modloader": "fabric"       // Mod loader type (fabric/forge)
+        "version": "1.20.1",        // Minecraft version
+        "modloader": "fabric"       // Mod loader (fabric/forge)
     },
 
-    // File system paths configuration
+    // File paths
     "paths": {
-        "minecraft": "/home/Minecraft",                      // Root Minecraft directory
-        "server_jar": "/home/Minecraft/server.jar",         // Server executable path
-        "local_mods": "/home/Minecraft/mods",               // Mods directory
-        "backups": "/home/Minecraft/backups",               // Backup storage location
-        "logs": "/home/Minecraft/logs/mod_manager.log"      // Log file location
+        "minecraft": "/path/to/minecraft",
+        "server_jar": "/path/to/minecraft/server.jar",
+        "local_mods": "/path/to/minecraft/mods",
+        "backups": "/path/to/minecraft/backups",
+        "logs": "/path/to/minecraft/logs/mod_manager.log"
     },
 
-    // Server runtime configuration
+    // Server process settings
     "server": {
-        "flags_source": "custom",   // Use custom JVM flags
-        "custom_flags": "java -Xms8192M -Xmx8192M --add-modules=jdk.incubator.vector -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20",
-        
-        // Memory allocation settings
+        "flags_source": "default",  // Use "default" or "custom"
+        "custom_flags": "java -Xms8G -Xmx8G -XX:+UseG1GC -jar",  // Used if flags_source is "custom"
         "memory": {
-            "min": "6G",           // Minimum heap size
-            "max": "8G"            // Maximum heap size
+            "min": "6G",           // Used if flags_source is "default"
+            "max": "8G"
         },
-
-        // JVM optimization flags
-        "java_flags": [
-            "-XX:+UseG1GC",                    // Use G1 Garbage Collector
-            "-XX:+ParallelRefProcEnabled",     // Enable parallel reference processing
-            "-XX:MaxGCPauseMillis=200",        // Target max GC pause time
-            "-XX:+UnlockExperimentalVMOptions",// Allow experimental options
-            "-XX:+DisableExplicitGC",          // Disable explicit GC calls
-            "-XX:G1NewSizePercent=30",         // New generation size
-            "-XX:G1MaxNewSizePercent=40",      // Max new generation size
-            "-XX:G1HeapRegionSize=8M",         // G1 region size
-            "-XX:G1ReservePercent=20",         // Reserve memory percentage
-            "-XX:G1HeapWastePercent=5"         // Acceptable waste percentage
-        ],
-
-        // Server startup settings
         "startup": {
-            "max_retries": 3,      // Maximum startup attempts
-            "retry_delay": 10      // Delay between retries (seconds)
+            "max_retries": 3,
+            "retry_delay": 10
         },
-
-        // RCON configuration for remote control
         "rcon": {
-            "enabled": true,                       // Enable RCON
-            "port": 25575,                        // RCON port
-            "password": "YOUR_RCON_PASSWORD_HERE"  // RCON password
+            "enabled": true,
+            "port": 25575,
+            "password": "YOUR_RCON_PASSWORD"
         }
     },
 
-    // API interaction settings
+    // API settings
     "api": {
-        "user_agent": "MinecraftModManager/1.0",  // User agent for API requests
-        "max_retries": 5,                         // Maximum API retry attempts
-        "base_delay": 3,                          // Base delay between retries
-        "chunk_size": 10                          // Download chunk size
+        "user_agent": "MinecraftModManager/1.0",
+        "max_retries": 5,
+        "base_delay": 3,
+        "chunk_size": 10
     },
 
-    // Logging configuration
-    "logging": {
-        "max_lines": {
-            "server_check": 100,    // Max lines for server checks
-            "startup_check": 5,     // Max lines for startup logs
-            "status_check": 50      // Max lines for status checks
-        }
-    },
-
-    // Maintenance and backup settings
+    // Maintenance settings
     "maintenance": {
-        "backup_retention_days": 7,    // Days to keep backups
-        "max_backups": 5,             // Maximum number of backups
-        "backup_name_format": "minecraft-%Y.%m.%d-%H.%M",  // Backup filename format
-        // Warning intervals before maintenance
         "warning_intervals": [
+            {"time": 30, "unit": "minutes"},
             {"time": 15, "unit": "minutes"},
-            {"time": 10, "unit": "minutes"},
             {"time": 5, "unit": "minutes"},
-            {"time": 1, "unit": "minute"},
-            {"time": 30, "unit": "seconds"},
-            {"time": 10, "unit": "seconds"},
-            {"time": 5, "unit": "seconds"}
-        ]
-    },
-
-    // Discord notification settings
-    "notifications": {
-        "discord_webhook": "YOUR_WEBHOOK_URL_HERE"  // Discord webhook URL
-    },
-
-    // Server validation settings
-    "validation": {
-        "required_files": [          // Required server files
-            "server.jar",
-            "eula.txt"
+            {"time": 1, "unit": "minutes"}
         ],
-        "eula_accepted": true        // EULA acceptance flag
+        "backup_name_format": "%Y-%m-%d_%H-%M-%S",
+        "backup_retention_days": 7,
+        "max_backups": 10
     },
 
-    // Mod configuration
-    "modrinth_urls": [              // Modrinth mod URLs to manage
-        "https://modrinth.com/mod/1IjD5062",
-        "https://modrinth.com/mod/1bokaNcj",
-        "https://modrinth.com/mod/ZJTGwAND"
+    // Discord webhook for notifications
+    "notifications": {
+        "discord_webhook": "YOUR_WEBHOOK_URL"
+    },
+
+    // List of mods to manage
+    "modrinth_urls": [
+        // Essential mods
+        "https://modrinth.com/mod/fabric-api",      // Required for most mods
+        "https://modrinth.com/mod/lithium",         // Performance improvements
+        "https://modrinth.com/mod/starlight",       // Light engine optimization
+        
+        // Performance mods
+        "https://modrinth.com/mod/ferrite-core",    // Memory optimization
+        "https://modrinth.com/mod/lazydfu",         // Startup optimization
+        "https://modrinth.com/mod/krypton",         // Network optimization
+        
+        // Utility mods
+        "https://modrinth.com/mod/carpet",          // Server tools
+        "https://modrinth.com/mod/spark"            // Performance profiler
     ]
 }
 ```
@@ -177,28 +162,51 @@ Edit `config.json` with your settings:
 
 ```bash
 # Check server status
-python3 MinecraftModManager.py --status
+minecraft-mod-manager --status
 
 # Start server
-python3 MinecraftModManager.py --start
+minecraft-mod-manager --start
 
 # Stop server
-python3 MinecraftModManager.py --stop
+minecraft-mod-manager --stop
 
 # Restart server
-python3 MinecraftModManager.py --restart
+minecraft-mod-manager --restart
 
 # Run automated update
-python3 MinecraftModManager.py --auto-update
+minecraft-mod-manager --auto-update
 
-# Run manual maintenance
-python3 MinecraftModManager.py
+# Run manual maintenance (interactive)
+minecraft-mod-manager
+
+# Use custom config file
+minecraft-mod-manager --config path/to/config.jsonc
 ```
 
 ### Automated Updates (Cron)
 ```bash
 # Daily at 4 AM
-0 4 * * * /usr/bin/python3 /path/to/MinecraftModManager.py --auto-update
+0 4 * * * minecraft-mod-manager --auto-update
+```
+
+## 📦 Package Structure
+
+```
+minecraft_mod_manager/
+├── config/
+│   └── config.py           # Configuration management
+├── controllers/
+│   └── server.py           # Server process control
+├── managers/
+│   ├── backup.py           # Backup management
+│   ├── mod.py              # Mod updates
+│   └── notification.py     # Notifications
+├── utils/
+│   ├── constants.py        # Shared constants
+│   └── jsonc.py           # JSONC file handling
+├── __init__.py            # Package initialization
+├── __main__.py            # Command-line interface
+└── minecraft_mod_manager.py # Main orchestration
 ```
 
 ## 🔍 Troubleshooting
@@ -215,6 +223,7 @@ Common issues and solutions:
   - Verify Modrinth URLs
   - Check version compatibility
   - Ensure proper permissions on mods directory
+  - Check network connectivity
 
 - **Backup issues**: 
   - Verify backup directory permissions
@@ -223,8 +232,32 @@ Common issues and solutions:
 
 - **Discord notifications not working**: 
   - Verify webhook URL
-  - Check notifications.enabled setting
   - Test webhook URL manually
+  - Check network connectivity
+
+## 📝 Distribution
+
+### Building from Source
+
+1. **Clone and Build**:
+   ```bash
+   git clone https://github.com/dacrab/minecraft-mod-manager.git
+   cd minecraft-mod-manager
+   ./build.sh
+   ```
+
+2. **Install the Built Package**:
+   ```bash
+   pip install dist/*.whl
+   ```
+
+### Direct Installation
+
+You can also install directly from GitHub:
+
+```bash
+pip install https://github.com/dacrab/minecraft-mod-manager/releases/latest/download/minecraft-mod-manager.whl
+```
 
 ## 📝 License
 
