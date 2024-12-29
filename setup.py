@@ -1,6 +1,6 @@
 """Setup script for Minecraft Mod Manager."""
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -14,7 +14,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dacrab/minecraft-mod-manager",
-    packages=find_packages(),
+    packages=find_namespace_packages(include=["minecraft_mod_manager*"]),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
@@ -47,6 +47,6 @@ setup(
     },
     include_package_data=True,
     package_data={
-        "minecraft_mod_manager": ["config.jsonc.example"],
+        "minecraft_mod_manager": ["config/*.jsonc", "config/config.jsonc"],
     },
 ) 

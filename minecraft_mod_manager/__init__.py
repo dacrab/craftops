@@ -17,7 +17,7 @@ from .managers.notification import NotificationManager
 from .minecraft_mod_manager import MinecraftModManager
 
 __version__ = "1.0.0"
-__author__ = "Your Name"
+__author__ = "dacrab"
 __license__ = "MIT"
 
 __all__ = [

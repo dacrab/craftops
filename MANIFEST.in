@@ -1,0 +1,4 @@
+include README.md
+include LICENSE
+include minecraft_mod_manager/config/config.jsonc
+recursive-include minecraft_mod_manager/config *.jsonc 
