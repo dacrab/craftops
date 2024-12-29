@@ -6,11 +6,8 @@ on:
       - 'v*'
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
     steps:
       - uses: actions/checkout@v4
       
@@ -35,12 +32,41 @@ jobs:
         run: |
           pyinstaller --onefile \
             --name minecraft-mod-manager \
-            --add-data "minecraft_mod_manager/config/config.jsonc.example:minecraft_mod_manager/config" \
+            --add-data "minecraft_mod_manager/config:minecraft_mod_manager/config" \
             minecraft_mod_manager/__main__.py
             
+      - name: List built files
+        run: |
+          echo "Built files:"
+          ls -l dist/
+
+      - name: Upload artifacts
+        continue-on-error: true  # Continue even if upload fails (for local testing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/minecraft-mod-manager
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             dist/*.whl

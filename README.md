@@ -83,7 +83,11 @@ minecraft-mod-manager --config custom_config.jsonc --auto-update
 
 ## Configuration
 
-Create a configuration file (`config.jsonc`) with the following structure:
+The application requires a configuration file named `config.jsonc` in the appropriate directory. Here's how to set it up:
+
+1. The default configuration file will be installed in the `minecraft_mod_manager/config` directory
+2. Copy or rename this file to `config.jsonc` in your desired location
+3. Edit the file to match your server setup:
 
 ```jsonc
 {
