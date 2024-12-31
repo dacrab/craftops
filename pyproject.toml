@@ -60,12 +60,20 @@ check_untyped_defs = true
 
 [tool.ruff]
 line-length = 100
-select = ["E", "F", "B", "I"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "W",   # pycodestyle warnings
+]
 ignore = []
 
 [tool.ruff.lint.isort]
 known-first-party = ["minecraft_mod_manager"]
-combine-as-imports = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
