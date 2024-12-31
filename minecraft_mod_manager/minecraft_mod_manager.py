@@ -26,7 +26,9 @@ class MinecraftModManager:
         self.mod_manager = ModManager(self.config, self.logger)
         self.backup_manager = BackupManager(self.config, self.logger)
         self.notification_manager = NotificationManager(self.config, self.logger)
-        self.server_controller: ServerControllerProtocol = ServerController(self.config, self.logger)
+        self.server_controller: ServerControllerProtocol = (
+            ServerController(self.config, self.logger)
+        )
 
     async def run_automated_update(self) -> None:
         """Run automated update process with player warnings."""
