@@ -1,8 +1,7 @@
 """TOML file handling utilities."""
 
 import tomllib
-from pathlib import Path
-from typing import Any, Dict, List, Sequence, TypeVar, Union, cast
+from typing import Any, Dict, List, TypeVar, Union, cast
 
 T = TypeVar('T')
 TomlValue = Union[str, int, float, bool, List[Any], Dict[str, Any]]
@@ -10,15 +9,14 @@ TomlDict = Dict[str, TomlValue]
 
 
 def load_toml(file_path: str) -> Dict[str, Any]:
-    """
-    Load a TOML file and return a dictionary.
-    
+    """Load a TOML file and return a dictionary.
+
     Args:
         file_path: Path to the TOML file to load
-        
+
     Returns:
         Dictionary containing the parsed TOML data
-        
+
     Raises:
         FileNotFoundError: If the file doesn't exist
         tomllib.TOMLDecodeError: If the TOML is invalid
@@ -27,7 +25,7 @@ def load_toml(file_path: str) -> Dict[str, Any]:
     try:
         with open(file_path, 'rb') as f:
             return tomllib.load(f)
-            
+
     except FileNotFoundError as err:
         raise FileNotFoundError(f"Configuration file not found: {file_path}") from err
     except tomllib.TOMLDecodeError as err:
@@ -37,20 +35,19 @@ def load_toml(file_path: str) -> Dict[str, Any]:
 
 
 def save_toml(file_path: str, data: Dict[str, Any]) -> None:
-    """
-    Save a dictionary to a TOML file.
-    
+    """Save a dictionary to a TOML file.
+
     Args:
         file_path: Path to save the TOML file
         data: Dictionary containing the data to save
-        
+
     Raises:
         Exception: For errors during saving
     """
     try:
         # Convert the data to TOML format
         toml_str = _dict_to_toml(data)
-        
+
         # Write to file
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(toml_str)
@@ -79,7 +76,7 @@ def _dict_to_toml(data: Dict[str, Any], indent: int = 0) -> str:
     """Convert a dictionary to TOML format."""
     lines = []
     arrays_of_tables: Dict[str, List[Dict[str, Any]]] = {}
-    
+
     # Sort keys to ensure consistent output
     for key, value in sorted(data.items()):
         if isinstance(value, dict):
@@ -94,11 +91,11 @@ def _dict_to_toml(data: Dict[str, Any], indent: int = 0) -> str:
             formatted_value = _format_value(cast(TomlValue, value))
             if formatted_value:  # Skip empty array of tables
                 lines.append(f"{' ' * indent}{key} = {formatted_value}")
-    
+
     # Add arrays of tables at the end
     for key, array in arrays_of_tables.items():
         for item in array:
             lines.append(f"\n[[{key}]]")
             lines.append(_dict_to_toml(item, indent + 2))
-    
-    return "\n".join(lines) 
+
+    return "\n".join(lines)

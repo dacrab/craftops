@@ -1,1 +1,1 @@
-"""Tests for minecraft-mod-manager.""" 
+"""Tests for minecraft-mod-manager."""

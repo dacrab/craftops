@@ -3,7 +3,6 @@
 import logging
 import subprocess
 import time
-from pathlib import Path
 from typing import Optional, Protocol
 
 from ..config.config import Config

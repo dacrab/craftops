@@ -1,8 +1,10 @@
 """Pytest configuration for minecraft-mod-manager tests."""
 
-import pytest
 import logging
 from pathlib import Path
+
+import pytest
+
 
 @pytest.fixture
 def logger():
@@ -18,7 +20,7 @@ def test_data_dir():
 def test_config(test_data_dir):
     """Create a test configuration."""
     from minecraft_mod_manager.config.config import Config
-    
+
     return Config.from_dict({
         'minecraft': {'version': '1.20.1', 'modloader': 'fabric'},
         'paths': {
@@ -57,4 +59,4 @@ def test_config(test_data_dir):
                 'curseforge': []
             }
         }
-    }) 
+    })
