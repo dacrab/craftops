@@ -9,7 +9,8 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Final, List, NotRequired, TypedDict, cast
+from typing import Any, Dict, Final, List, Optional, TypedDict, Union, cast
+from typing_extensions import NotRequired
 from urllib.parse import urlparse
 
 import aiohttp
@@ -65,7 +66,7 @@ class ModManager:
         """Initialize the mod manager."""
         self.config = config
         self.logger = logger
-        self.session: aiohttp.ClientSession | None = None
+        self.session: Optional[aiohttp.ClientSession] = None
         self.mods_dir = Path(config.paths.mods)
         self.notification = NotificationManager(config, logger)
 
@@ -110,7 +111,8 @@ class ModManager:
                 if response.status != 200:
                     raise RuntimeError(f"API returned status {response.status}")
 
-                return await response.json()
+                data: Dict[str, Any] = await response.json()
+                return data
 
         except Exception as e:
             raise RuntimeError(f"Request failed: {str(e)}") from e
@@ -284,7 +286,7 @@ class ModManager:
         mod_backup_dir.mkdir(parents=True, exist_ok=True)
         return mod_backup_dir
 
-    def _backup_mod(self, mod_path: Path, mod_name: str) -> Path | None:
+    def _backup_mod(self, mod_path: Path, mod_name: str) -> Optional[Path]:
         """Backup a mod file before updating.
 
         Returns:
