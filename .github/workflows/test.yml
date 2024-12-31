@@ -41,9 +41,16 @@ jobs:
         mkdir -p tests/test_data/backups
         mkdir -p tests/test_data/logs
         
-    - name: Lint with ruff
+    - name: Lint and fix with Ruff
       run: |
-        ruff check .
+        pip install ruff
+        ruff check . --fix
+        
+    - name: Commit Ruff fixes
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: 'style: auto-fixes by Ruff'
+        file_pattern: '*.py'
         
     - name: Type check with mypy
       run: |
