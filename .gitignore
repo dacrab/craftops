@@ -1,17 +1,9 @@
-# Config
-config.jsonc
-
-# Logs
-*.log
-logs/
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -28,38 +20,45 @@ wheels/
 .installed.cfg
 *.egg
 
+# Virtual Environment
+venv/
+env/
+ENV/
+
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+.project
+.pydevproject
+.settings/
 
-# Backups
+# Minecraft Server and Mods
+*.jar
+mods/
+mod_backups/
 backups/
+logs/
+*.log
 
-# Virtual Environment
-venv/
-.venv/
-ENV/
+# Project-specific config files
+@/config.toml
+!@/minecraft-mod-manager/config/config.toml
 
-# Testing and Coverage
-.coverage
-coverage.xml
+# Test cache
 .pytest_cache/
+.coverage
 htmlcov/
+.tox/
+.nox/
 
-# Build and Distribution
+# Distribution
 *.spec
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.manifest
-*.spec
+*.exe
+*.msi
+*.dmg
 
-# Misc
+# System
 .DS_Store
-.env
-*.bak
-*.tmp
-*~ 
+Thumbs.db

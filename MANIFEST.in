@@ -1,4 +1,3 @@
 include README.md
-include LICENSE
-include minecraft_mod_manager/config/config.jsonc
-recursive-include minecraft_mod_manager/config *.jsonc 
+include minecraft_mod_manager/config/config.toml
+recursive-include minecraft_mod_manager/config *.toml 

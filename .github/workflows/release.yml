@@ -6,8 +6,25 @@ on:
       - 'v*'
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
   build:
-    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: minecraft-mod-manager
+            asset_name: minecraft-mod-manager-linux
+          - os: windows-latest
+            artifact_name: minecraft-mod-manager.exe
+            asset_name: minecraft-mod-manager-windows.exe
+          - os: macos-latest
+            artifact_name: minecraft-mod-manager
+            asset_name: minecraft-mod-manager-macos
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       
@@ -20,8 +37,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build wheel setuptools
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
           pip install pyinstaller
           
       - name: Build Python package
@@ -31,8 +48,10 @@ jobs:
       - name: Build executable
         run: |
           pyinstaller --onefile \
-            --name minecraft-mod-manager \
+            --name ${{ matrix.artifact_name }} \
             --add-data "minecraft_mod_manager/config:minecraft_mod_manager/config" \
+            --hidden-import=aiohttp \
+            --hidden-import=tqdm \
             minecraft_mod_manager/__main__.py
             
       - name: List built files
@@ -41,14 +60,13 @@ jobs:
           ls -l dist/
 
       - name: Upload artifacts
-        continue-on-error: true  # Continue even if upload fails (for local testing)
         uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: dist-${{ matrix.os }}
           path: |
             dist/*.whl
             dist/*.tar.gz
-            dist/minecraft-mod-manager
+            dist/${{ matrix.artifact_name }}
 
   release:
     needs: build
@@ -57,11 +75,12 @@ jobs:
       contents: write
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist
           path: dist
+          pattern: dist-*
+          merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -71,19 +90,28 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
-            dist/minecraft-mod-manager
+            dist/minecraft-mod-manager*
           generate_release_notes: true
           body: |
             ## 🚀 Installation Methods
             
-            1. 📥 Download the `minecraft-mod-manager` executable from the assets below
-            2. 🔓 Make it executable:
+            ### Option 1: Pre-built Executable
+            1. 📥 Download the appropriate executable for your system:
+               - Linux: `minecraft-mod-manager-linux`
+               - Windows: `minecraft-mod-manager-windows.exe`
+               - macOS: `minecraft-mod-manager-macos`
+            2. 🔓 Make it executable (Linux/macOS):
                ```bash
-               chmod +x minecraft-mod-manager
+               chmod +x minecraft-mod-manager-*
                ```
             3. 🎮 Run it:
                ```bash
-               ./minecraft-mod-manager --help
+               ./minecraft-mod-manager-* --help
                ```
+            
+            ### Option 2: Python Package
+            ```bash
+            pip install minecraft-mod-manager
+            ```
             
             For detailed usage instructions, please visit our [documentation](https://github.com/dacrab/minecraft-mod-manager#readme).
