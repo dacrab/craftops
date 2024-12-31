@@ -1,13 +1,11 @@
 """Main application module."""
 
 import logging
-from pathlib import Path
 from typing import Final, Optional
 
-from .utils import toml_utils
-from .config.config import Config, load_config
-from .managers import ModManager, BackupManager, NotificationManager
+from .config.config import load_config
 from .controllers.server import ServerController, ServerControllerProtocol
+from .managers import ModManager, BackupManager, NotificationManager
 
 logger = logging.getLogger(__name__)
 

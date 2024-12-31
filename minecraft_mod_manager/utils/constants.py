@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Final
 
 # Default paths
-DEFAULT_CONFIG_PATH: Final[str] = str(Path.home() / ".config" / "minecraft-mod-manager" / "config.toml")
+CONFIG_DIR = Path.home() / ".config" / "minecraft-mod-manager"
+DEFAULT_CONFIG_PATH: Final[str] = str(CONFIG_DIR / "config.toml")
 
 # API timeouts
 DEFAULT_TIMEOUT: Final[int] = 30  # seconds

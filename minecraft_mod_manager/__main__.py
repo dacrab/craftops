@@ -4,7 +4,6 @@ import argparse
 import asyncio
 import logging
 import sys
-from pathlib import Path
 
 from .minecraft_mod_manager import MinecraftModManager
 from .utils.constants import DEFAULT_CONFIG_PATH

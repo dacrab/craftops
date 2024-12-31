@@ -2,9 +2,9 @@
 
 import pytest
 from pathlib import Path
-from minecraft_mod_manager.config.config import Config, load_config
-from minecraft_mod_manager.utils import toml_utils
+
 from minecraft_mod_manager.managers.mod import ModManager
+from minecraft_mod_manager.utils import toml_utils
 
 def test_load_toml(test_data_dir):
     """Test TOML loading functionality."""

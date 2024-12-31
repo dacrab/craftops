@@ -31,7 +31,7 @@ def load_toml(file_path: str) -> Dict[str, Any]:
     except FileNotFoundError as err:
         raise FileNotFoundError(f"Configuration file not found: {file_path}") from err
     except tomllib.TOMLDecodeError as err:
-        raise tomllib.TOMLDecodeError(str(err))
+        raise tomllib.TOMLDecodeError(f"Invalid TOML format: {str(err)}") from err
     except Exception as err:
         raise RuntimeError(f"Error loading configuration file: {str(err)}") from err
 
