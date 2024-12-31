@@ -3,7 +3,7 @@
 import logging
 import subprocess
 import time
-from typing import Optional, Protocol
+from typing import Optional, Protocol, Union, cast
 
 from ..config.config import Config
 
@@ -28,7 +28,7 @@ class ServerController:
         """
         self.config = config
         self.logger = logger or logging.getLogger(__name__)
-        self.process: Optional[subprocess.Popen] = None
+        self.process: Optional[subprocess.Popen[str]] = None
 
     def start(self) -> bool:
         """
