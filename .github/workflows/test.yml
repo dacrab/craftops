@@ -35,7 +35,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
+        pip install pytest pytest-asyncio pytest-cov
         pip install -e .
+        
+    - name: Create test directories
+      run: |
+        mkdir -p tests/test_data/server
+        mkdir -p tests/test_data/mods
+        mkdir -p tests/test_data/backups
+        mkdir -p tests/test_data/logs
         
     - name: Lint with ruff
       run: |
@@ -48,7 +56,7 @@ jobs:
     - name: Test with pytest
       id: coverage
       run: |
-        pytest tests/ --cov=minecraft_mod_manager --cov-report=xml --asyncio-mode=auto
+        pytest tests/ --cov=minecraft_mod_manager --cov-report=xml --asyncio-mode=auto -v
         echo "percentage=$(coverage report | grep TOTAL | awk '{print $NF}')" >> $GITHUB_OUTPUT
         
     - name: Upload coverage
