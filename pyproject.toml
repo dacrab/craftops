@@ -41,7 +41,7 @@ minecraft-mod-manager = "minecraft_mod_manager.__main__:main"
 packages = ["minecraft_mod_manager"]
 
 [tool.setuptools.package-data]
-minecraft_mod_manager = ["config/*.jsonc", "config/config.jsonc"]
+minecraft_mod_manager = ["config/*.toml", "config/config.toml"]
 
 [project.optional-dependencies]
 test = [
@@ -70,4 +70,4 @@ combine-as-imports = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q --cov=minecraft_mod_manager"
-testpaths = ["tests"] 
+testpaths = ["tests"]

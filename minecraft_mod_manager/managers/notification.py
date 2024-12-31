@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Union
+from typing import Any, Dict, Final
 
 import requests
 
@@ -18,10 +18,11 @@ from ..utils.constants import (
 class NotificationManager:
     """Handles Discord notifications and player warnings."""
     
-    def __init__(self, config: Config, logger: logging.Logger):
+    def __init__(self, config: Config, logger: logging.Logger) -> None:
+        """Initialize notification manager."""
         self.config = config
         self.logger = logger
-        self.webhook_url = config['notifications']['discord_webhook']
+        self.webhook_url = config.notifications.discord_webhook
     
     def send_discord_notification(self, title: str, message: str, is_error: bool = False) -> None:
         """
@@ -42,7 +43,7 @@ class NotificationManager:
                 message = message[:DISCORD_MAX_LENGTH - 3] + "..."
             
             # Format Discord embed
-            payload = {
+            payload: Dict[str, Any] = {
                 "embeds": [{
                     "title": title,
                     "description": message,
@@ -72,10 +73,18 @@ class NotificationManager:
 
     def warn_players(self) -> None:
         """Send warning messages to online players about upcoming server restart."""
-        # TODO: Implement actual player warning via server commands
-        # For now just log the warning
-        self.logger.info("Server restart warning would be sent to players")
-        self.send_discord_notification(
-            "Server Warning",
-            "Server will restart soon for updates"
-        )
+        try:
+            # Format warning message
+            warning_msg = self.config.notifications.warning_template.format(
+                minutes=self.config.notifications.warning_intervals[0]
+            )
+            
+            # TODO: Implement actual player warning via server commands
+            # For now just log the warning
+            self.logger.info(f"Server restart warning: {warning_msg}")
+            self.send_discord_notification(
+                "Server Warning",
+                warning_msg
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to send player warning: {str(e)}")

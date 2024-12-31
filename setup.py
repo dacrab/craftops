@@ -22,14 +22,12 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Topic :: Games/Entertainment",
         "Topic :: System :: Systems Administration",
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.11",
     install_requires=[
         "aiohttp>=3.9.1",
         "requests>=2.31.0",
@@ -47,6 +45,6 @@ setup(
     },
     include_package_data=True,
     package_data={
-        "minecraft_mod_manager": ["config/*.jsonc", "config/config.jsonc"],
+        "minecraft_mod_manager": ["config/*.toml", "config/config.toml"],
     },
 ) 

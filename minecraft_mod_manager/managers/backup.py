@@ -2,10 +2,9 @@
 
 import logging
 import tarfile
-import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Sequence, Tuple
 
 from ..config.config import Config
 from ..managers.notification import NotificationManager
@@ -14,12 +13,12 @@ from ..managers.notification import NotificationManager
 class BackupManager:
     """Handles server backup creation and cleanup."""
     
-    def __init__(self, config: Config, logger: logging.Logger):
+    def __init__(self, config: Config, logger: logging.Logger) -> None:
         """Initialize backup manager."""
         self.config = config
         self.logger = logger
-        self.backup_dir = Path(config['paths']['backups'])
-        self.minecraft_dir = Path(config['paths']['minecraft'])
+        self.backup_dir = Path(config.paths.backups)
+        self.server_dir = Path(config.paths.server)
         self.notification = NotificationManager(config, logger)
         
         # Ensure backup directory exists
@@ -30,14 +29,14 @@ class BackupManager:
         try:
             # Generate timestamp
             timestamp = datetime.now().strftime(
-                self.config['maintenance']['backup_name_format']
+                self.config.backup.name_format
             )
             
             # Create backup archive
             backup_path = self.backup_dir / f"{timestamp}.tar.gz"
             
             with tarfile.open(backup_path, "w:gz") as tar:
-                tar.add(self.minecraft_dir, arcname=".")
+                tar.add(self.server_dir, arcname=".")
             
             self._send_success_notification(timestamp)
             return True
@@ -52,66 +51,39 @@ class BackupManager:
             return False
     
     def cleanup_old_backups(self) -> None:
-        """Remove old backups based on age and count limits."""
+        """Remove old backups based on count limit."""
         try:
             # Get config values
-            keep_days = self.config['maintenance']['backup_retention_days']
-            max_backups = self.config['maintenance']['max_backups']
-            now = time.time()
-            
-            # Match backup filename pattern
-            backup_pattern = self._get_backup_pattern()
+            max_backups = self.config.backup.max_mod_backups
             
             # Get all backups with modification times
-            backups = self._get_sorted_backups(backup_pattern)
+            backups = self._get_sorted_backups()
             
-            # Process each backup
-            for idx, (backup, mtime) in enumerate(backups):
-                should_delete = False
-                delete_reason = None
-                
-                # Check age
-                if mtime < now - (keep_days * 86400):
-                    should_delete = True
-                    delete_reason = "age"
-                
-                # Check count
-                if idx >= max_backups:
-                    should_delete = True
-                    delete_reason = "count"
-                
-                if should_delete:
-                    self._delete_backup(backup, delete_reason)
+            # Keep only the newest max_backups
+            for backup_path in backups[max_backups:]:
+                self._delete_backup(backup_path, "exceeded max backups")
                         
         except Exception as e:
             self.logger.error(f"Failed to cleanup old backups: {str(e)}")
     
-    def _get_backup_pattern(self) -> str:
-        """Get glob pattern for matching backup files."""
-        format_str = self.config['maintenance']['backup_name_format']
-        replacements = {
-            '%Y': '*', '%m': '*', '%d': '*',
-            '%H': '*', '%M': '*'
-        }
-        for old, new in replacements.items():
-            format_str = format_str.replace(old, new)
-        return f"*{format_str}.tar.gz"
-    
-    def _get_sorted_backups(self, pattern: str) -> List[Tuple[Path, float]]:
+    def _get_sorted_backups(self) -> Sequence[Path]:
         """Get list of backups sorted by modification time (newest first)."""
-        backups = [
-            (backup, backup.stat().st_mtime)
-            for backup in self.backup_dir.glob(pattern)
-        ]
-        return sorted(backups, key=lambda x: x[1], reverse=True)
+        backups = list(self.backup_dir.glob("*.tar.gz"))
+        return sorted(
+            backups,
+            key=lambda p: p.stat().st_mtime,
+            reverse=True
+        )
     
-    def _delete_backup(self, backup: Path, reason: Optional[str]) -> None:
+    def _delete_backup(self, backup_path: Path, reason: str) -> None:
         """Delete a backup file and log the action."""
         try:
-            backup.unlink()
-            self.logger.info(f"Removed old backup: {backup.name} (reason: {reason or 'unknown'})")
+            backup_path.unlink()
+            self.logger.info(f"Removed old backup: {backup_path.name} (reason: {reason})")
         except PermissionError:
-            self.logger.warning(f"Permission denied deleting backup: {backup.name}")
+            self.logger.warning(f"Permission denied deleting backup: {backup_path.name}")
+        except Exception as e:
+            self.logger.error(f"Error deleting backup {backup_path.name}: {str(e)}")
     
     def _send_success_notification(self, timestamp: str) -> None:
         """Send backup success notification."""

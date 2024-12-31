@@ -1,165 +1,110 @@
-"""Main class for Minecraft Mod Manager."""
+"""Main application module."""
 
 import logging
-from enum import Enum, auto
 from pathlib import Path
-from typing import Final, Optional, Union
+from typing import Final, Optional
 
-from .config.config import Config
-from .controllers.server import ServerController
-from .managers.backup import BackupManager
-from .managers.mod import ModManager
-from .managers.notification import NotificationManager
+from .utils import toml_utils
+from .config.config import Config, load_config
+from .managers import ModManager, BackupManager, NotificationManager
+from .controllers.server import ServerController, ServerControllerProtocol
 
+logger = logging.getLogger(__name__)
 
-class ServerAction(Enum):
-    """Server control actions."""
-    START = auto()
-    STOP = auto()
-    RESTART = auto()
-
-
-# Constants
-DEFAULT_CONFIG_FILE: Final[str] = "config.jsonc"
-LOG_FORMAT: Final[str] = "%(asctime)s - %(levelname)s - %(message)s"
-DETAILED_LOG_FORMAT: Final[str] = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
+DEFAULT_CONFIG_FILE: Final[str] = "config.toml"
 
 class MinecraftModManager:
-    """Main class that orchestrates server management and mod updates."""
-    
-    def __init__(self, config_path: Union[str, Path] = DEFAULT_CONFIG_FILE) -> None:
-        """Initialize manager with configuration."""
-        # Setup logging
-        self.logger = logging.getLogger("MinecraftModManager")
-        self._setup_logging()
-        
-        # Load configuration
-        self.config = Config(config_path)
-        
-        # Initialize components
-        self.server = ServerController(self.config, self.logger)
-        self.backup = BackupManager(self.config, self.logger)
-        self.notification = NotificationManager(self.config, self.logger)
-        self.mod_manager: Optional[ModManager] = None
-    
-    def _setup_logging(self) -> None:
-        """Configure logging with file and console handlers."""
-        self.logger.setLevel(logging.INFO)
-        
-        # Console handler
-        console = logging.StreamHandler()
-        console.setLevel(logging.INFO)
-        console.setFormatter(logging.Formatter(LOG_FORMAT))
-        self.logger.addHandler(console)
-        
-        # File handler (if configured)
-        if hasattr(self, 'config'):
-            log_path = Path(self.config['paths']['logs'])
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            file_handler = logging.FileHandler(log_path)
-            file_handler.setLevel(logging.DEBUG)
-            file_handler.setFormatter(logging.Formatter(DETAILED_LOG_FORMAT))
-            self.logger.addHandler(file_handler)
-    
-    def verify_server_status(self) -> bool:
-        """Check if server is running."""
-        return self.server.verify_status()
-    
-    def get_player_count(self) -> int:
-        """Get number of online players."""
-        return self.server.get_player_count()
-    
-    def control_server(self, action: Union[str, ServerAction]) -> bool:
-        """Control server process (start/stop/restart)."""
-        if isinstance(action, ServerAction):
-            action = action.name.lower()
-        return self.server.control(action)
-    
+    """Main application class that orchestrates all the functionality."""
+
+    def __init__(self, config_path: Optional[str] = None):
+        """
+        Initialize the Minecraft Mod Manager.
+
+        Args:
+            config_path: Optional path to the configuration file
+        """
+        self.logger = logging.getLogger(f"{__name__}.MinecraftModManager")
+        self.config = load_config(config_path or DEFAULT_CONFIG_FILE)
+        self.mod_manager = ModManager(self.config, self.logger)
+        self.backup_manager = BackupManager(self.config, self.logger)
+        self.notification_manager = NotificationManager(self.config, self.logger)
+        self.server_controller: ServerControllerProtocol = ServerController(self.config, self.logger)
+
     async def run_automated_update(self) -> None:
         """Run automated update process with player warnings."""
         try:
             # Check server status
-            if not self.verify_server_status():
+            if not self.server_controller.verify_status():
                 self.logger.error("Server must be running for automated updates")
                 return
             
-            # Initialize mod manager
-            self.mod_manager = ModManager(self.config, self.logger)
-            
             # Send initial notification
-            self.notification.send_discord_notification(
+            self.notification_manager.send_discord_notification(
                 "Update Started",
                 "Starting automated mod update process..."
             )
             
             # Warn players
-            self.notification.warn_players()
+            self.notification_manager.warn_players()
             
             # Stop server
-            if not self.control_server(ServerAction.STOP):
+            if not self.server_controller.stop():
                 raise RuntimeError("Failed to stop server")
             
             # Create backup
-            if not self.backup.create_backup():
+            if not self.backup_manager.create_backup():
                 raise RuntimeError("Failed to create backup")
             
             # Update mods
-            async with self.mod_manager as mm:
-                await mm.update_mods()
+            await self.mod_manager.update_mods()
             
             # Start server
-            if not self.control_server(ServerAction.START):
+            if not self.server_controller.start():
                 raise RuntimeError("Failed to start server")
             
             # Send completion notification
-            self.notification.send_discord_notification(
+            self.notification_manager.send_discord_notification(
                 "Update Complete",
                 "✅ Server updated and restarted successfully!"
             )
             
         except Exception as e:
             self.logger.error(f"Automated update failed: {str(e)}")
-            self.notification.send_discord_notification(
+            self.notification_manager.send_discord_notification(
                 "Update Failed",
                 f"❌ Error during update process: {str(e)}",
                 True
             )
             raise
-    
+
     async def run_maintenance(self) -> None:
         """Run manual maintenance process."""
         try:
-            # Initialize mod manager
-            self.mod_manager = ModManager(self.config, self.logger)
-            
             # Send initial notification
-            self.notification.send_discord_notification(
+            self.notification_manager.send_discord_notification(
                 "Maintenance Started",
                 "Starting manual maintenance process..."
             )
             
             # Create backup
-            if not self.backup.create_backup():
+            if not self.backup_manager.create_backup():
                 raise RuntimeError("Failed to create backup")
             
             # Update mods
-            async with self.mod_manager as mm:
-                await mm.update_mods()
+            await self.mod_manager.update_mods()
             
             # Cleanup old backups
-            self.backup.cleanup_old_backups()
+            self.backup_manager.cleanup_old_backups()
             
             # Send completion notification
-            self.notification.send_discord_notification(
+            self.notification_manager.send_discord_notification(
                 "Maintenance Complete",
                 "✅ Server maintenance completed successfully!"
             )
             
         except Exception as e:
             self.logger.error(f"Maintenance failed: {str(e)}")
-            self.notification.send_discord_notification(
+            self.notification_manager.send_discord_notification(
                 "Maintenance Failed",
                 f"❌ Error during maintenance: {str(e)}",
                 True

@@ -3,25 +3,21 @@
 # Exit on error
 set -e
 
-# Clean up previous builds
-rm -rf build dist
-
-# Install build dependencies
+# Install PyInstaller if not already installed
 pip install pyinstaller
 
-# Create executable
-pyinstaller --onefile \
-  --name minecraft-mod-manager \
-  --add-data "minecraft_mod_manager/config/config.jsonc:minecraft_mod_manager/config" \
-  minecraft_mod_manager/__main__.py
+# Build executable
+pyinstaller \
+--onefile \
+--name minecraft-mod-manager \
+--add-data "minecraft_mod_manager/config/config.toml:minecraft_mod_manager/config" \
+minecraft_mod_manager/__main__.py
 
-# Make the executable executable
-chmod +x dist/minecraft-mod-manager
-
-# Print success message
-echo "Build complete! The executable is located at dist/minecraft-mod-manager"
+# Print instructions
+echo "Build complete! The executable has been created in the dist directory."
 echo
 echo "To use the executable:"
-echo "1. Copy dist/minecraft-mod-manager to your desired location"
-echo "2. Create config file at ~/.config/minecraft-mod-manager/config.jsonc"
-echo "3. Run ./minecraft-mod-manager --help for usage information" 
+echo "1. Copy dist/minecraft-mod-manager to a location in your PATH"
+echo "2. Create config file at ~/.config/minecraft-mod-manager/config.toml"
+echo
+echo "Run 'minecraft-mod-manager --help' for usage information." 
