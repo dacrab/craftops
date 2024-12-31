@@ -38,7 +38,7 @@ jobs:
       run: |
         pip install types-requests types-tqdm
         python -m pip install --upgrade typing-extensions
-        mypy --install-types --non-interactive
+        mypy minecraft_mod_manager --install-types --non-interactive
         
     - name: Create test directories
       run: |
