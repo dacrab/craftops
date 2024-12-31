@@ -3,15 +3,14 @@
 import asyncio
 import logging
 import re
+import shutil
 import subprocess
 import time
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Final, List, NotRequired, TypedDict, cast
 from urllib.parse import urlparse
-import shutil
-from datetime import datetime
 
 import aiohttp
 from tqdm import tqdm
@@ -104,7 +103,9 @@ class ModManager:
                         self.logger.warning(f"Rate limited, waiting {retry_delay} seconds...")
                         await asyncio.sleep(retry_delay)
                         return await self.make_request(endpoint, retry_count + 1)
-                    raise RuntimeError(f"Rate limit exceeded after {self.config.mods.max_retries} retries")
+                    msg = f"Rate limit exceeded after {self.config.mods.max_retries} "
+                    msg += "retries"
+                    raise RuntimeError(msg)
                 
                 if response.status != 200:
                     raise RuntimeError(f"API returned status {response.status}")
@@ -411,13 +412,15 @@ class ModManager:
                     
                 # Step 3: Verify server startup
                 if not await self._verify_server_startup():
-                    self.logger.warning(f"Server failed to start with new mod version: {info['project_name']}")
+                    msg = f"Server failed to start with new mod version: "
+                    msg += f"{info['project_name']}"
+                    self.logger.warning(msg)
                     
                     # Rollback to previous version
                     if self._rollback_mod(info['project_name']):
-                        failed_mods.append(
-                            f"{info['project_name']} (incompatible - rolled back to previous version)"
-                        )
+                        msg = f"{info['project_name']} "
+                        msg += "(incompatible - rolled back to previous version)"
+                        failed_mods.append(msg)
                     else:
                         failed_mods.append(
                             f"{info['project_name']} (incompatible - rollback failed)"
@@ -430,7 +433,7 @@ class ModManager:
                 else:
                     updated_mods.append(info['project_name'])
                         
-            except Exception as e:
+            except Exception:
                 # If download or save fails, attempt rollback
                 if self._rollback_mod(info['project_name']):
                     failed_mods.append(f"{info['project_name']} (update failed, rolled back)")
