@@ -31,4 +31,4 @@ DEFAULT_BASE_DELAY: Final[int] = 2
 SHUTDOWN_TIMEOUT: Final[int] = 20  # seconds to wait for graceful shutdown
 STARTUP_CHECK_INTERVAL: Final[int] = 2  # seconds between startup checks
 LOG_CHECK_LINES: Final[int] = 100  # number of log lines to check for startup
-PLAYER_CHECK_LINES: Final[int] = 50  # number of log lines to check for player count 
+PLAYER_CHECK_LINES: Final[int] = 50  # number of log lines to check for player count

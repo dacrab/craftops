@@ -44,7 +44,7 @@ jobs:
     - name: Lint and fix with Ruff
       run: |
         pip install ruff
-        ruff check . --fix
+        ruff check . --fix --unsafe-fixes
         
     - name: Commit Ruff fixes
       uses: stefanzweifel/git-auto-commit-action@v4

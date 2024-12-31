@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Final
+from typing import Any, Dict
 
 import requests
 
@@ -17,17 +17,16 @@ from ..utils.constants import (
 
 class NotificationManager:
     """Handles Discord notifications and player warnings."""
-    
+
     def __init__(self, config: Config, logger: logging.Logger) -> None:
         """Initialize notification manager."""
         self.config = config
         self.logger = logger
         self.webhook_url = config.notifications.discord_webhook
-    
+
     def send_discord_notification(self, title: str, message: str, is_error: bool = False) -> None:
-        """
-        Send formatted notification to Discord webhook.
-        
+        """Send formatted notification to Discord webhook.
+
         Args:
             title: Notification title
             message: Notification message
@@ -36,12 +35,12 @@ class NotificationManager:
         if not self.webhook_url:
             self.logger.debug("Discord notifications disabled - no webhook URL configured")
             return
-            
+
         try:
             # Truncate message if too long
             if len(message) > DISCORD_MAX_LENGTH:
                 message = message[:DISCORD_MAX_LENGTH - 3] + "..."
-            
+
             # Format Discord embed
             payload: Dict[str, Any] = {
                 "embeds": [{
@@ -52,7 +51,7 @@ class NotificationManager:
                     "footer": {"text": DISCORD_FOOTER_TEXT}
                 }]
             }
-            
+
             # Send webhook request
             response = requests.post(
                 self.webhook_url,
@@ -60,10 +59,10 @@ class NotificationManager:
                 headers={'Content-Type': 'application/json'},
                 timeout=10
             )
-            
+
             if response.status_code not in (200, 204):
                 raise RuntimeError(f"Discord API returned status {response.status_code}")
-                
+
         except requests.Timeout:
             self.logger.error("Discord notification timed out")
         except requests.RequestException as e:
@@ -78,7 +77,7 @@ class NotificationManager:
             warning_msg = self.config.notifications.warning_template.format(
                 minutes=self.config.notifications.warning_intervals[0]
             )
-            
+
             # TODO: Implement actual player warning via server commands
             # For now just log the warning
             self.logger.info(f"Server restart warning: {warning_msg}")

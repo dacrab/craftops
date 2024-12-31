@@ -5,7 +5,7 @@ from typing import Final, Optional
 
 from .config.config import load_config
 from .controllers.server import ServerController, ServerControllerProtocol
-from .managers import ModManager, BackupManager, NotificationManager
+from .managers import BackupManager, ModManager, NotificationManager
 
 logger = logging.getLogger(__name__)
 
@@ -37,37 +37,37 @@ class MinecraftModManager:
             if not self.server_controller.verify_status():
                 self.logger.error("Server must be running for automated updates")
                 return
-            
+
             # Send initial notification
             self.notification_manager.send_discord_notification(
                 "Update Started",
                 "Starting automated mod update process..."
             )
-            
+
             # Warn players
             self.notification_manager.warn_players()
-            
+
             # Stop server
             if not self.server_controller.stop():
                 raise RuntimeError("Failed to stop server")
-            
+
             # Create backup
             if not self.backup_manager.create_backup():
                 raise RuntimeError("Failed to create backup")
-            
+
             # Update mods
             await self.mod_manager.update_mods()
-            
+
             # Start server
             if not self.server_controller.start():
                 raise RuntimeError("Failed to start server")
-            
+
             # Send completion notification
             self.notification_manager.send_discord_notification(
                 "Update Complete",
                 "✅ Server updated and restarted successfully!"
             )
-            
+
         except Exception as e:
             self.logger.error(f"Automated update failed: {str(e)}")
             self.notification_manager.send_discord_notification(
@@ -85,23 +85,23 @@ class MinecraftModManager:
                 "Maintenance Started",
                 "Starting manual maintenance process..."
             )
-            
+
             # Create backup
             if not self.backup_manager.create_backup():
                 raise RuntimeError("Failed to create backup")
-            
+
             # Update mods
             await self.mod_manager.update_mods()
-            
+
             # Cleanup old backups
             self.backup_manager.cleanup_old_backups()
-            
+
             # Send completion notification
             self.notification_manager.send_discord_notification(
                 "Maintenance Complete",
                 "✅ Server maintenance completed successfully!"
             )
-            
+
         except Exception as e:
             self.logger.error(f"Maintenance failed: {str(e)}")
             self.notification_manager.send_discord_notification(
