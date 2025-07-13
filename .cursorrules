@@ -3,7 +3,6 @@
 ## Project Structure
 - `minecraft_mod_manager/` - Main package directory
   - `__init__.py` - Package initialization with version info
-  - `__main__.py` - CLI entrypoint
   - `minecraft_mod_manager.py` - Core application logic
   - `config/` - Configuration handling
     - `config.py` - Config dataclasses
@@ -92,4 +91,4 @@
 2. Include package data in MANIFEST.in
 3. Support wheel and sdist formats
 4. Build single-file executable
-5. Include default config file 
+5. Include default config file

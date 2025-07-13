@@ -86,6 +86,8 @@ class Config:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Config':
         """Create Config instance from dictionary."""
+        mods_config_data = data['mods'].copy()
+        sources_data = mods_config_data.pop('sources')
         return cls(
             paths=PathsConfig(**data['paths']),
             server=ServerConfig(**data['server']),
@@ -93,8 +95,8 @@ class Config:
             notifications=NotificationsConfig(**data['notifications']),
             minecraft=MinecraftConfig(**data['minecraft']),
             mods=ModsConfig(
-                **{k: v for k, v in data['mods'].items() if k != 'sources'},
-                sources=ModSourcesConfig(**data['mods']['sources'])
+                sources=ModSourcesConfig(**sources_data),
+                **mods_config_data
             )
         )
 

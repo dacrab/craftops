@@ -1,104 +1,68 @@
-# Minecraft Mod Manager
+# Minecraft Mod Manager: Effortless Server Modding
 
-A comprehensive command-line tool for managing Minecraft server mods, designed to simplify the process of maintaining and updating mods while ensuring server stability.
+[![Build Status](https://img.shields.io/github/actions/workflow/status/dacrab/minecraft-mod-manager/test.yml?branch=main)](https://github.com/dacrab/minecraft-mod-manager/actions/workflows/test.yml)
+[![License](https://img.shields.io/github/license/dacrab/minecraft-mod-manager)](https://github.com/dacrab/minecraft-mod-manager/blob/main/LICENSE)
 
-## Features
+**A comprehensive command-line tool for managing Minecraft server mods, designed to simplify the process of maintaining and updating mods while ensuring server stability.**
 
-- 🎮 Server Management
-  - Start, stop, and restart server with ease
-  - Check server status and player count
-  - Automated server maintenance
-  - RCON support for server control
+---
 
-- 🔄 Mod Management
-  - Automatic mod updates from Modrinth
-  - Smart backup system with retention policies
-  - Configurable backup rotation
-  - Mod compatibility checking
+## ✨ Key Features
 
-- 🔔 Notifications
-  - Discord webhook integration
-  - Customizable player warnings
-  - Detailed update and maintenance notifications
-  - Progressive countdown notifications
+- **🎮 Server Management**: Start, stop, and restart your server with ease. Check server status and player count.
+- **🔄 Automated Mod Updates**: Automatically update mods from Modrinth and CurseForge.
+- **🔔 Smart Notifications**: Get Discord notifications for updates and send warnings to players before restarts.
+- **💾 Automatic Backups**: Create backups of your mods directory before updating, with configurable retention.
+- **⚙️ Highly Configurable**: Customize everything from Java flags to notification messages.
 
-- ⚙️ Advanced Configuration
-  - Optimized Java flags for better performance
-  - Flexible memory management
-  - Detailed logging system
-  - Comprehensive mod list management
-
-## Installation
+## 🚀 Getting Started
 
 ### Requirements
+- Python 3.9+
+- Java (for running the Minecraft server)
 
-- Linux operating system
-- Java (for Minecraft server)
+### Installation
 
-### Installation Steps
+1.  **Install from PyPI (Recommended)**
 
-1. Download the latest release from the [Releases page](https://github.com/dacrab/minecraft-mod-manager/releases/latest)
-2. Make the file executable:
+    ```bash
+    pip install minecraft-mod-manager
+    ```
 
-```bash
-chmod +x minecraft-mod-manager
-```
+2.  **Install from source**
 
-3. Optionally, move it to a directory in your PATH for easier access:
-
-```bash
-sudo mv minecraft-mod-manager /usr/local/bin/
-```
+    ```bash
+    git clone https://github.com/dacrab/minecraft-mod-manager.git
+    cd minecraft-mod-manager
+    pip install -e .
+    ```
 
 ## Usage
 
-### Basic Commands
-
-Check server status:
+Once installed, you can use the `minecraft-mod-manager` command.
 
 ```bash
-minecraft-mod-manager --status
-```
-
-Start the server:
-
-```bash
-minecraft-mod-manager --start
-```
-
-Stop the server:
-
-```bash
-minecraft-mod-manager --stop
-```
-
-Restart the server:
-
-```bash
-minecraft-mod-manager --restart
-```
-
-### Mod Management
-
-Run automated update process with player warnings:
-
-```bash
+# Run the automated update process
 minecraft-mod-manager --auto-update
+
+# Start the server
+minecraft-mod-manager --start
+
+# Stop the server
+minecraft-mod-manager --stop
+
+# Check server status
+minecraft-mod-manager --status
+
+# Use a custom config file
+minecraft-mod-manager --config /path/to/your/config.toml --auto-update
 ```
 
-Use custom configuration file:
+## 🔧 Configuration
 
-```bash
-minecraft-mod-manager --config custom_config.toml --auto-update
-```
+Create a `config.toml` file. You can place it in `~/.config/minecraft-mod-manager/config.toml` or use the `--config` flag to specify a path.
 
-## Configuration
-
-The application requires a configuration file named `config.toml` in the appropriate directory. Here's how to set it up:
-
-1. The default configuration file will be installed in the `minecraft_mod_manager/config` directory
-2. Copy or rename this file to `config.toml` in your desired location
-3. Edit the file to match your server setup:
+Here is an example configuration:
 
 ```toml
 [minecraft]
@@ -116,61 +80,34 @@ jar = "server.jar"
 java_flags = [
     "-Xms4G",
     "-Xmx4G",
-    "-XX:+UseG1GC",
-    "-XX:+ParallelRefProcEnabled",
-    "-XX:+UnlockExperimentalVMOptions",
-    "-XX:+DisableExplicitGC",
-    "-XX:+AlwaysPreTouch"
 ]
 stop_command = "stop"
-status_check_interval = 30
-max_stop_wait = 300
-
-[backup]
-max_backups = 5
-name_format = "%Y%m%d_%H%M%S"
 
 [notifications]
-discord_webhook = ""
-warning_template = "Server will restart in {minutes} minutes for updates"
+discord_webhook = "YOUR_DISCORD_WEBHOOK_URL"
 warning_intervals = [15, 10, 5, 1]
 
 [mods]
 auto_update = true
 backup_before_update = true
-notify_before_update = true
-update_check_interval = 24
-chunk_size = 5
-max_retries = 3
-base_delay = 2
 
 # Add your mods here
-[[mods.sources]]
-type = "modrinth"
-url = "https://modrinth.com/mod/fabric-api"
-
-[[mods.sources]]
-type = "modrinth"
-url = "https://modrinth.com/mod/lithium"
-
-[[mods.sources]]
-type = "curseforge"
-url = "https://www.curseforge.com/minecraft/mc-mods/jei"
+[mods.sources]
+modrinth = [
+    "https://modrinth.com/mod/fabric-api",
+    "https://modrinth.com/mod/lithium",
+    "https://modrinth.com/mod/starlight"
+]
+curseforge = [
+    "https://www.curseforge.com/minecraft/mc-mods/jei",
+    "https://www.curseforge.com/minecraft/mc-mods/jade"
+]
 ```
 
-### Key Configuration Options
+## 🤝 Contributing
 
-- **Minecraft**: Version and mod loader settings
-- **Paths**: Server, mods, backups, and logs locations
-- **Server**: Java settings and server control options
-- **Backup**: Backup retention and naming
-- **Notifications**: Discord alerts and player warnings
-- **Mods**: Add mod URLs from Modrinth or CurseForge
+Contributions are welcome! Please feel free to submit a Pull Request. If you find any issues or have a feature request, please open an issue on the [GitHub repository](https://github.com/dacrab/minecraft-mod-manager/issues).
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

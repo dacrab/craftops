@@ -26,8 +26,8 @@ classifiers = [
 ]
 dependencies = [
     "aiohttp>=3.9.1",
-    "requests>=2.31.0",
     "tqdm>=4.66.1",
+    "toml>=0.10.2",
 ]
 
 [project.urls]
@@ -35,7 +35,7 @@ dependencies = [
 "Bug Tracker" = "https://github.com/dacrab/minecraft-mod-manager/issues"
 
 [project.scripts]
-minecraft-mod-manager = "minecraft_mod_manager.__main__:main"
+minecraft-mod-manager = "minecraft_mod_manager.minecraft_mod_manager:main"
 
 [tool.setuptools]
 packages = ["minecraft_mod_manager"]

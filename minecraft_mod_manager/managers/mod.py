@@ -241,7 +241,7 @@ class ModManager:
         try:
             mod_info = await self.fetch_latest_versions()
             if not mod_info:
-                self.notification.send_discord_notification(
+                await self.notification.send_discord_notification(
                     "Mod Updates",
                     "✅ All mods are up to date!"
                 )
@@ -276,7 +276,7 @@ class ModManager:
 
         except Exception as e:
             self.logger.error(f"Error updating mods: {str(e)}")
-            self.notification.send_discord_notification("Mod Update Error", str(e), True)
+            await self.notification.send_discord_notification("Mod Update Error", str(e), True)
             raise
 
     def _get_mod_backup_dir(self, mod_name: str) -> Path:
@@ -344,35 +344,27 @@ class ModManager:
 
         Returns True if server starts successfully, False otherwise.
         """
+        process = None
         try:
             # Start the server
             start_cmd = self.config.server.start_command
-            process = subprocess.Popen(
-                start_cmd.split(),
+            process = await asyncio.create_subprocess_shell(
+                start_cmd,
                 cwd=Path(self.config.paths.server),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
 
             # Wait for server to start (max 60 seconds)
-            start_time = time.time()
-            while time.time() - start_time < 60:
-                if process.poll() is not None:
-                    # Server crashed or failed to start
-                    stdout, stderr = process.communicate()
-                    self.logger.error(f"Server failed to start:\n{stderr}")
-                    return False
-
-                # Check if server is responding (you might want to implement a more robust check)
-                if "Done" in (process.stdout.readline() if process.stdout else ""):
-                    break
-
-                await asyncio.sleep(1)
+            try:
+                await asyncio.wait_for(self._wait_for_server_done(process), timeout=60)
+            except asyncio.TimeoutError:
+                self.logger.error("Server failed to start within timeout")
+                return False
 
             # Stop the server gracefully
             process.terminate()
-            process.wait(timeout=30)
+            await process.wait()
             return True
 
         except Exception as e:
@@ -380,8 +372,14 @@ class ModManager:
             return False
         finally:
             # Make sure process is killed if it's still running
-            if process and process.poll() is None:
+            if process and process.returncode is None:
                 process.kill()
+
+    async def _wait_for_server_done(self, process: asyncio.subprocess.Process) -> None:
+        if process.stdout:
+            async for line in process.stdout:
+                if b"Done" in line:
+                    return
 
     async def _update_single_mod(
         self,
@@ -448,10 +446,10 @@ class ModManager:
             if info['project_name'] not in failed_mods:
                 failed_mods.append(f"{info['project_name']} ({str(e)})")
 
-    def _notify_failures(self, failed_mods: List[str]) -> None:
+    async def _notify_failures(self, failed_mods: List[str]) -> None:
         """Send notification about failed mod updates."""
         message = "Failed to process the following mods:\n" + "\n".join(failed_mods)
-        self.notification.send_discord_notification("Mod Update Issues", message, True)
+        await self.notification.send_discord_notification("Mod Update Issues", message, True)
 
     def _log_compatibility_warning(self, mod_name: str, versions: List[ModVersion]) -> None:
         """Log warning about mod version compatibility."""
@@ -461,7 +459,7 @@ class ModManager:
             f"Available versions: {version_list}"
         )
 
-    def _send_update_summary(
+    async def _send_update_summary(
         self,
         updated_mods: List[str],
         skipped_mods: List[str],
@@ -486,7 +484,7 @@ class ModManager:
             summary.append("\n❌ Failed:")
             summary.extend(f"  • {mod}" for mod in failed_mods)
 
-        self.notification.send_discord_notification(
+        await self.notification.send_discord_notification(
             "Mod Updates",
             "\n".join(summary)
         )

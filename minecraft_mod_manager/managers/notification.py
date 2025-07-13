@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-import requests
+import aiohttp
 
 from ..config.config import Config
 from ..utils.constants import (
@@ -24,7 +24,7 @@ class NotificationManager:
         self.logger = logger
         self.webhook_url = config.notifications.discord_webhook
 
-    def send_discord_notification(self, title: str, message: str, is_error: bool = False) -> None:
+    async def send_discord_notification(self, title: str, message: str, is_error: bool = False) -> None:
         """Send formatted notification to Discord webhook.
 
         Args:
@@ -52,25 +52,17 @@ class NotificationManager:
                 }]
             }
 
-            # Send webhook request
-            response = requests.post(
-                self.webhook_url,
-                json=payload,
-                headers={'Content-Type': 'application/json'},
-                timeout=10
-            )
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.webhook_url, json=payload) as response:
+                    if response.status not in (200, 204):
+                        raise RuntimeError(f"Discord API returned status {response.status}")
 
-            if response.status_code not in (200, 204):
-                raise RuntimeError(f"Discord API returned status {response.status_code}")
-
-        except requests.Timeout:
+        except asyncio.TimeoutError:
             self.logger.error("Discord notification timed out")
-        except requests.RequestException as e:
-            self.logger.error(f"Discord API request failed: {str(e)}")
         except Exception as e:
             self.logger.error(f"Failed to send Discord notification: {str(e)}")
 
-    def warn_players(self) -> None:
+    async def warn_players(self) -> None:
         """Send warning messages to online players about upcoming server restart."""
         try:
             # Format warning message
@@ -81,7 +73,7 @@ class NotificationManager:
             # TODO: Implement actual player warning via server commands
             # For now just log the warning
             self.logger.info(f"Server restart warning: {warning_msg}")
-            self.send_discord_notification(
+            await self.send_discord_notification(
                 "Server Warning",
                 warning_msg
             )

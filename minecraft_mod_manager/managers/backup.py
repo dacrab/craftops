@@ -24,7 +24,7 @@ class BackupManager:
         # Ensure backup directory exists
         self.backup_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_backup(self) -> bool:
+    async def create_backup(self) -> bool:
         """Create a new backup of the server."""
         try:
             # Generate timestamp
@@ -38,12 +38,12 @@ class BackupManager:
             with tarfile.open(backup_path, "w:gz") as tar:
                 tar.add(self.server_dir, arcname=".")
 
-            self._send_success_notification(timestamp)
+            await self._send_success_notification(timestamp)
             return True
 
         except Exception as e:
             self.logger.error(f"Failed to create backup: {str(e)}")
-            self.notification.send_discord_notification(
+            await self.notification.send_discord_notification(
                 "Backup Failed",
                 f"❌ Error creating backup: {str(e)}",
                 True
@@ -85,9 +85,9 @@ class BackupManager:
         except Exception as e:
             self.logger.error(f"Error deleting backup {backup_path.name}: {str(e)}")
 
-    def _send_success_notification(self, timestamp: str) -> None:
+    async def _send_success_notification(self, timestamp: str) -> None:
         """Send backup success notification."""
-        self.notification.send_discord_notification(
+        await self.notification.send_discord_notification(
             "Server Backup",
             f"✅ Created backup: {timestamp}.tar.gz"
         )
