@@ -34,43 +34,98 @@ class MinecraftModManager:
         """Run automated update process with player warnings."""
         try:
             # Check server status
-            if not self.server_controller.verify_status():
+            if not await self.server_controller.verify_status():
                 self.logger.error("Server must be running for automated updates")
                 return
 
             # Send initial notification
-            self.notification_manager.send_discord_notification(
+            await self.notification_manager.send_discord_notification(
                 "Update Started",
                 "Starting automated mod update process..."
             )
 
             # Warn players
-            self.notification_manager.warn_players()
+            await self.notification_manager.warn_players()
 
             # Stop server
-            if not self.server_controller.stop():
+            if not await self.server_controller.stop():
                 raise RuntimeError("Failed to stop server")
 
+
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Minecraft Server Mod Manager",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    %(prog)s --config custom_config.toml --auto-update
+    %(prog)s --maintenance
+        """
+    )
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=DEFAULT_CONFIG_PATH,
+        help="Path to configuration file (default: %(default)s)",
+    )
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--auto-update",
+        action="store_true",
+        help="Run automated update process",
+    )
+    group.add_argument(
+        "--maintenance",
+        action="store_true",
+        help="Run manual maintenance process",
+    )
+
+    return parser.parse_args()
+
+async def main() -> None:
+    """Main entry point."""
+    args = parse_args()
+
+    try:
+        manager = MinecraftModManager(args.config)
+
+        if args.auto_update:
+            await manager.run_automated_update()
+        elif args.maintenance:
+            await manager.run_maintenance()
+
+    except Exception as e:
+        logging.error(f"Error: {str(e)}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+ RuntimeError("Failed to stop server")
+
             # Create backup
-            if not self.backup_manager.create_backup():
+            if not await self.backup_manager.create_backup():
                 raise RuntimeError("Failed to create backup")
 
             # Update mods
             await self.mod_manager.update_mods()
 
             # Start server
-            if not self.server_controller.start():
+            if not await self.server_controller.start():
                 raise RuntimeError("Failed to start server")
 
             # Send completion notification
-            self.notification_manager.send_discord_notification(
+            await self.notification_manager.send_discord_notification(
                 "Update Complete",
                 "✅ Server updated and restarted successfully!"
             )
 
         except Exception as e:
             self.logger.error(f"Automated update failed: {str(e)}")
-            self.notification_manager.send_discord_notification(
+            await self.notification_manager.send_discord_notification(
                 "Update Failed",
                 f"❌ Error during update process: {str(e)}",
                 True
@@ -81,13 +136,13 @@ class MinecraftModManager:
         """Run manual maintenance process."""
         try:
             # Send initial notification
-            self.notification_manager.send_discord_notification(
+            await self.notification_manager.send_discord_notification(
                 "Maintenance Started",
                 "Starting manual maintenance process..."
             )
 
             # Create backup
-            if not self.backup_manager.create_backup():
+            if not await self.backup_manager.create_backup():
                 raise RuntimeError("Failed to create backup")
 
             # Update mods
@@ -97,7 +152,7 @@ class MinecraftModManager:
             self.backup_manager.cleanup_old_backups()
 
             # Send completion notification
-            self.notification_manager.send_discord_notification(
+            await self.notification_manager.send_discord_notification(
                 "Maintenance Complete",
                 "✅ Server maintenance completed successfully!"
             )
