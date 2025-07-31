@@ -35,13 +35,13 @@ dependencies = [
 "Bug Tracker" = "https://github.com/dacrab/minecraft-mod-manager/issues"
 
 [project.scripts]
-minecraft-mod-manager = "minecraft_mod_manager.minecraft_mod_manager:main"
+minecraft-mod-manager = "minecraft_mod_manager.app:main"
 
 [tool.setuptools]
 packages = ["minecraft_mod_manager"]
 
 [tool.setuptools.package-data]
-minecraft_mod_manager = ["config/*.toml", "config/config.toml"]
+minecraft_mod_manager = ["settings/*.toml", "settings/config.toml"]
 
 [project.optional-dependencies]
 test = [

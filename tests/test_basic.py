@@ -4,37 +4,59 @@ from pathlib import Path
 
 import pytest
 
-from minecraft_mod_manager.managers.mod import ModManager
-from minecraft_mod_manager.utils import toml_utils
+from minecraft_mod_manager.core import ModManager
+from minecraft_mod_manager.config.config import Config
 
 
-def test_load_toml(test_data_dir):
-    """Test TOML loading functionality."""
-    test_data = {
-        'minecraft': {
-            'version': '1.20.1',
-            'modloader': 'fabric'
-        },
+def test_config_creation():
+    """Test configuration creation and validation."""
+    config_data = {
+        'minecraft': {'version': '1.20.1', 'modloader': 'fabric'},
         'paths': {
-            'server': str(test_data_dir / 'server'),
-            'mods': str(test_data_dir / 'mods'),
-            'backups': str(test_data_dir / 'backups'),
-            'logs': str(test_data_dir / 'logs/mod-manager.log')
+            'server': '/tmp/test/server',
+            'mods': '/tmp/test/mods',
+            'backups': '/tmp/test/backups',
+            'logs': '/tmp/test/logs/mod-manager.log'
+        },
+        'server': {
+            'jar': 'server.jar',
+            'java_flags': ['-Xmx2G'],
+            'stop_command': 'stop',
+            'max_stop_wait': 300
+        },
+        'backup': {
+            'max_mod_backups': 3,
+            'name_format': '%Y%m%d_%H%M%S'
+        },
+        'notifications': {
+            'discord_webhook': '',
+            'warning_template': 'Server will restart in {minutes} minutes',
+            'warning_intervals': [15, 10, 5, 1]
+        },
+        'mods': {
+            'chunk_size': 5,
+            'max_retries': 3,
+            'base_delay': 2,
+            'sources': {
+                'modrinth': [],
+                'curseforge': []
+            }
         }
     }
+    
+    config = Config.from_dict(config_data)
+    
+    # Test basic properties
+    assert config.minecraft_version == "1.20.1"
+    assert config.modloader == "fabric"
+    assert config.server_path == "/tmp/test/server"
+    assert config.mods_path == "/tmp/test/mods"
+    
+    # Test legacy compatibility
+    assert config.minecraft.version == "1.20.1"
+    assert config.server.jar == "server.jar"
+    assert config.server.start_command == "java -Xmx2G -jar server.jar nogui"
 
-    # Create test file
-    test_file = test_data_dir / 'test_config.toml'
-    toml_utils.save_toml(str(test_file), test_data)
-
-    # Load and verify
-    loaded_data = toml_utils.load_toml(str(test_file))
-    assert loaded_data['minecraft']['version'] == '1.20.1'
-    assert loaded_data['minecraft']['modloader'] == 'fabric'
-    assert loaded_data['paths']['server'] == str(test_data_dir / 'server')
-
-    # Cleanup
-    test_file.unlink()
 
 @pytest.mark.asyncio
 async def test_mod_manager_context(test_config, logger):
@@ -47,15 +69,28 @@ async def test_mod_manager_context(test_config, logger):
 
     assert manager.session is None
 
-def test_config_validation(test_config, test_data_dir):
-    """Test configuration validation."""
-    assert test_config.minecraft.version == "1.20.1"
-    assert test_config.minecraft.modloader == "fabric"
-    assert Path(test_config.paths.server) == test_data_dir / "server"
-    assert test_config.mods.auto_update is True
-    assert len(test_config.mods.sources.modrinth) == 0
-    assert len(test_config.mods.sources.curseforge) == 0
 
-def test_server_command(test_config):
-    """Test server command generation."""
-    assert test_config.server.start_command == "java -Xmx2G -jar server.jar nogui"
+def test_mod_manager_initialization(test_config, logger):
+    """Test ModManager initialization."""
+    manager = ModManager(test_config, logger)
+    
+    assert manager.config == test_config
+    assert manager.logger == logger
+    assert manager.session is None
+    assert manager.mods_dir.exists()
+
+
+def test_config_legacy_compatibility(test_config):
+    """Test that legacy config access still works."""
+    # Test paths access
+    assert hasattr(test_config, 'paths')
+    assert test_config.paths.server == test_config.server_path
+    assert test_config.paths.mods == test_config.mods_path
+    
+    # Test server access
+    assert hasattr(test_config, 'server')
+    assert test_config.server.jar == test_config.server_jar
+    
+    # Test minecraft access
+    assert hasattr(test_config, 'minecraft')
+    assert test_config.minecraft.version == test_config.minecraft_version
