@@ -40,6 +40,7 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
           pip install pyinstaller
+          pip install -e .
           
       - name: Build Python package
         run: |
@@ -49,10 +50,11 @@ jobs:
         run: |
           pyinstaller --onefile \
             --name ${{ matrix.artifact_name }} \
-            --add-data "minecraft_mod_manager/config:minecraft_mod_manager/config" \
+            --add-data "minecraft_mod_manager/settings:minecraft_mod_manager/settings" \
             --hidden-import=aiohttp \
             --hidden-import=tqdm \
-            minecraft_mod_manager/__main__.py
+            --hidden-import=toml \
+            minecraft_mod_manager/app.py
             
       - name: List built files
         run: |

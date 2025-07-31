@@ -21,6 +21,12 @@ def test_config(test_data_dir):
     """Create a test configuration."""
     from minecraft_mod_manager.config.config import Config
 
+    # Create test directories
+    (test_data_dir / 'server').mkdir(parents=True, exist_ok=True)
+    (test_data_dir / 'mods').mkdir(parents=True, exist_ok=True)
+    (test_data_dir / 'backups').mkdir(parents=True, exist_ok=True)
+    (test_data_dir / 'logs').mkdir(parents=True, exist_ok=True)
+
     return Config.from_dict({
         'minecraft': {'version': '1.20.1', 'modloader': 'fabric'},
         'paths': {
@@ -33,12 +39,10 @@ def test_config(test_data_dir):
             'jar': 'server.jar',
             'java_flags': ['-Xmx2G'],
             'stop_command': 'stop',
-            'status_check_interval': 30,
             'max_stop_wait': 300
         },
         'backup': {
             'max_mod_backups': 3,
-            'mod_backup_dir': 'mod_backups',
             'name_format': '%Y%m%d_%H%M%S'
         },
         'notifications': {
@@ -47,10 +51,6 @@ def test_config(test_data_dir):
             'warning_intervals': [15, 10, 5, 1]
         },
         'mods': {
-            'auto_update': True,
-            'backup_before_update': True,
-            'notify_before_update': True,
-            'update_check_interval': 24,
             'chunk_size': 5,
             'max_retries': 3,
             'base_delay': 2,
