@@ -1,71 +1,144 @@
-# Minecraft Mod Manager
+<div align="center">
 
-[![Tests](https://img.shields.io/github/actions/workflow/status/dacrab/minecraft-mod-manager/test.yml?branch=main&label=tests)](https://github.com/dacrab/minecraft-mod-manager/actions/workflows/test.yml)
-[![Release](https://img.shields.io/github/actions/workflow/status/dacrab/minecraft-mod-manager/release.yml?label=release)](https://github.com/dacrab/minecraft-mod-manager/actions/workflows/release.yml)
-[![License](https://img.shields.io/github/license/dacrab/minecraft-mod-manager)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
+# 🎮 CraftOps
 
-A comprehensive command-line tool for managing Minecraft server mods with automated updates, backups, and notifications.
+**A powerful, modern CLI tool for Minecraft server operations and automated mod management**
 
-## Core Features
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
+[![Release](https://img.shields.io/github/v/release/dacrab/craftops?style=for-the-badge&logo=github)](https://github.com/dacrab/craftops/releases)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-Available-2496ED?style=for-the-badge&logo=docker)](https://github.com/dacrab/craftops/pkgs/container/craftops)
 
-- **Server Management**: Start, stop, restart servers with status monitoring
-- **Automated Mod Updates**: Updates from Modrinth and CurseForge APIs
-- **Smart Notifications**: Discord webhooks and in-game player warnings
-- **Backup System**: Automatic backups before updates with retention policies
-- **Configuration-Driven**: TOML-based configuration with sensible defaults
+[**🚀 Quick Install**](#-quick-installation) • [**📖 Documentation**](#-documentation) • [**🎯 Features**](#-features) • [**💡 Examples**](#-usage-examples)
 
-## Installation
+</div>
 
-### Option 1: PyPI Package
+---
+
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+### 🔄 **Automated Mod Management**
+- **Modrinth Integration**: Full API support with version compatibility
+- **Concurrent Downloads**: Parallel processing for faster updates
+- **Smart Retry Logic**: Handles network issues gracefully
+- **Dry Run Mode**: Preview changes before applying
+
+### 🎮 **Server Lifecycle Management**
+- **Start/Stop/Restart**: Full server control via screen sessions
+- **Status Monitoring**: Real-time server status checking
+- **Graceful Shutdown**: Configurable stop timeouts
+- **Player Warnings**: Discord notifications before restarts
+
+</td>
+<td width="50%">
+
+### 💾 **Intelligent Backup System**
+- **Automatic Backups**: Before every mod update
+- **Compression**: Efficient tar.gz with configurable levels
+- **Retention Policies**: Automatic cleanup of old backups
+- **Selective Exclusion**: Skip logs, cache, and temp files
+
+### 🔔 **Smart Notifications**
+- **Discord Integration**: Rich webhook notifications
+- **Restart Warnings**: Configurable warning intervals
+- **Success/Error Alerts**: Comprehensive status updates
+- **Customizable Messages**: Template-based notifications
+
+</td>
+</tr>
+</table>
+
+### 🏥 **Health Monitoring & Validation**
+- **System Checks**: Validate paths, permissions, and dependencies
+- **API Connectivity**: Test Modrinth API access
+- **Configuration Validation**: Comprehensive config verification
+- **Detailed Reporting**: Color-coded status with actionable feedback
+
+---
+
+## 🚀 Quick Installation
+
+### One-Line Install (Recommended)
+
 ```bash
-pip install minecraft-mod-manager
+curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | bash
 ```
 
-### Option 2: Pre-built Executable
-Download from [GitHub Releases](https://github.com/dacrab/minecraft-mod-manager/releases):
-- Linux: `minecraft-mod-manager-linux`
-- Windows: `minecraft-mod-manager-windows.exe`
-- macOS: `minecraft-mod-manager-macos`
+**✅ What this does:**
+- 🔍 Auto-detects your platform (Linux/macOS, x64/ARM64)
+- 📥 Downloads the latest release binary
+- 🔗 Creates convenient aliases: `cops`, `mmu`
+- ⚙️ Sets up default configuration
+- 🛣️ Adds to PATH automatically
 
-### Option 3: From Source
+### Alternative Installation Methods
+
+<details>
+<summary><b>📦 Manual Installation</b></summary>
+
 ```bash
-git clone https://github.com/dacrab/minecraft-mod-manager.git
-cd minecraft-mod-manager
-make setup-dev
+# Download for your platform
+curl -L https://github.com/dacrab/craftops/releases/latest/download/craftops-linux-amd64 -o craftops
+
+# Install system-wide
+chmod +x craftops
+sudo mv craftops /usr/local/bin/
+
+# Create convenient aliases
+sudo ln -sf /usr/local/bin/craftops /usr/local/bin/cops
+sudo ln -sf /usr/local/bin/craftops /usr/local/bin/mmu
 ```
 
-## Quick Start
+</details>
 
-1. **Install the tool**
-   ```bash
-   pip install minecraft-mod-manager
-   ```
+<details>
+<summary><b>🐳 Docker Installation</b></summary>
 
-2. **Create configuration**
-   ```bash
-   mkdir -p ~/.config/minecraft-mod-manager
-   minecraft-mod-manager --init-config
-   ```
+```bash
+# Pull the latest image
+docker pull ghcr.io/dacrab/craftops:latest
 
-3. **Edit configuration**
-   ```bash
-   nano ~/.config/minecraft-mod-manager/config.toml
-   ```
+# Run with volume mounts
+docker run --rm \
+  -v /path/to/server:/minecraft/server \
+  -v /path/to/config:/config \
+  ghcr.io/dacrab/craftops:latest \
+  health-check
+```
 
-4. **Run health check**
-   ```bash
-   minecraft-mod-manager --health-check
-   ```
+</details>
 
-5. **Start managing mods**
-   ```bash
-   minecraft-mod-manager --auto-update
-   ```
+<details>
+<summary><b>🔨 Build from Source</b></summary>
 
-## Configuration
+```bash
+git clone https://github.com/dacrab/craftops.git
+cd craftops
+make install-system  # Requires sudo for system-wide install
+```
 
-The tool uses TOML configuration files. Default location: `~/.config/minecraft-mod-manager/config.toml`
+</details>
+
+---
+
+## 🎯 Quick Start
+
+### 1️⃣ **Initialize Configuration**
+```bash
+cops init-config
+```
+
+### 2️⃣ **Configure Your Setup**
+```bash
+nano conf.toml  # Edit with your server details
+```
+
+<details>
+<summary><b>📝 Example Configuration</b></summary>
 
 ```toml
 [minecraft]
@@ -73,133 +146,251 @@ version = "1.20.1"
 modloader = "fabric"
 
 [paths]
-server = "/path/to/minecraft/server"
-mods = "/path/to/minecraft/server/mods"
-backups = "/path/to/minecraft/backups"
-logs = "/path/to/minecraft/logs/mod-manager.log"
-
-[server]
-jar = "server.jar"
-java_flags = ["-Xms4G", "-Xmx4G"]
-stop_command = "stop"
-
-[notifications]
-discord_webhook = "YOUR_DISCORD_WEBHOOK_URL"
-warning_intervals = [15, 10, 5, 1]
-
-[mods]
-auto_update = true
-backup_before_update = true
-chunk_size = 5
-base_delay = 2
+server = "/home/minecraft/server"
+mods = "/home/minecraft/server/mods"
+backups = "/home/minecraft/backups"
 
 [mods.sources]
 modrinth = [
     "https://modrinth.com/mod/fabric-api",
+    "https://modrinth.com/mod/sodium",
     "https://modrinth.com/mod/lithium"
 ]
-curseforge = [
-    "https://www.curseforge.com/minecraft/mc-mods/jei"
+
+[notifications]
+discord_webhook = "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+warning_intervals = [15, 10, 5, 1]
+```
+
+</details>
+
+### 3️⃣ **Verify Setup**
+```bash
+cops health-check
+```
+
+### 4️⃣ **Start Managing Your Server**
+```bash
+cops update-mods     # Update all mods
+cops server restart  # Restart with player warnings
+```
+
+---
+
+## 💡 Usage Examples
+
+### 🔄 **Mod Management**
+```bash
+# Update all mods to latest compatible versions
+mmu update-mods
+
+# Force update even if versions appear current
+mmu update-mods --force
+
+# Preview what would be updated (no changes made)
+mmu update-mods --dry-run
+
+# Update without creating backup
+mmu update-mods --no-backup
+```
+
+### 🎮 **Server Control**
+```bash
+# Server lifecycle management
+mmu server start    # Start the server
+mmu server stop     # Graceful shutdown
+mmu server restart  # Stop, then start with player warnings
+mmu server status   # Check current status
+
+# Advanced server management
+mmu --debug server start     # Debug mode
+mmu --dry-run server restart # Preview restart process
+```
+
+### 💾 **Backup Operations**
+```bash
+# Backup management
+mmu backup create   # Create manual backup
+mmu backup list     # Show all available backups
+
+# Automated backups happen before mod updates
+mmu update-mods     # Automatically creates backup first
+```
+
+### 🏥 **System Monitoring**
+```bash
+# Health and diagnostics
+mmu health-check              # Full system validation
+mmu --debug health-check      # Detailed diagnostic output
+mmu --config /custom/path.toml health-check  # Custom config
+```
+
+---
+
+## 📖 Documentation
+
+| Document | Description |
+|----------|-------------|
+| **[📚 Usage Guide](USAGE_GUIDE.md)** | Comprehensive user manual with examples and troubleshooting |
+| **[🚀 Deployment Guide](DEPLOYMENT_GUIDE.md)** | Release process, CI/CD, and distribution strategy |
+| **[🏗️ Project Structure](PROJECT_STRUCTURE.md)** | Codebase organization and architecture details |
+
+---
+
+## 🔧 Configuration Reference
+
+<details>
+<summary><b>📋 Complete Configuration Options</b></summary>
+
+```toml
+# Global settings
+debug = false
+dry_run = false
+
+[minecraft]
+version = "1.20.1"          # Target Minecraft version
+modloader = "fabric"        # Mod loader (fabric, forge, quilt, neoforge)
+
+[paths]
+server = "/path/to/server"   # Minecraft server directory
+mods = "/path/to/mods"       # Mods directory
+backups = "/path/to/backups" # Backup storage
+logs = "/path/to/logs"       # Log directory
+
+[server]
+jar_name = "server.jar"      # Server JAR filename
+java_flags = ["-Xms4G", "-Xmx4G", "-XX:+UseG1GC"]  # JVM arguments
+stop_command = "stop"        # Server stop command
+max_stop_wait = 300         # Max seconds to wait for stop
+startup_timeout = 120       # Max seconds to wait for start
+
+[mods]
+auto_update = true          # Enable automatic updates
+backup_before_update = true # Create backup before updating
+concurrent_downloads = 5    # Parallel download limit
+max_retries = 3            # Retry attempts for failed downloads
+retry_delay = 2.0          # Delay between retries (seconds)
+timeout = 30               # HTTP request timeout
+
+[mods.sources]
+modrinth = [               # Modrinth mod URLs
+    "https://modrinth.com/mod/fabric-api",
+    "https://modrinth.com/mod/sodium"
 ]
 
 [backup]
-max_backups = 5
-compression = true
+enabled = true             # Enable backup system
+max_backups = 5           # Number of backups to keep
+compression_level = 6     # Compression level (1-9)
+include_logs = false      # Include server logs in backup
+exclude_patterns = [      # Files/patterns to exclude
+    "*.log", "cache/", "temp/"
+]
+
+[notifications]
+discord_webhook = ""       # Discord webhook URL
+warning_intervals = [15, 10, 5, 1]  # Warning times (minutes)
+warning_message = "Server will restart in {minutes} minute(s)"
+success_notifications = true
+error_notifications = true
+
+[logging]
+level = "INFO"            # Log level (DEBUG, INFO, WARNING, ERROR)
+format = "json"           # Log format (json, text)
+file_enabled = true       # Enable file logging
+console_enabled = true    # Enable console logging
+max_file_size = "10MB"    # Max log file size
+backup_count = 5          # Number of log files to keep
 ```
 
-## Usage
+</details>
 
+---
+
+## 🌟 Platform Support
+
+| Platform | Architecture | Status | Notes |
+|----------|-------------|--------|-------|
+| **Linux** | x64 | ✅ Full Support | Primary platform |
+| **Linux** | ARM64 | ✅ Full Support | Raspberry Pi, ARM servers |
+| **macOS** | x64 | ✅ Full Support | Intel Macs |
+| **macOS** | ARM64 | ✅ Full Support | Apple Silicon (M1/M2) |
+| **Windows** | x64 | ❌ Not Supported | Server management requires Unix tools |
+
+> **Note**: Windows support is not available because server management relies on Unix-specific tools like `screen`. Consider using WSL2 or Docker on Windows.
+
+---
+
+## 🔮 Roadmap
+
+### 🎯 **Version 2.1.0** (Planned)
+- **CurseForge Integration**: Full API support for CurseForge mods
+- **GitHub Releases**: Support for GitHub-hosted mod releases
+- **Web Interface**: Optional web UI for server management
+- **Plugin System**: Extensible architecture for custom integrations
+
+### 🚀 **Version 2.2.0** (Future)
+- **Multi-Server Support**: Manage multiple Minecraft servers
+- **Scheduled Updates**: Cron-like scheduling for automated updates
+- **Metrics & Monitoring**: Prometheus metrics and health endpoints
+- **Configuration Profiles**: Multiple configuration sets
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+### 🐛 **Report Issues**
+- [Create an issue](https://github.com/dacrab/craftops/issues) for bugs or feature requests
+- Use the issue templates for better organization
+- Include system information and logs when reporting bugs
+
+### 💻 **Development**
 ```bash
-# Server management
-minecraft-mod-manager --start          # Start server
-minecraft-mod-manager --stop           # Stop server
-minecraft-mod-manager --restart        # Restart server
-minecraft-mod-manager --status         # Check status
-
-# Mod management
-minecraft-mod-manager --auto-update    # Update all mods
-minecraft-mod-manager --check-updates  # Check for updates only
-minecraft-mod-manager --backup         # Create backup
-
-# System operations
-minecraft-mod-manager --health-check   # Run diagnostics
-minecraft-mod-manager --cleanup        # Clean old files
-minecraft-mod-manager --init-config    # Create config template
-
-# Custom configuration
-minecraft-mod-manager --config /path/to/config.toml --auto-update
-```
-
-## Development
-
-### Requirements
-- Python 3.9+
-- Virtual environment recommended
-
-### Setup
-```bash
-# Clone repository
-git clone https://github.com/dacrab/minecraft-mod-manager.git
-cd minecraft-mod-manager
-
-# Setup development environment
-make setup-dev
+# Set up development environment
+git clone https://github.com/dacrab/craftops.git
+cd craftops
+make dev
 
 # Run tests
 make test
 
-# Check code quality
-make lint type-check
-
-# Build package
+# Build and test
 make build
-
-# Build executable  
-make build-exe
+./build/craftops --help
 ```
 
-### Available Commands
-```bash
-make help           # Show all commands
-make test           # Run tests with coverage
-make lint           # Code linting with ruff
-make type-check     # Type checking with mypy
-make format         # Format code
-make build          # Build Python package
-make build-exe      # Build standalone executable
-make clean          # Clean build artifacts
-make health-check   # Run application health check
-```
+### 📝 **Documentation**
+- Improve documentation and examples
+- Add translations for international users
+- Create video tutorials and guides
 
-## Architecture
+---
 
-The project follows a modular architecture with clear separation of concerns:
+## 📊 Project Stats
 
-```
-minecraft_mod_manager/
-├── app.py                    # Main application entry point
-├── services.py               # Core business logic
-└── settings/                 # Configuration management
-    ├── config.py            # Configuration dataclasses
-    └── config.toml          # Default configuration
-```
+<div align="center">
 
-### Key Components
-- **ModManager**: Handles mod downloading and updating
-- **BackupManager**: Creates and manages backups
-- **NotificationManager**: Discord webhooks and player notifications
-- **ServerController**: Minecraft server process control
+![GitHub stars](https://img.shields.io/github/stars/dacrab/craftops?style=social)
+![GitHub forks](https://img.shields.io/github/forks/dacrab/craftops?style=social)
+![GitHub issues](https://img.shields.io/github/issues/dacrab/craftops)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/dacrab/craftops)
 
-## Contributing
+</div>
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Make changes and add tests
-4. Run quality checks: `make lint type-check test`
-5. Commit changes: `git commit -am 'Add feature'`
-6. Push to branch: `git push origin feature-name`
-7. Submit a Pull Request
+---
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the Minecraft community**
+
+[⭐ Star this project](https://github.com/dacrab/craftops) • [🐛 Report Issues](https://github.com/dacrab/craftops/issues) • [💬 Discussions](https://github.com/dacrab/craftops/discussions)
+
+</div>

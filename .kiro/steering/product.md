@@ -17,3 +17,10 @@ System administrators and server operators who need reliable, automated mod mana
 - Prevents server downtime through automated backups
 - Ensures players are warned before server restarts
 - Supports multiple mod sources (Modrinth, CurseForge)
+
+## Codebase Guidline
+- Write clean and professional code
+- Dont create unessecery tests 
+- Search and understand the codebase before doing anything , always create a plan
+- Dont leave dead code or files , always cleanup
+- Think of the users experience and ui
