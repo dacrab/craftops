@@ -1,0 +1,52 @@
+debug = false
+dry_run = false
+
+[minecraft]
+version = "1.20.1"
+modloader = "fabric"
+
+[paths]
+server = "/home/dacrab/minecraft/server"
+mods = "/home/dacrab/minecraft/server/mods"
+backups = "/home/dacrab/minecraft/backups"
+logs = "/home/dacrab/.local/share/craftops/logs"
+
+[server]
+jar_name = "server.jar"
+java_flags = ["-Xms4G", "-Xmx4G", "-XX:+UseG1GC", "-XX:+ParallelRefProcEnabled", "-XX:+UnlockExperimentalVMOptions", "-XX:+DisableExplicitGC", "-XX:+AlwaysPreTouch"]
+stop_command = "stop"
+max_stop_wait = 300
+startup_timeout = 120
+
+[mods]
+auto_update = true
+backup_before_update = true
+concurrent_downloads = 5
+max_retries = 3
+retry_delay = 2.0
+timeout = 30
+
+[mods.sources]
+modrinth = []
+
+[backup]
+enabled = true
+max_backups = 5
+compression_level = 6
+include_logs = false
+exclude_patterns = ["*.log", "*.log.*", "cache/", "temp/", ".DS_Store", "Thumbs.db"]
+
+[notifications]
+discord_webhook = ""
+warning_intervals = [15, 10, 5, 1]
+warning_message = "Server will restart in {minutes} minute(s) for mod updates"
+success_notifications = true
+error_notifications = true
+
+[logging]
+level = "INFO"
+format = "json"
+file_enabled = true
+console_enabled = true
+max_file_size = "10MB"
+backup_count = 5

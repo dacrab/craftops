@@ -1,116 +1,130 @@
-# Minecraft Mod Manager - Development Makefile
-# Provides convenient commands for development, testing, and building
+# Minecraft Mod Manager Makefile
 
-.PHONY: help install install-dev test lint type-check format clean build build-exe health-check run-tests coverage docs
+.PHONY: help build install clean test lint format run dev
+
+# Build configuration
+BINARY_NAME=craftops
+BUILD_DIR=build
+DIST_DIR=dist
+VERSION=2.0.0
+
+# Go build flags
+LDFLAGS=-ldflags "-X main.Version=$(VERSION) -s -w"
+BUILD_FLAGS=-trimpath
 
 # Default target
 help:
-	@echo "🎮 Minecraft Mod Manager - Development Commands"
-	@echo "==============================================="
-	@echo ""
-	@echo "Setup Commands:"
-	@echo "  install      - Install package in development mode"
-	@echo "  setup-dev    - Full development environment setup
-  install-dev  - Install with development dependencies"
-	@echo ""
-	@echo "Quality Assurance:"
-	@echo "  test         - Run all tests"
-	@echo "  lint         - Run code linting (ruff)"
-	@echo "  type-check   - Run type checking (mypy)"
-	@echo "  format       - Format code (ruff)"
-	@echo "  coverage     - Run tests with coverage report"
-	@echo ""
-	@echo "Build Commands:"
-	@echo "  build        - Build wheel package"
-	@echo "  build-exe    - Build standalone executable"
-	@echo "  clean        - Clean build artifacts"
-	@echo ""
-	@echo "Application Commands:"
-	@echo "  health-check - Run system health checks"
-	@echo "  cleanup      - Run system cleanup"
-	@echo ""
-	@echo "Development:"
-	@echo "  run-tests    - Run tests with verbose output"
-	@echo "  docs         - Generate documentation"
+	@echo "Available targets:"
+	@echo "  build         - Build the binary"
+	@echo "  install       - Install the binary to GOPATH/bin"
+	@echo "  install-system- Install system-wide to /usr/local/bin (requires sudo)"
+	@echo "  clean         - Clean build artifacts"
+	@echo "  test          - Run tests"
+	@echo "  lint          - Run linting checks"
+	@echo "  format        - Format code"
+	@echo "  run           - Run the application"
+	@echo "  dev           - Install development dependencies"
+	@echo "  package       - Create distribution packages for all platforms"
 
-# Setup commands
-install:
-	@echo "📦 Installing package in development mode..."
-	pip install -e .
-
-install-dev:
-	@echo "🛠️  Installing with development dependencies..."
-	pip install -e .
-	pip install -r requirements-dev.txt
-
-# Quality assurance
-test:
-	@echo "🧪 Running tests..."
-	python -m pytest tests/ -v
-
-lint:
-	@echo "🔍 Running code linting..."
-	python -m ruff check minecraft_mod_manager/
-
-type-check:
-	@echo "🔍 Running type checking..."
-	python -m mypy minecraft_mod_manager/
-
-format:
-	@echo "✨ Formatting code..."
-	python -m ruff format minecraft_mod_manager/
-	python -m ruff check --fix minecraft_mod_manager/
-
-coverage:
-	@echo "📊 Running tests with coverage..."
-	python -m pytest tests/ --cov=minecraft_mod_manager --cov-report=html --cov-report=term
-
-# Build commands
+# Build the binary
 build:
-	@echo "🏗️  Building wheel package..."
-	./package-build.sh
+	@echo "Building $(BINARY_NAME)..."
+	@mkdir -p $(BUILD_DIR)
+	go build $(BUILD_FLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/craftops
 
-build-exe:
-	@echo "🏗️  Building standalone executable..."
-	./executable-build.sh
+# Install the binary
+install:
+	@echo "Installing $(BINARY_NAME)..."
+	go install $(LDFLAGS) ./cmd/craftops
+	@echo "Creating aliases..."
+	@if [ -w "$(shell go env GOPATH)/bin" ]; then \
+		ln -sf $(BINARY_NAME) $(shell go env GOPATH)/bin/cops; \
+		ln -sf $(BINARY_NAME) $(shell go env GOPATH)/bin/mmu; \
+		echo "Created aliases: cops, mmu"; \
+	else \
+		echo "Note: Run 'sudo ln -sf $(shell go env GOPATH)/bin/$(BINARY_NAME) /usr/local/bin/mmu' to create system aliases"; \
+	fi
 
+# Clean build artifacts
 clean:
-	@echo "🧹 Cleaning build artifacts..."
-	rm -rf build/
-	rm -rf dist/
-	rm -rf *.egg-info/
-	rm -rf .pytest_cache/
-	rm -rf .mypy_cache/
-	rm -rf .ruff_cache/
-	rm -rf htmlcov/
-	find . -type d -name __pycache__ -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.pyo" -delete
-	find . -type f -name "*.coverage" -delete
+	@echo "Cleaning build artifacts..."
+	rm -rf $(BUILD_DIR)/
+	rm -rf $(DIST_DIR)/
+	go clean -cache
+	go clean -testcache
+	go clean -modcache
 
-# Application commands
-health-check:
-	@echo "🏥 Running system health checks..."
-	minecraft-mod-manager --health-check
+# Run tests
+test:
+	@echo "Running tests..."
+	go test -v -race -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
 
-cleanup:
-	@echo "🧹 Running system cleanup..."
-	minecraft-mod-manager --cleanup
+# Run linting
+lint:
+	@echo "Running linting checks..."
+	go vet ./...
+	go fmt ./...
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run; \
+	else \
+		echo "golangci-lint not installed, skipping advanced linting"; \
+	fi
 
-# Development commands
-run-tests:
-	@echo "🧪 Running tests with verbose output..."
-	python -m pytest tests/ -v -s
+# Format code
+format:
+	@echo "Formatting code..."
+	go fmt ./...
+	@if command -v goimports >/dev/null 2>&1; then \
+		goimports -w .; \
+	fi
 
-docs:
-	@echo "📚 Generating documentation..."
-	@echo "Documentation generation not yet implemented"
+# Run the application
+run: build
+	./$(BUILD_DIR)/$(BINARY_NAME)
 
-# Quality check all
-check-all: lint type-check test
-	@echo "✅ All quality checks passed!"
+# Install development dependencies
+dev:
+	@echo "Installing development dependencies..."
+	go mod tidy
+	go mod download
+	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo "Installing golangci-lint..."; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+	fi
+	@if ! command -v goimports >/dev/null 2>&1; then \
+		echo "Installing goimports..."; \
+		go install golang.org/x/tools/cmd/goimports@latest; \
+	fi
 
-# Full development setup
-setup-dev:
-	@echo "🚀 Running full development setup..."
-	./scripts/development-setup.sh
+# Install system-wide (requires sudo)
+install-system: build
+	@echo "Installing $(BINARY_NAME) system-wide..."
+	sudo cp $(BUILD_DIR)/$(BINARY_NAME) /usr/local/bin/
+	sudo chmod +x /usr/local/bin/$(BINARY_NAME)
+	@echo "Creating system aliases..."
+	sudo ln -sf /usr/local/bin/$(BINARY_NAME) /usr/local/bin/cops
+	sudo ln -sf /usr/local/bin/$(BINARY_NAME) /usr/local/bin/mmu
+	@echo "✅ System installation complete!"
+	@echo "Available commands: $(BINARY_NAME), cops, mmu"
+
+# Create distribution packages
+package: clean build
+	@echo "Creating distribution packages..."
+	@mkdir -p $(DIST_DIR)
+	
+	# Linux amd64
+	GOOS=linux GOARCH=amd64 go build $(BUILD_FLAGS) $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 ./cmd/craftops
+	
+	# Linux arm64
+	GOOS=linux GOARCH=arm64 go build $(BUILD_FLAGS) $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 ./cmd/craftops
+	
+	# macOS amd64
+	GOOS=darwin GOARCH=amd64 go build $(BUILD_FLAGS) $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64 ./cmd/craftops
+	
+	# macOS arm64
+	GOOS=darwin GOARCH=arm64 go build $(BUILD_FLAGS) $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64 ./cmd/craftops
+	
+
+	
+	@echo "Distribution packages created in $(DIST_DIR)/"

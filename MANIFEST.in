@@ -1,3 +1,0 @@
-include README.md
-include minecraft_mod_manager/config/config.toml
-recursive-include minecraft_mod_manager/config *.toml 

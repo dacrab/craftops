@@ -1,241 +1,60 @@
-# Minecraft Mod Manager - Git Ignore Rules
-
-# ============================================================================
-# Python
-# ============================================================================
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-
-# Build artifacts
+# Go build artifacts
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-# ============================================================================
-# Virtual Environments
-# ============================================================================
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-.venv/
+# Go test files
+*.test
 
-# ============================================================================
-# IDE and Editor Files
-# ============================================================================
-# VSCode
+# Go coverage files
+*.out
+coverage.html
+
+# Go module cache
+go.sum
+
+# IDE files
 .vscode/
-*.code-workspace
-
-# PyCharm
 .idea/
-
-# Vim
 *.swp
 *.swo
 *~
 
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
-
-# Eclipse
-.project
-.pydevproject
-.settings/
-
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
-
-# ============================================================================
-# Testing and Coverage
-# ============================================================================
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
-.nox/
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-
-# ============================================================================
-# Type Checking and Linting
-# ============================================================================
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.ruff_cache/
-.pytype/
-
-# ============================================================================
-# Documentation
-# ============================================================================
-docs/_build/
-.readthedocs.yml
-
-# ============================================================================
-# Minecraft Server and Mods
-# ============================================================================
-# Server files
-*.jar
-server.properties
-whitelist.json
-ops.json
-banned-players.json
-banned-ips.json
-usercache.json
-usernamecache.json
-
-# Mod directories
-mods/
-mod_backups/
-backups/
-world/
-world_*/
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Logs
-logs/
 *.log
-*.log.*
-crash-reports/
+logs/
 
-# ============================================================================
-# Configuration Files (User-specific)
-# ============================================================================
-# User config files (keep template)
-config.toml
-!minecraft_mod_manager/config/config.toml
-
-# ============================================================================
-# Build and Distribution
-# ============================================================================
-# PyInstaller
-*.spec
-*.exe
-*.msi
-*.dmg
-*.app
-
-# Wheel files
-*.whl
-
-# ============================================================================
-# System Files
-# ============================================================================
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon?
-._*
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-
-# Windows
-Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
-*.stackdump
-[Dd]esktop.ini
-$RECYCLE.BIN/
-*.cab
-*.msi
-*.msix
-*.msm
-*.msp
-*.lnk
-
-# Linux
-*~
-.fuse_hidden*
-.directory
-.Trash-*
-.nfs*
-
-# ============================================================================
-# Temporary Files
-# ============================================================================
+# Temporary files
 *.tmp
 *.temp
+
+# Backup files
 *.bak
 *.backup
-*.old
-*.orig
-*.rej
-*.swp
-*.swo
-*~
 
-# ============================================================================
-# Security and Secrets
-# ============================================================================
+# Configuration files (keep examples)
+config.toml
+!conf.toml
+
+# Test artifacts
+test-config.toml
+
+# Docker
+.dockerignore
+
+# Environment files
 .env
 .env.local
-.env.*.local
-*.pem
-*.key
-*.crt
-*.p12
-secrets.json
-.secrets/
-
-# ============================================================================
-# Project Specific
-# ============================================================================
-# Development artifacts
-.coverage.*
-test-results/
-benchmark-results/
-
-# User data directories
-user_data/
-minecraft_servers/
-test_servers/
-
-# Performance logs
-performance.log
-*.prof
-
-# ============================================================================
-# Archive Files
-# ============================================================================
-*.zip
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.rar
-*.7z

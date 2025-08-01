@@ -1,119 +1,276 @@
-name: Release
+name: Build and Release
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  GO_VERSION: '1.21'
 
 jobs:
-  test:
-    uses: ./.github/workflows/test.yml
-    secrets: inherit
-
   build:
-    needs: test
+    name: Build Binaries
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            artifact_name: minecraft-mod-manager
-            asset_name: minecraft-mod-manager-linux
-          - os: windows-latest
-            artifact_name: minecraft-mod-manager.exe
-            asset_name: minecraft-mod-manager-windows.exe
-          - os: macos-latest
-            artifact_name: minecraft-mod-manager
-            asset_name: minecraft-mod-manager-macos
-    runs-on: ${{ matrix.os }}
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+          - goos: darwin
+            goarch: amd64
+            suffix: darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            suffix: darwin-arm64
+
+    
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
       
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: 'pip'
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        
+    - name: Get dependencies
+      run: go mod download
+      
+    - name: Get version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+        else
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        BINARY_NAME="craftops-${{ matrix.suffix }}"
+        
+        go build \
+          -trimpath \
+          -ldflags "-X main.Version=${VERSION#v} -s -w" \
+          -o "dist/${BINARY_NAME}" \
+          ./cmd/craftops
           
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          pip install pyinstaller
-          pip install -e .
-          
-      - name: Build Python package
-        run: |
-          python -m build
-          
-      - name: Build executable
-        run: |
-          pyinstaller --onefile \
-            --name ${{ matrix.artifact_name }} \
-            --add-data "minecraft_mod_manager/settings:minecraft_mod_manager/settings" \
-            --hidden-import=aiohttp \
-            --hidden-import=tqdm \
-            --hidden-import=toml \
-            minecraft_mod_manager/app.py
-            
-      - name: List built files
-        run: |
-          echo "Built files:"
-          ls -l dist/
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: binaries
+        path: dist/
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-${{ matrix.os }}
-          path: |
-            dist/*.whl
-            dist/*.tar.gz
-            dist/${{ matrix.artifact_name }}
-
-  release:
+  create-release:
+    name: Create Release
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: startsWith(github.ref, 'refs/tags/')
+    
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          pattern: dist-*
-          merge-multiple: true
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: binaries
+        path: dist/
+        
+    - name: Get version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+        else
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Create checksums
+      run: |
+        cd dist
+        sha256sum * > checksums.txt
+        
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        cat > release_notes.md << EOF
+        # CraftOps ${VERSION}
+        
+        ## 🚀 Installation
+        
+        ### Quick Install (Linux/macOS)
+        \`\`\`bash
+        # Download and install
+        curl -L https://github.com/${{ github.repository }}/releases/download/${VERSION}/craftops-linux-amd64 -o craftops
+        chmod +x craftops
+        sudo mv craftops /usr/local/bin/
+        
+        # Create aliases
+        sudo ln -sf /usr/local/bin/craftops /usr/local/bin/cops
+        sudo ln -sf /usr/local/bin/craftops /usr/local/bin/mmu
+        
+        # Initialize configuration
+        craftops init-config
+        \`\`\`
+        
+        ### Manual Installation
+        1. Download the appropriate binary for your platform
+        2. Make it executable: \`chmod +x craftops-*\`
+        3. Move to PATH: \`sudo mv craftops-* /usr/local/bin/craftops\`
+        4. Create aliases (optional):
+           - \`sudo ln -sf /usr/local/bin/craftops /usr/local/bin/mmu\`
+           - \`sudo ln -sf /usr/local/bin/craftops /usr/local/bin/minecraft-mod-updater\`
+        
+        ## 📋 Available Binaries
+        
+        | Platform | Architecture | Binary |
+        |----------|-------------|---------|
+        | Linux | x64 | craftops-linux-amd64 |
+        | Linux | ARM64 | craftops-linux-arm64 |
+        | macOS | x64 | craftops-darwin-amd64 |
+        | macOS | ARM64 | craftops-darwin-arm64 |
+        | Windows | x64 | craftops-windows-amd64.exe |
+        
+        ## 🎮 Quick Start
+        
+        \`\`\`bash
+        # Initialize configuration
+        cops init-config
+        
+        # Edit your configuration
+        nano conf.toml
+        
+        # Run health check
+        cops health-check
+        
+        # Update mods
+        mmu update-mods
+        
+        # Server management
+        mmu server start
+        mmu server stop
+        mmu server restart
+        mmu server status
+        
+        # Backup management
+        mmu backup create
+        mmu backup list
+        \`\`\`
+        
+        ## 🔧 Configuration
+        
+        After installation, run \`mmu init-config\` to create a default configuration file, then edit it with your server details:
+        
+        - Server paths
+        - Mod sources (Modrinth, CurseForge, GitHub)
+        - Discord webhook for notifications
+        - Backup settings
+        - Java flags and server settings
+        
+        ## ✅ Verification
+        
+        \`\`\`bash
+        # Verify installation
+        mmu --version
+        mmu --help
+        
+        # Check system health
+        cops health-check
+        \`\`\`
+        
+        ## 📦 Docker
+        
+        \`\`\`bash
+        docker run --rm -v /path/to/config:/config ghcr.io/${{ github.repository }}:${VERSION} --help
+        \`\`\`
+        EOF
+        
+        echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+        cat release_notes.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Create or update tag
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -a "${VERSION}" -m "Release ${VERSION}"
+        git push origin "${VERSION}"
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        name: CraftOps ${{ steps.version.outputs.VERSION }}
+        body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+        files: |
+          dist/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
-            dist/minecraft-mod-manager*
-          generate_release_notes: true
-          body: |
-            ## 🚀 Installation Methods
-            
-            ### Option 1: Pre-built Executable
-            1. 📥 Download the appropriate executable for your system:
-               - Linux: `minecraft-mod-manager-linux`
-               - Windows: `minecraft-mod-manager-windows.exe`
-               - macOS: `minecraft-mod-manager-macos`
-            2. 🔓 Make it executable (Linux/macOS):
-               ```bash
-               chmod +x minecraft-mod-manager-*
-               ```
-            3. 🎮 Run it:
-               ```bash
-               ./minecraft-mod-manager-* --help
-               ```
-            
-            ### Option 2: Python Package
-            ```bash
-            pip install minecraft-mod-manager
-            ```
-            
-            For detailed usage instructions, please visit our [documentation](https://github.com/dacrab/minecraft-mod-manager#readme).
+  docker:
+    name: Build and Push Docker Image
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Get version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+        else
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}
+        build-args: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
