@@ -72,7 +72,7 @@ jobs:
         
         go build \
           -trimpath \
-          -ldflags="-s -w -X main.Version=${{ steps.version.outputs.clean_version }}" \
+          -ldflags="-s -w -X craftops/internal/cli.Version=${{ steps.version.outputs.clean_version }}" \
           -o "build/${BINARY_NAME}" \
           ./cmd/craftops
 
