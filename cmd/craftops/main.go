@@ -7,8 +7,8 @@ import (
 	"craftops/internal/cli"
 )
 
-const (
-	Version = "2.0.1"
+var (
+	Version = "2.0.1" // Can be overridden by ldflags
 	Author  = "dacrab"
 	License = "MIT"
 )

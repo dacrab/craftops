@@ -21,6 +21,8 @@ var (
 	dryRun  bool
 	cfg     *config.Config
 	logger  *zap.Logger
+	// Version can be set by ldflags during build
+	Version = "2.0.1"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -73,7 +75,7 @@ func init() {
 	rootCmd.Flags().BoolP("version", "v", false, "show version information")
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
 		if version, _ := cmd.Flags().GetBool("version"); version {
-			fmt.Println("CraftOps v2.0.0")
+			fmt.Printf("CraftOps v%s\n", Version)
 			return
 		}
 		_ = cmd.Help()

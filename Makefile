@@ -6,10 +6,10 @@
 BINARY_NAME=craftops
 BUILD_DIR=build
 DIST_DIR=dist
-VERSION=2.0.0
+VERSION=2.0.1
 
 # Go build flags
-LDFLAGS=-ldflags "-X main.Version=$(VERSION) -s -w"
+LDFLAGS=-ldflags "-X craftops/internal/cli.Version=$(VERSION) -s -w"
 BUILD_FLAGS=-trimpath
 
 # Default target

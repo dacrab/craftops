@@ -22,7 +22,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN go build -trimpath -ldflags "-X main.Version=2.0.0 -s -w" -o craftops ./cmd/craftops
+RUN go build -trimpath -ldflags "-X craftops/internal/cli.Version=2.0.1 -s -w" -o craftops ./cmd/craftops
 
 # Production stage
 FROM alpine:latest
@@ -71,4 +71,4 @@ LABEL org.opencontainers.image.title="CraftOps" \
       org.opencontainers.image.vendor="dacrab" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/dacrab/craftops" \
-      org.opencontainers.image.version="2.0.0"
+      org.opencontainers.image.version="2.0.1"
