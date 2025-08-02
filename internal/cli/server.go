@@ -33,7 +33,7 @@ var serverStartCmd = &cobra.Command{
 		)
 
 		err := serverService.Start(ctx)
-		bar.Finish()
+		_ = bar.Finish()
 
 		if err != nil {
 			printError(fmt.Sprintf("Failed to start server: %v", err))
@@ -62,7 +62,7 @@ var serverStopCmd = &cobra.Command{
 		)
 
 		err := serverService.Stop(ctx)
-		bar.Finish()
+		_ = bar.Finish()
 
 		if err != nil {
 			printError(fmt.Sprintf("Failed to stop server: %v", err))
@@ -107,16 +107,16 @@ This command will:
 		)
 
 		err := serverService.Restart(ctx)
-		bar.Finish()
+		_ = bar.Finish()
 
 		if err != nil {
 			printError(fmt.Sprintf("Failed to restart server: %v", err))
-			notificationService.SendErrorNotification(ctx, fmt.Sprintf("Server restart failed: %v", err))
+			_ = notificationService.SendErrorNotification(ctx, fmt.Sprintf("Server restart failed: %v", err))
 			return err
 		}
 
 		printSuccess("Server has been restarted")
-		notificationService.SendSuccessNotification(ctx, "Server restarted successfully")
+		_ = notificationService.SendSuccessNotification(ctx, "Server restarted successfully")
 
 		return nil
 	},

@@ -76,7 +76,7 @@ func init() {
 			fmt.Println("CraftOps v2.0.0")
 			return
 		}
-		cmd.Help()
+		_ = cmd.Help()
 	}
 }
 
@@ -132,7 +132,7 @@ func initLogger(cfg *config.Config) *zap.Logger {
 	if cfg.Logging.FileEnabled {
 		// Ensure log directory exists
 		logDir := filepath.Dir(cfg.Paths.Logs)
-		os.MkdirAll(logDir, 0755)
+		_ = os.MkdirAll(logDir, 0755)
 
 		logFile := filepath.Join(cfg.Paths.Logs, "craftops.log")
 		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -155,9 +155,9 @@ func initLogger(cfg *config.Config) *zap.Logger {
 
 	// Create logger
 	core := zapcore.NewTee(cores...)
-	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+	newLogger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 
-	return logger
+	return newLogger
 }
 
 // getContext returns a context for operations

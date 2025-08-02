@@ -1,10 +1,11 @@
 package config_test
 
 import (
-	"craftops/internal/config"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"craftops/internal/config"
 )
 
 func TestLoadConfig(t *testing.T) {

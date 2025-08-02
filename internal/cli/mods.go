@@ -62,7 +62,7 @@ func createBackupIfNeeded(ctx context.Context) error {
 		progressbar.OptionSetDescription("Creating backup..."),
 		progressbar.OptionSpinnerType(14),
 	)
-	defer bar.Finish()
+	defer func() { _ = bar.Finish() }()
 
 	backupService := services.NewBackupService(cfg, logger)
 	backupPath, err := backupService.CreateBackup(ctx)
@@ -83,7 +83,7 @@ func updateMods(ctx context.Context, modService *services.ModService) (*services
 		progressbar.OptionSetDescription("Checking for updates..."),
 		progressbar.OptionSpinnerType(14),
 	)
-	defer bar.Finish()
+	defer func() { _ = bar.Finish() }()
 
 	result, err := modService.UpdateAllMods(ctx, forceUpdate)
 	if err != nil {
