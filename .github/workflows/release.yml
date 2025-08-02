@@ -74,7 +74,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: binaries
+        name: binary-${{ matrix.suffix }}
         path: dist/
 
   create-release:
@@ -91,8 +91,13 @@ jobs:
     - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
-        name: binaries
-        path: dist/
+        path: artifacts/
+        
+    - name: Prepare release files
+      run: |
+        mkdir -p dist
+        find artifacts/ -name "craftops-*" -type f -exec cp {} dist/ \;
+        ls -la dist/
         
     - name: Get version
       id: version
