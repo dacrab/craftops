@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🚀 Minecraft Mod Manager - Deployment Guide
+# 🚀 CraftOps - Deployment Guide
 
-**Complete guide for deploying, releasing, and distributing the Minecraft Mod Manager**
+**Complete guide for deploying, releasing, and distributing the CraftOps**
 
 [🏠 Back to README](README.md) • [📚 Usage Guide](USAGE_GUIDE.md) • [🏗️ Project Structure](PROJECT_STRUCTURE.md)
 
@@ -126,7 +126,7 @@ linters:
 | **Linux** | arm64 | ✅ Supported | Raspberry Pi, ARM servers |
 | **macOS** | amd64 | ✅ Supported | Intel Macs |
 | **macOS** | arm64 | ✅ Supported | Apple Silicon (M1/M2) |
-| **Windows** | amd64 | ❌ Not Supported | Server management requires Unix tools |
+
 
 **Build Optimization:**
 - Cross-compilation for all platforms
@@ -215,7 +215,7 @@ git push origin v2.0.0
 
 **Example Release Notes:**
 ```markdown
-# Minecraft Mod Manager v2.0.0
+# CraftOps v2.0.0
 
 ## 🚀 Installation
 
@@ -232,9 +232,9 @@ curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | ba
 | macOS | ARM64 | craftops-darwin-arm64 |
 
 ## 🎮 Quick Start
-mmu init-config
-mmu health-check
-mmu update-mods
+craftops init-config
+craftops health-check
+craftops update-mods
 ```
 
 </details>
@@ -385,7 +385,7 @@ curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | ba
 1. Detects platform (Linux/macOS, x64/ARM64)
 2. Downloads appropriate binary from GitHub releases
 3. Installs to `/usr/local/bin` (system) or `~/.local/bin` (user)
-4. Creates aliases: `mmu`, `minecraft-mod-updater`
+4. Creates aliases: `craftops`, `minecraft-mod-updater`
 5. Sets up configuration directory
 6. Creates default configuration file
 7. Verifies installation
@@ -408,8 +408,8 @@ curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | ba
 **Current Manual Methods:**
 ```bash
 # Direct download
-curl -L https://github.com/dacrab/craftops/releases/latest/download/craftops-linux-amd64 -o mmu
-chmod +x mmu && sudo mv mmu /usr/local/bin/
+curl -L https://github.com/dacrab/craftops/releases/latest/download/craftops-linux-amd64 -o craftops
+chmod +x craftops && sudo mv craftops /usr/local/bin/
 
 # From source
 git clone https://github.com/dacrab/craftops.git
@@ -424,24 +424,24 @@ cd craftops && make install-system
 **Ansible Playbook:**
 ```yaml
 ---
-- name: Deploy Minecraft Mod Manager
+- name: Deploy CraftOps
   hosts: minecraft_servers
   become: yes
   vars:
-    mmu_version: "v2.0.0"
-    mmu_user: "minecraft"
+    craftops_version: "v2.0.0"
+    craftops_user: "minecraft"
     
   tasks:
     - name: Create minecraft user
       user:
-        name: "{{ mmu_user }}"
+        name: "{{ craftops_user }}"
         system: yes
-        home: "/home/{{ mmu_user }}"
+        home: "/home/{{ craftops_user }}"
         shell: /bin/bash
         
-    - name: Download MMU binary
+    - name: Download craftops binary
       get_url:
-        url: "https://github.com/dacrab/craftops/releases/download/{{ mmu_version }}/craftops-linux-amd64"
+        url: "https://github.com/dacrab/craftops/releases/download/{{ craftops_version }}/craftops-linux-amd64"
         dest: "/usr/local/bin/craftops"
         mode: '0755'
         
@@ -451,15 +451,15 @@ cd craftops && make install-system
         dest: "/usr/local/bin/{{ item }}"
         state: link
       loop:
-        - mmu
+        - craftops
         - minecraft-mod-updater
         
     - name: Deploy configuration
       template:
         src: config.toml.j2
-        dest: "/home/{{ mmu_user }}/.config/craftops/config.toml"
-        owner: "{{ mmu_user }}"
-        group: "{{ mmu_user }}"
+        dest: "/home/{{ craftops_user }}/.config/craftops/config.toml"
+        owner: "{{ craftops_user }}"
+        group: "{{ craftops_user }}"
         mode: '0600'
 ```
 
@@ -513,7 +513,7 @@ module "minecraft_mod_manager" {
 **Primary Users:**
 - **Server Administrators** - Managing production Minecraft servers
 - **Hosting Providers** - Offering managed Minecraft hosting
-- **Community Servers** - Running servers for gaming communities
+- **Cocraftopsnity Servers** - Running servers for gaming cocraftopsnities
 - **Development Teams** - Testing mod compatibility
 
 **Use Cases:**
@@ -530,7 +530,7 @@ module "minecraft_mod_manager" {
 **Key Performance Indicators:**
 - **Download Counts** - GitHub release downloads
 - **Container Pulls** - Docker image pull statistics
-- **GitHub Stars** - Community interest and adoption
+- **GitHub Stars** - Cocraftopsnity interest and adoption
 - **Issue Activity** - User engagement and feedback
 - **Documentation Views** - User education and onboarding
 
@@ -570,7 +570,7 @@ docker run --rm -it ghcr.io/dacrab/craftops:latest --version
 **User Feedback Channels:**
 - GitHub Issues for bug reports
 - GitHub Discussions for questions
-- Discord community (future)
+- Discord cocraftopsnity (future)
 - Documentation feedback
 
 </details>
@@ -654,7 +654,7 @@ go tool trace trace.out
 **Privacy Considerations:**
 - No telemetry collection
 - Local configuration storage
-- Optional external communications
+- Optional external cocraftopsnications
 - User consent for notifications
 
 </details>
@@ -734,7 +734,7 @@ time curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh
 **New Features:**
 - **CurseForge Integration** - Full API support
 - **GitHub Releases** - Direct mod downloads from GitHub
-- **Windows Support** - PowerShell-based server management
+- **Enhanced Unix Integration** - Improved screen session management
 - **Web Interface** - Optional web UI for management
 
 **Technical Improvements:**
@@ -767,7 +767,7 @@ time curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh
 
 **Platform Features:**
 - **Plugin System** - Extensible architecture
-- **Marketplace** - Community plugins and themes
+- **Marketplace** - Cocraftopsnity plugins and themes
 - **Cloud Integration** - AWS, Azure, GCP support
 - **Kubernetes Operator** - Native K8s deployment
 
@@ -785,7 +785,7 @@ time curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh
 
 **🚀 Ready to Deploy!**
 
-This deployment guide ensures reliable, secure, and scalable distribution of the Minecraft Mod Manager across all supported platforms.
+This deployment guide ensures reliable, secure, and scalable distribution of the CraftOps across all supported platforms.
 
 [🏠 Back to README](README.md) • [📚 Usage Guide](USAGE_GUIDE.md) • [🏗️ Project Structure](PROJECT_STRUCTURE.md)
 

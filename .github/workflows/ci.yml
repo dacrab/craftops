@@ -60,13 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, darwin, windows]
+        goos: [linux, darwin]
         goarch: [amd64, arm64]
-        exclude:
-          - goos: windows
-            goarch: amd64
-          - goos: windows
-            goarch: arm64
     
     steps:
     - name: Checkout code
@@ -86,14 +81,15 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
         CGO_ENABLED: 0
       run: |
+        mkdir -p build
         go build \
           -trimpath \
           -ldflags "-X main.Version=dev -s -w" \
-          -o "craftops-${{ matrix.goos }}-${{ matrix.goarch }}" \
+          -o "build/craftops-${{ matrix.goos }}-${{ matrix.goarch }}" \
           ./cmd/craftops
           
     - name: Test binary
       if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
       run: |
-        ./craftops-linux-amd64 --version
-        ./craftops-linux-amd64 --help
+        ./build/craftops-linux-amd64 --version
+        ./build/craftops-linux-amd64 --help

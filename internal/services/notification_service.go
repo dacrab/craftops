@@ -14,12 +14,13 @@ import (
 	"craftops/internal/config"
 )
 
-// NotificationService handles notification operations
-type NotificationService struct {
-	config *config.Config
-	logger *zap.Logger
-	client *http.Client
-}
+// Discord color constants
+const (
+	ColorGreen  = 0x00FF00 // Success
+	ColorRed    = 0xFF0000 // Error
+	ColorOrange = 0xFFA500 // Warning
+	ColorBlue   = 0x0099FF // Info
+)
 
 // DiscordEmbed represents a Discord embed
 type DiscordEmbed struct {
@@ -35,78 +36,20 @@ type DiscordWebhookPayload struct {
 	Embeds []DiscordEmbed `json:"embeds"`
 }
 
-// Discord color constants
-const (
-	ColorGreen  = 0x00FF00 // Success
-	ColorRed    = 0xFF0000 // Error
-	ColorOrange = 0xFFA500 // Warning
-	ColorBlue   = 0x0099FF // Info
-)
+// NotificationService handles notification operations
+type NotificationService struct {
+	config *config.Config
+	logger *zap.Logger
+	client *http.Client
+}
 
 // NewNotificationService creates a new notification service instance
 func NewNotificationService(cfg *config.Config, logger *zap.Logger) *NotificationService {
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
 	return &NotificationService{
 		config: cfg,
 		logger: logger,
-		client: client,
+		client: &http.Client{Timeout: 30 * time.Second},
 	}
-}
-
-// HealthCheck performs health checks for the notification service
-func (ns *NotificationService) HealthCheck(ctx context.Context) []HealthCheck {
-	checks := []HealthCheck{}
-
-	// Check Discord webhook configuration
-	if ns.config.Notifications.DiscordWebhook != "" {
-		checks = append(checks, HealthCheck{
-			Name:    "Discord webhook",
-			Status:  "✅",
-			Message: "Configured",
-		})
-
-		// Test webhook URL format
-		if strings.HasPrefix(ns.config.Notifications.DiscordWebhook, "https://discord.com/api/webhooks/") {
-			checks = append(checks, HealthCheck{
-				Name:    "Discord connectivity",
-				Status:  "✅",
-				Message: "Webhook URL format valid",
-			})
-		} else {
-			checks = append(checks, HealthCheck{
-				Name:    "Discord connectivity",
-				Status:  "⚠️",
-				Message: "Invalid webhook URL format",
-			})
-		}
-	} else {
-		checks = append(checks, HealthCheck{
-			Name:    "Discord webhook",
-			Status:  "⚠️",
-			Message: "Not configured",
-		})
-	}
-
-	// Check notification settings
-	if len(ns.config.Notifications.WarningIntervals) > 0 {
-		intervalCount := len(ns.config.Notifications.WarningIntervals)
-		checks = append(checks, HealthCheck{
-			Name:    "Warning intervals",
-			Status:  "✅",
-			Message: fmt.Sprintf("%d intervals configured", intervalCount),
-		})
-	} else {
-		checks = append(checks, HealthCheck{
-			Name:    "Warning intervals",
-			Status:  "⚠️",
-			Message: "No warning intervals configured",
-		})
-	}
-
-	return checks
 }
 
 // SendSuccessNotification sends a success notification
@@ -114,7 +57,6 @@ func (ns *NotificationService) SendSuccessNotification(ctx context.Context, mess
 	if !ns.config.Notifications.SuccessNotifications {
 		return nil
 	}
-
 	return ns.sendDiscordNotification(ctx, "✅ Success", message, ColorGreen)
 }
 
@@ -123,36 +65,32 @@ func (ns *NotificationService) SendErrorNotification(ctx context.Context, messag
 	if !ns.config.Notifications.ErrorNotifications {
 		return nil
 	}
-
 	return ns.sendDiscordNotification(ctx, "❌ Error", message, ColorRed)
 }
 
 // SendRestartWarnings sends restart warning notifications
 func (ns *NotificationService) SendRestartWarnings(ctx context.Context) error {
-	if len(ns.config.Notifications.WarningIntervals) == 0 {
+	intervals := ns.config.Notifications.WarningIntervals
+	if len(intervals) == 0 {
 		return nil
 	}
 
-	ns.logger.Info("Sending restart warnings",
-		zap.Ints("intervals", ns.config.Notifications.WarningIntervals))
+	ns.logger.Info("Sending restart warnings", zap.Ints("intervals", intervals))
 
-	for i, minutes := range ns.config.Notifications.WarningIntervals {
-		// Replace {minutes} placeholder in warning message
+	for i, minutes := range intervals {
 		warningMsg := strings.ReplaceAll(ns.config.Notifications.WarningMessage, "{minutes}", fmt.Sprintf("%d", minutes))
 
-		// Send Discord notification
 		if err := ns.sendDiscordNotification(ctx, "⚠️ Server Restart Warning", warningMsg, ColorOrange); err != nil {
 			ns.logger.Error("Failed to send restart warning", zap.Error(err))
 			return err
 		}
 
-		// Wait between warnings (except for the last one)
-		if i < len(ns.config.Notifications.WarningIntervals)-1 {
+		if i < len(intervals)-1 {
 			var waitTime time.Duration
 			if i > 0 {
-				waitTime = time.Duration(ns.config.Notifications.WarningIntervals[i-1]-minutes) * time.Minute
+				waitTime = time.Duration(intervals[i-1]-minutes) * time.Minute
 			} else {
-				waitTime = time.Minute // Default 1 minute wait
+				waitTime = time.Minute
 			}
 
 			ns.logger.Info("Waiting before next warning", zap.Duration("wait_time", waitTime))
@@ -161,7 +99,6 @@ func (ns *NotificationService) SendRestartWarnings(ctx context.Context) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-time.After(waitTime):
-				// Continue to next warning
 			}
 		}
 	}
@@ -183,34 +120,25 @@ func (ns *NotificationService) sendDiscordNotification(ctx context.Context, titl
 		return nil
 	}
 
-	// Truncate message if too long
 	if len(message) > 2000 {
 		message = message[:1997] + "..."
 	}
 
-	// Create Discord embed
-	embed := DiscordEmbed{
-		Title:       title,
-		Description: message,
-		Color:       color,
-		Timestamp:   time.Now().UTC().Format(time.RFC3339),
-		Footer: map[string]interface{}{
-			"text": "Minecraft Mod Manager",
-		},
-	}
-
-	// Create webhook payload
 	payload := DiscordWebhookPayload{
-		Embeds: []DiscordEmbed{embed},
+		Embeds: []DiscordEmbed{{
+			Title:       title,
+			Description: message,
+			Color:       color,
+			Timestamp:   time.Now().UTC().Format(time.RFC3339),
+			Footer:      map[string]interface{}{"text": "CraftOps"},
+		}},
 	}
 
-	// Marshal to JSON
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal Discord payload: %w", err)
 	}
 
-	// Create HTTP request
 	req, err := http.NewRequestWithContext(ctx, "POST", ns.config.Notifications.DiscordWebhook, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create Discord request: %w", err)
@@ -218,18 +146,68 @@ func (ns *NotificationService) sendDiscordNotification(ctx context.Context, titl
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// Send request
 	resp, err := ns.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send Discord notification: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Check response status
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		return fmt.Errorf("discord API returned status %d", resp.StatusCode)
 	}
 
 	ns.logger.Debug("Discord notification sent successfully")
 	return nil
+}
+
+// HealthCheck performs health checks for the notification service
+func (ns *NotificationService) HealthCheck(ctx context.Context) []HealthCheck {
+	checks := make([]HealthCheck, 0, 2)
+
+	// Check Discord webhook configuration
+	checks = append(checks, ns.checkDiscordWebhook())
+	// Check notification settings
+	checks = append(checks, ns.checkNotificationSettings())
+
+	return checks
+}
+
+func (ns *NotificationService) checkDiscordWebhook() HealthCheck {
+	if ns.config.Notifications.DiscordWebhook == "" {
+		return HealthCheck{
+			Name:    "Discord webhook",
+			Status:  "⚠️",
+			Message: "Not configured",
+		}
+	}
+
+	if !strings.HasPrefix(ns.config.Notifications.DiscordWebhook, "https://discord.com/api/webhooks/") {
+		return HealthCheck{
+			Name:    "Discord webhook",
+			Status:  "❌",
+			Message: "Invalid webhook URL format",
+		}
+	}
+
+	return HealthCheck{
+		Name:    "Discord webhook",
+		Status:  "✅",
+		Message: "Configured",
+	}
+}
+
+func (ns *NotificationService) checkNotificationSettings() HealthCheck {
+	if !ns.config.Notifications.ErrorNotifications && !ns.config.Notifications.SuccessNotifications {
+		return HealthCheck{
+			Name:    "Notification settings",
+			Status:  "⚠️",
+			Message: "All notifications disabled",
+		}
+	}
+
+	return HealthCheck{
+		Name:    "Notification settings",
+		Status:  "✅",
+		Message: "Configured",
+	}
 }

@@ -28,7 +28,7 @@ customize for your Minecraft server setup.`,
 
 		// Determine output path
 		if outputPath == "" {
-			outputPath = "conf.toml"
+			outputPath = "config.toml"
 		}
 
 		printStep(1, 4, fmt.Sprintf("Checking output path: %s", outputPath))
@@ -67,10 +67,10 @@ customize for your Minecraft server setup.`,
 		printInfo("2. 🎮 Add your Modrinth mod URLs to the [mods.sources] section")
 		fmt.Println()
 		printInfo("3. 🏥 Run a health check to validate your setup:")
-		fmt.Printf("   %s\n", accentColor.Sprintf("cops health-check"))
+		fmt.Printf("   %s\n", accentColor.Sprintf("craftops health-check"))
 		fmt.Println()
 		printInfo("4. 🚀 Start managing your server:")
-		fmt.Printf("   %s\n", accentColor.Sprintf("cops update-mods"))
+		fmt.Printf("   %s\n", accentColor.Sprintf("craftops update-mods"))
 
 		return nil
 	},

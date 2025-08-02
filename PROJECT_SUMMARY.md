@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🎮 Minecraft Mod Manager - Project Summary
+# 🎮 CraftOps - Project Summary
 
-**Complete overview of the revamped Minecraft Mod Manager project**
+**Complete overview of the revamped CraftOps project**
 
 [🏠 Back to README](README.md) • [📚 Usage Guide](USAGE_GUIDE.md) • [🚀 Deployment Guide](DEPLOYMENT_GUIDE.md)
 
@@ -12,7 +12,7 @@
 
 ## 🎯 Project Overview
 
-The Minecraft Mod Manager has been completely revamped with beautiful documentation, streamlined features, and professional-grade CI/CD. This summary covers all the improvements and current capabilities.
+The CraftOps has been completely revamped with beautiful documentation, streamlined features, and professional-grade CI/CD. This summary covers all the improvements and current capabilities.
 
 ---
 
@@ -27,7 +27,7 @@ The Minecraft Mod Manager has been completely revamped with beautiful documentat
 ### 🔧 **Streamlined Features**
 - **✅ Modrinth Integration**: Fully implemented and tested
 - **❌ Removed Unsupported**: Cleaned up CurseForge/GitHub placeholders (coming in v2.1.0)
-- **❌ Removed Windows**: Server management requires Unix tools (screen command)
+- **✅ Unix-Only Focus**: Optimized for Linux/macOS with screen-based server management
 - **✅ Linux/macOS Only**: Focus on platforms that work perfectly
 
 ### 🚀 **Professional CI/CD**
@@ -58,7 +58,6 @@ The Minecraft Mod Manager has been completely revamped with beautiful documentat
 ### 🔄 **Coming in v2.1.0**
 - **CurseForge Integration** - Full API support
 - **GitHub Releases** - Direct mod downloads
-- **Windows Support** - PowerShell-based management
 - **Web Interface** - Optional web UI
 - **Enhanced Error Handling** - Better diagnostics
 - **Performance Optimizations** - Faster operations
@@ -77,9 +76,8 @@ The Minecraft Mod Manager has been completely revamped with beautiful documentat
 | **Linux** | ARM64 | ✅ **Full Support** | Raspberry Pi, ARM servers |
 | **macOS** | x64 | ✅ **Full Support** | Intel Macs |
 | **macOS** | ARM64 | ✅ **Full Support** | Apple Silicon (M1/M2) |
-| **Windows** | x64 | ❌ **Not Supported** | Server management requires Unix tools |
 
-> **Note**: Windows support planned for v2.1.0 with PowerShell-based server management.
+> **Note**: Focused on Unix-based systems for optimal server management with screen sessions.
 
 ---
 
@@ -93,26 +91,26 @@ curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | ba
 ### 🎯 **Quick Start**
 ```bash
 # Initialize configuration
-mmu init-config
+craftops init-config
 
 # Edit configuration
-nano conf.toml
+nano config.toml
 
 # Verify setup
-mmu health-check
+craftops health-check
 
 # Update mods
-mmu update-mods
+craftops update-mods
 
 # Manage server
-mmu server start
-mmu server stop
-mmu server restart
+craftops server start
+craftops server stop
+craftops server restart
 ```
 
 ### 🔧 **Available Commands**
 - `craftops` (full name)
-- `mmu` (short alias - recommended)
+- `craftops` (short alias - recommended)
 - `minecraft-mod-updater` (alternative name)
 
 ---
@@ -184,7 +182,7 @@ mmu server restart
 - **Best Practices**: Performance and security guidance
 
 ### 🔧 **Easy Configuration**
-- **Default Generation**: `mmu init-config` creates sensible defaults
+- **Default Generation**: `craftops init-config` creates sensible defaults
 - **Validation**: Comprehensive config validation with clear errors
 - **Documentation**: Inline comments and examples
 - **Flexibility**: Support for multiple config locations
@@ -204,7 +202,7 @@ mmu server restart
 - **File Permissions**: Secure config file permissions (600)
 - **User Isolation**: Dedicated minecraft user recommended
 - **Backup Encryption**: Support for encrypted backups
-- **Network Security**: HTTPS for all external communications
+- **Network Security**: HTTPS for all external cocraftopsnications
 - **Audit Logging**: Comprehensive operation logging
 
 ---
@@ -231,7 +229,7 @@ mmu server restart
 ### 🎯 **Version 2.1.0** (Next Release)
 - **CurseForge Integration**: Full API support for CurseForge mods
 - **GitHub Releases**: Support for GitHub-hosted mod releases
-- **Windows Support**: PowerShell-based server management
+- **Enhanced Unix Integration**: Improved screen session management
 - **Web Interface**: Optional web UI for server management
 - **Enhanced Diagnostics**: Better error reporting and debugging
 
@@ -266,16 +264,16 @@ mmu server restart
 
 ---
 
-## 🤝 Community & Support
+## 🤝 Cocraftopsnity & Support
 
 ### 📞 **Support Channels**
 - **GitHub Issues**: Bug reports and feature requests
-- **GitHub Discussions**: Questions and community support
+- **GitHub Discussions**: Questions and cocraftopsnity support
 - **Documentation**: Comprehensive guides and examples
 - **Installation Script**: Automated setup and configuration
 
-### 🎯 **Community Guidelines**
-- **Welcoming Environment**: Inclusive and helpful community
+### 🎯 **Cocraftopsnity Guidelines**
+- **Welcoming Environment**: Inclusive and helpful cocraftopsnity
 - **Clear Documentation**: Easy-to-follow guides and examples
 - **Responsive Support**: Quick response to issues and questions
 - **Open Development**: Transparent development process
@@ -286,7 +284,7 @@ mmu server restart
 
 ## 🎉 Project Status: **Production Ready**
 
-The Minecraft Mod Manager is now a professional-grade tool with:
+The CraftOps is now a professional-grade tool with:
 - ✅ **Beautiful Documentation** - Comprehensive and user-friendly
 - ✅ **Streamlined Features** - Focus on what works perfectly
 - ✅ **Professional CI/CD** - Automated testing and releases
