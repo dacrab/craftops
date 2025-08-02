@@ -1,65 +1,72 @@
 # Project Structure
 
 ## Package Organization
-The project follows a modular architecture with clear separation of concerns:
+The project follows Go's standard project layout with clear separation of concerns:
 
 ```
-minecraft_mod_manager/
-├── __init__.py                 # Package initialization with version info
-├── minecraft_mod_manager.py    # Main application entry point and orchestration
-├── config/                     # Configuration handling
-│   ├── config.py              # Configuration dataclasses and loading logic
-│   └── config.toml            # Default configuration template
-├── managers/                   # Core business logic modules
-│   ├── __init__.py
-│   ├── mod.py                 # Mod downloading and updating logic
-│   ├── notification.py        # Discord webhooks and player notifications
-│   └── backup.py              # Backup creation and management
-├── controllers/                # External system interfaces
-│   └── server.py              # Minecraft server process control
-└── utils/                      # Shared utilities
-    ├── constants.py           # Global constants and enums
-    └── toml_utils.py          # TOML file handling utilities
+craftops/
+├── cmd/craftops/               # Application entry points
+│   └── main.go                # Main application entry point
+├── internal/                   # Private application code
+│   ├── cli/                   # CLI command implementations
+│   │   ├── root.go           # Root command and global setup
+│   │   ├── init.go           # Configuration initialization
+│   │   ├── health.go         # Health check command
+│   │   ├── mods.go           # Mod management commands
+│   │   ├── server.go         # Server management commands
+│   │   └── backup.go         # Backup management commands
+│   ├── config/                # Configuration handling
+│   │   └── config.go         # Configuration structs and loading logic
+│   └── services/              # Core business logic services
+│       ├── mod_service.go    # Mod downloading and updating logic
+│       ├── server_service.go # Minecraft server process control
+│       ├── backup_service.go # Backup creation and management
+│       └── notification_service.go # Discord webhooks and notifications
+├── build/                     # Build output directory
+├── dist/                      # Distribution packages
+├── config.toml                  # Default configuration file
+├── go.mod                     # Go module definition
+├── go.sum                     # Go module checksums
+├── Makefile                   # Build automation
+└── Dockerfile                 # Container build definition
 ```
 
 ## Architecture Patterns
 
-### Dependency Injection
-- Main `MinecraftModManager` class orchestrates all components
-- Each manager receives config and logger via constructor injection
-- Protocol interfaces define contracts (e.g., `ServerControllerProtocol`)
+### Service-Oriented Architecture
+- Each service handles a specific domain (mods, server, backup, notifications)
+- Services receive config and logger via constructor injection
+- Clean separation between CLI layer and business logic
 
 ### Configuration-Driven Design
 - All behavior controlled via TOML configuration files
-- Dataclasses provide type-safe configuration access
-- Default config bundled with package, user config overrides
+- Go structs with TOML tags for type-safe configuration access
+- Default config with validation and multiple file locations
 
-### Async-First Design
-- All I/O operations use async/await patterns
-- HTTP requests handled via aiohttp for concurrent mod downloads
-- Server operations are async to avoid blocking
+### Concurrent Design
+- HTTP requests use goroutines for concurrent mod downloads
+- Context-based cancellation and timeout handling
+- Semaphore pattern for controlling concurrency limits
 
 ## File Naming Conventions
-- **Snake_case** for all Python files and directories
-- **Lowercase** package and module names
-- **PascalCase** for class names
+- **snake_case** for all Go files and directories
+- **lowercase** package names following Go conventions
+- **PascalCase** for exported types and functions
+- **camelCase** for unexported types and functions
 - **UPPER_CASE** for constants
 
 ## Import Patterns
-- Use relative imports within the package (`from .config import load_config`)
-- Absolute imports for external dependencies
-- Type imports in TYPE_CHECKING blocks when needed for forward references
+- Use relative imports within the module (`craftops/internal/config`)
+- Group imports: standard library, third-party, local packages
+- Use blank imports only when necessary (e.g., database drivers)
 
 ## Testing Structure
 ```
-tests/
-├── __init__.py
-├── conftest.py                # Pytest configuration and fixtures
-└── test_*.py                  # Test modules mirroring source structure
+*_test.go files alongside source files (Go convention)
 ```
 
 ## Build Artifacts
-- `dist/` - Built packages (wheel/sdist)
-- `build/` - Build intermediates
-- `*.egg-info/` - Package metadata
-- `venv/` - Virtual environment (not committed)
+- `build/` - Local build output
+- `dist/` - Multi-platform distribution binaries
+- `coverage.out` - Test coverage reports
+- `coverage.html` - HTML coverage reports

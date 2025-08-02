@@ -124,9 +124,7 @@ jobs:
         chmod +x craftops
         sudo mv craftops /usr/local/bin/
         
-        # Create aliases
-        sudo ln -sf /usr/local/bin/craftops /usr/local/bin/cops
-        sudo ln -sf /usr/local/bin/craftops /usr/local/bin/mmu
+        # No aliases needed - craftops is short and memorable
         
         # Initialize configuration
         craftops init-config
@@ -137,7 +135,7 @@ jobs:
         2. Make it executable: \`chmod +x craftops-*\`
         3. Move to PATH: \`sudo mv craftops-* /usr/local/bin/craftops\`
         4. Create aliases (optional):
-           - \`sudo ln -sf /usr/local/bin/craftops /usr/local/bin/mmu\`
+           - \`sudo ln -sf /usr/local/bin/craftops /usr/local/bin/craftops\`
            - \`sudo ln -sf /usr/local/bin/craftops /usr/local/bin/minecraft-mod-updater\`
         
         ## 📋 Available Binaries
@@ -148,40 +146,39 @@ jobs:
         | Linux | ARM64 | craftops-linux-arm64 |
         | macOS | x64 | craftops-darwin-amd64 |
         | macOS | ARM64 | craftops-darwin-arm64 |
-        | Windows | x64 | craftops-windows-amd64.exe |
         
         ## 🎮 Quick Start
         
         \`\`\`bash
         # Initialize configuration
-        cops init-config
+        craftops init-config
         
         # Edit your configuration
-        nano conf.toml
+        nano config.toml
         
         # Run health check
-        cops health-check
+        craftops health-check
         
         # Update mods
-        mmu update-mods
+        craftops update-mods
         
         # Server management
-        mmu server start
-        mmu server stop
-        mmu server restart
-        mmu server status
+        craftops server start
+        craftops server stop
+        craftops server restart
+        craftops server status
         
         # Backup management
-        mmu backup create
-        mmu backup list
+        craftops backup create
+        craftops backup list
         \`\`\`
         
         ## 🔧 Configuration
         
-        After installation, run \`mmu init-config\` to create a default configuration file, then edit it with your server details:
+        After installation, run \`craftops init-config\` to create a default configuration file, then edit it with your server details:
         
         - Server paths
-        - Mod sources (Modrinth, CurseForge, GitHub)
+        - Mod sources (Modrinth)
         - Discord webhook for notifications
         - Backup settings
         - Java flags and server settings
@@ -190,11 +187,11 @@ jobs:
         
         \`\`\`bash
         # Verify installation
-        mmu --version
-        mmu --help
+        craftops --version
+        craftops --help
         
         # Check system health
-        cops health-check
+        craftops health-check
         \`\`\`
         
         ## 📦 Docker

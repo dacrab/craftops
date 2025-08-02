@@ -42,7 +42,7 @@ curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | ba
 **✅ What it does:**
 - Auto-detects your platform
 - Downloads latest release
-- Creates aliases (`cops`, `craftops`)
+- Creates aliases (`craftops`, `craftops`)
 - Sets up configuration directory
 - Adds to PATH
 
@@ -59,7 +59,7 @@ chmod +x craftops
 sudo mv craftops /usr/local/bin/
 
 # Create aliases
-sudo ln -sf /usr/local/bin/craftops /usr/local/bin/mmu
+sudo ln -sf /usr/local/bin/craftops /usr/local/bin/craftops
 ```
 
 </td>
@@ -70,16 +70,16 @@ sudo ln -sf /usr/local/bin/craftops /usr/local/bin/mmu
 
 ```bash
 # Verify installation
-mmu --version
-mmu --help
+craftops --version
+craftops --help
 
 # Check available commands
-mmu
+craftops
 ```
 
 **Expected Output:**
 ```
-Minecraft Mod Manager v2.0.0
+CraftOps v2.0.0
 
 Available Commands:
   backup       💾 Backup management commands
@@ -97,20 +97,20 @@ Available Commands:
 
 ```bash
 # Create default configuration
-mmu init-config
+craftops init-config
 
 # Create configuration in custom location
-mmu init-config -o /custom/path/config.toml
+craftops init-config -o /custom/path/config.toml
 
 # Force overwrite existing configuration
-mmu init-config --force
+craftops init-config --force
 ```
 
 ### Configuration File Locations
 
 The tool searches for configuration files in this order:
 1. `--config` flag path
-2. `./conf.toml` (current directory)
+2. `./config.toml` (current directory)
 3. `~/.config/craftops/config.toml`
 4. `/etc/craftops/config.toml`
 
@@ -216,7 +216,7 @@ exclude_patterns = [
     "cache/",                       # Cache directories
     "temp/",                        # Temporary files
     ".DS_Store",                    # macOS system files
-    "Thumbs.db",                    # Windows system files
+    "*.tmp",                        # Temporary files
     "world/session.lock",           # Minecraft session lock
     "usercache.json",               # User cache (regenerated)
     "banned-*.json",                # Ban lists (optional)
@@ -273,16 +273,16 @@ warning_message = "⚠️ Maintenance in {minutes} min - Save your work!"
 
 ```bash
 # Start the server
-mmu server start
+craftops server start
 
 # Stop the server gracefully
-mmu server stop
+craftops server stop
 
 # Restart with player warnings
-mmu server restart
+craftops server restart
 
 # Check server status
-mmu server status
+craftops server status
 ```
 
 ### Advanced Server Management
@@ -292,13 +292,13 @@ mmu server status
 
 ```bash
 # Basic status check
-mmu server status
+craftops server status
 
 # Detailed status with debug info
-mmu --debug server status
+craftops --debug server status
 
 # Status check with custom config
-mmu --config /path/to/config.toml server status
+craftops --config /path/to/config.toml server status
 ```
 
 **Status Output Example:**
@@ -332,7 +332,7 @@ screen -S minecraft -X quit
 **Startup Troubleshooting:**
 ```bash
 # Start with debug logging
-mmu --debug server start
+craftops --debug server start
 
 # Check server logs
 tail -f /path/to/server/logs/latest.log
@@ -356,13 +356,13 @@ The server stop process follows these steps:
 
 ```bash
 # Standard stop (uses configured timeout)
-mmu server stop
+craftops server stop
 
 # Stop with custom timeout (dry run to see what would happen)
-mmu --dry-run server stop
+craftops --dry-run server stop
 
 # Debug stop process
-mmu --debug server stop
+craftops --debug server stop
 ```
 
 **Stop Command Customization:**
@@ -384,16 +384,16 @@ max_stop_wait = 300         # 5 minutes timeout
 
 ```bash
 # Update all mods to latest compatible versions
-mmu update-mods
+craftops update-mods
 
 # Force update even if versions appear current
-mmu update-mods --force
+craftops update-mods --force
 
 # Update without creating backup
-mmu update-mods --no-backup
+craftops update-mods --no-backup
 
 # Preview what would be updated (no changes made)
-mmu update-mods --dry-run
+craftops update-mods --dry-run
 ```
 
 ### Advanced Mod Management
@@ -412,13 +412,13 @@ The mod update process follows these steps:
 
 ```bash
 # Detailed update process with debug info
-mmu --debug update-mods
+craftops --debug update-mods
 
 # Update with custom concurrency
 # (Edit config file to change concurrent_downloads)
 
 # Update specific configuration
-mmu --config /path/to/config.toml update-mods
+craftops --config /path/to/config.toml update-mods
 ```
 
 </details>
@@ -444,7 +444,7 @@ modrinth = [
 1. Visit the mod page on Modrinth
 2. Copy the URL or find the project ID in the URL
 3. Add to your configuration file
-4. Run `mmu update-mods` to download
+4. Run `craftops update-mods` to download
 
 **Version Compatibility:**
 - Automatically filters by Minecraft version
@@ -489,13 +489,13 @@ timeout = 60                # Increase for slow connections
 
 ```bash
 # Create immediate backup
-mmu backup create
+craftops backup create
 
 # List all available backups
-mmu backup list
+craftops backup list
 
 # Create backup with debug info
-mmu --debug backup create
+craftops --debug backup create
 ```
 
 ### Automated Backup System
@@ -506,7 +506,7 @@ mmu --debug backup create
 Backups are automatically created:
 - **Before mod updates** (if `backup_before_update = true`)
 - **Before server restarts** (when triggered by mod updates)
-- **On manual request** via `mmu backup create`
+- **On manual request** via `craftops backup create`
 
 **Backup Naming Convention:**
 ```
@@ -521,7 +521,7 @@ minecraft_backup_20240101_143022.tar.gz
 
 **Backup List Output:**
 ```bash
-mmu backup list
+craftops backup list
 ```
 
 ```
@@ -597,10 +597,10 @@ exclude_patterns = [
 3. **Test Notifications:**
    ```bash
    # Test with a dry run (shows what would be sent)
-   mmu --dry-run update-mods
+   craftops --dry-run update-mods
    
    # Actual test
-   mmu update-mods
+   craftops update-mods
    ```
 
 </details>
@@ -680,13 +680,13 @@ warning_message = "🚨 Server restart in {minutes} minute(s) for mod updates. C
 
 ```bash
 # Full system health check
-mmu health-check
+craftops health-check
 
 # Health check with debug information
-mmu --debug health-check
+craftops --debug health-check
 
 # Health check with custom configuration
-mmu --config /path/to/config.toml health-check
+craftops --config /path/to/config.toml health-check
 ```
 
 ### Health Check Categories
@@ -742,7 +742,7 @@ curl -I https://api.modrinth.com/v2/
 nslookup api.modrinth.com
 
 # Test with debug logging
-mmu --debug health-check
+craftops --debug health-check
 ```
 
 </details>
@@ -786,25 +786,25 @@ Screen Command                 ✅        Available
 crontab -e
 
 # Add this line for daily updates
-0 3 * * * /usr/local/bin/mmu update-mods >> /var/log/mmu-cron.log 2>&1
+0 3 * * * /usr/local/bin/craftops update-mods >> /var/log/craftops-cron.log 2>&1
 ```
 
 **Weekly Updates on Sunday:**
 ```bash
 # Weekly updates at 2 AM on Sunday
-0 2 * * 0 /usr/local/bin/mmu update-mods && /usr/local/bin/mmu server restart
+0 2 * * 0 /usr/local/bin/craftops update-mods && /usr/local/bin/craftops server restart
 ```
 
 **Advanced Scheduling Examples:**
 ```bash
 # Every 6 hours
-0 */6 * * * /usr/local/bin/mmu update-mods
+0 */6 * * * /usr/local/bin/craftops update-mods
 
 # Weekdays only at 4 AM
-0 4 * * 1-5 /usr/local/bin/mmu update-mods
+0 4 * * 1-5 /usr/local/bin/craftops update-mods
 
 # With custom config
-0 3 * * * /usr/local/bin/mmu --config /etc/mmu/config.toml update-mods
+0 3 * * * /usr/local/bin/craftops --config /etc/craftops/config.toml update-mods
 ```
 
 </details>
@@ -816,14 +816,14 @@ crontab -e
 ```ini
 # /etc/systemd/system/craftops.service
 [Unit]
-Description=Minecraft Mod Manager
+Description=CraftOps
 After=network.target
 
 [Service]
 Type=oneshot
 User=minecraft
 WorkingDirectory=/home/minecraft
-ExecStart=/usr/local/bin/mmu update-mods
+ExecStart=/usr/local/bin/craftops update-mods
 StandardOutput=journal
 StandardError=journal
 
@@ -835,7 +835,7 @@ WantedBy=multi-user.target
 ```ini
 # /etc/systemd/system/craftops.timer
 [Unit]
-Description=Run Minecraft Mod Manager daily
+Description=Run CraftOps daily
 Requires=craftops.service
 
 [Timer]
@@ -869,7 +869,7 @@ sudo systemctl status craftops.timer
 **Log Rotation Setup:**
 ```bash
 # /etc/logrotate.d/craftops
-/var/log/mmu-*.log {
+/var/log/craftops-*.log {
     daily
     rotate 7
     compress
@@ -883,14 +883,14 @@ sudo systemctl status craftops.timer
 **Monitoring Script:**
 ```bash
 #!/bin/bash
-# /usr/local/bin/mmu-monitor.sh
+# /usr/local/bin/craftops-monitor.sh
 
-LOG_FILE="/var/log/mmu-monitor.log"
-CONFIG_FILE="/etc/mmu/config.toml"
+LOG_FILE="/var/log/craftops-monitor.log"
+CONFIG_FILE="/etc/craftops/config.toml"
 
-echo "$(date): Starting MMU health check" >> "$LOG_FILE"
+echo "$(date): Starting craftops health check" >> "$LOG_FILE"
 
-if /usr/local/bin/mmu --config "$CONFIG_FILE" health-check >> "$LOG_FILE" 2>&1; then
+if /usr/local/bin/craftops --config "$CONFIG_FILE" health-check >> "$LOG_FILE" 2>&1; then
     echo "$(date): Health check passed" >> "$LOG_FILE"
 else
     echo "$(date): Health check failed" >> "$LOG_FILE"
@@ -927,7 +927,7 @@ brew install screen
 ls -la /path/to/server/server.jar
 
 # Update jar_name in config if different
-nano conf.toml
+nano config.toml
 # Change: jar_name = "your-actual-jar-name.jar"
 
 # Download server JAR if missing
@@ -963,7 +963,7 @@ java -version
 **"API rate limit exceeded"**
 ```bash
 # Reduce concurrent downloads
-nano conf.toml
+nano config.toml
 # Change: concurrent_downloads = 2
 
 # Increase retry delay
@@ -979,7 +979,7 @@ curl -I https://api.modrinth.com/v2/
 nslookup api.modrinth.com
 
 # Run with debug logging
-mmu --debug update-mods
+craftops --debug update-mods
 ```
 
 **"Permission denied writing to mods directory"**
@@ -1017,7 +1017,7 @@ df -h /path/to/backups
 lsof +D /path/to/server
 
 # Run with debug logging
-mmu --debug backup create
+craftops --debug backup create
 ```
 
 **"Backup too large"**
@@ -1043,13 +1043,13 @@ exclude_patterns = [
 # Test webhook URL manually
 curl -X POST "YOUR_WEBHOOK_URL" \
   -H "Content-Type: application/json" \
-  -d '{"content": "Test message from MMU"}'
+  -d '{"content": "Test message from craftops"}'
 
 # Check webhook URL format
 # Should be: https://discord.com/api/webhooks/ID/TOKEN
 
 # Run with debug logging
-mmu --debug update-mods
+craftops --debug update-mods
 ```
 
 **"Webhook URL invalid"**
@@ -1068,12 +1068,12 @@ mmu --debug update-mods
 **Enable Debug Mode:**
 ```bash
 # Global debug flag
-mmu --debug health-check
-mmu --debug update-mods
-mmu --debug server start
+craftops --debug health-check
+craftops --debug update-mods
+craftops --debug server start
 
 # Debug with custom config
-mmu --debug --config /path/to/config.toml health-check
+craftops --debug --config /path/to/config.toml health-check
 ```
 
 **Log File Locations:**
@@ -1228,7 +1228,7 @@ sudo mkdir -p /home/minecraft/{server,backups}
 sudo chown -R minecraft:minecraft /home/minecraft
 
 # Switch to minecraft user for operations
-sudo -u minecraft mmu health-check
+sudo -u minecraft craftops health-check
 ```
 
 **Secure File Permissions:**
@@ -1250,8 +1250,8 @@ chmod 640 /home/minecraft/backups/*.tar.gz
 ```bash
 # Set SELinux contexts
 sudo setsebool -P httpd_can_network_connect 1
-sudo semanage fcontext -a -t bin_t "/usr/local/bin/mmu"
-sudo restorecon -v /usr/local/bin/mmu
+sudo semanage fcontext -a -t bin_t "/usr/local/bin/craftops"
+sudo restorecon -v /usr/local/bin/craftops
 ```
 
 </details>
@@ -1282,10 +1282,10 @@ export MMM_DISCORD_WEBHOOK="https://discord.com/api/webhooks/..."
 **Configuration Validation:**
 ```bash
 # Regular security audits
-mmu --config /etc/craftops/config.toml health-check
+craftops --config /etc/craftops/config.toml health-check
 
 # Check for sensitive data in logs
-grep -i "webhook\|token\|password" /var/log/mmu-*.log
+grep -i "webhook\|token\|password" /var/log/craftops-*.log
 ```
 
 </details>
@@ -1305,7 +1305,7 @@ sudo netstat -tulpn | grep :25565
 ```
 
 **API Security:**
-- Use HTTPS for all API communications
+- Use HTTPS for all API cocraftopsnications
 - Implement rate limiting in configuration
 - Monitor API usage and errors
 - Keep webhook URLs private and secure
@@ -1345,7 +1345,7 @@ sudo ausearch -k minecraft-access
 **Automated Security Checks:**
 ```bash
 #!/bin/bash
-# /usr/local/bin/mmu-security-check.sh
+# /usr/local/bin/craftops-security-check.sh
 
 # Check file permissions
 find /home/minecraft -type f -perm /o+w -ls
@@ -1354,11 +1354,11 @@ find /home/minecraft -type f -perm /o+w -ls
 ps aux | grep -E "(java|screen)" | grep minecraft
 
 # Verify configuration integrity
-mmu --config /etc/craftops/config.toml health-check
+craftops --config /etc/craftops/config.toml health-check
 
 # Check for unauthorized modifications
-find /home/minecraft -type f -newer /var/log/mmu-last-check.log -ls
-touch /var/log/mmu-last-check.log
+find /home/minecraft -type f -newer /var/log/craftops-last-check.log -ls
+touch /var/log/craftops-last-check.log
 ```
 
 </details>

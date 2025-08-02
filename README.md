@@ -71,7 +71,7 @@ curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | ba
 **✅ What this does:**
 - 🔍 Auto-detects your platform (Linux/macOS, x64/ARM64)
 - 📥 Downloads the latest release binary
-- 🔗 Creates convenient aliases: `cops`, `mmu`
+- 🔗 Installs the `craftops` command globally
 - ⚙️ Sets up default configuration
 - 🛣️ Adds to PATH automatically
 
@@ -88,9 +88,7 @@ curl -L https://github.com/dacrab/craftops/releases/latest/download/craftops-lin
 chmod +x craftops
 sudo mv craftops /usr/local/bin/
 
-# Create convenient aliases
-sudo ln -sf /usr/local/bin/craftops /usr/local/bin/cops
-sudo ln -sf /usr/local/bin/craftops /usr/local/bin/mmu
+# No aliases needed - craftops is short and memorable
 ```
 
 </details>
@@ -129,12 +127,12 @@ make install-system  # Requires sudo for system-wide install
 
 ### 1️⃣ **Initialize Configuration**
 ```bash
-cops init-config
+craftops init-config
 ```
 
 ### 2️⃣ **Configure Your Setup**
 ```bash
-nano conf.toml  # Edit with your server details
+nano config.toml  # Edit with your server details
 ```
 
 <details>
@@ -166,13 +164,13 @@ warning_intervals = [15, 10, 5, 1]
 
 ### 3️⃣ **Verify Setup**
 ```bash
-cops health-check
+craftops health-check
 ```
 
 ### 4️⃣ **Start Managing Your Server**
 ```bash
-cops update-mods     # Update all mods
-cops server restart  # Restart with player warnings
+craftops update-mods     # Update all mods
+craftops server restart  # Restart with player warnings
 ```
 
 ---
@@ -182,47 +180,47 @@ cops server restart  # Restart with player warnings
 ### 🔄 **Mod Management**
 ```bash
 # Update all mods to latest compatible versions
-mmu update-mods
+craftops update-mods
 
 # Force update even if versions appear current
-mmu update-mods --force
+craftops update-mods --force
 
 # Preview what would be updated (no changes made)
-mmu update-mods --dry-run
+craftops update-mods --dry-run
 
 # Update without creating backup
-mmu update-mods --no-backup
+craftops update-mods --no-backup
 ```
 
 ### 🎮 **Server Control**
 ```bash
 # Server lifecycle management
-mmu server start    # Start the server
-mmu server stop     # Graceful shutdown
-mmu server restart  # Stop, then start with player warnings
-mmu server status   # Check current status
+craftops server start    # Start the server
+craftops server stop     # Graceful shutdown
+craftops server restart  # Stop, then start with player warnings
+craftops server status   # Check current status
 
 # Advanced server management
-mmu --debug server start     # Debug mode
-mmu --dry-run server restart # Preview restart process
+craftops --debug server start     # Debug mode
+craftops --dry-run server restart # Preview restart process
 ```
 
 ### 💾 **Backup Operations**
 ```bash
 # Backup management
-mmu backup create   # Create manual backup
-mmu backup list     # Show all available backups
+craftops backup create   # Create manual backup
+craftops backup list     # Show all available backups
 
 # Automated backups happen before mod updates
-mmu update-mods     # Automatically creates backup first
+craftops update-mods     # Automatically creates backup first
 ```
 
 ### 🏥 **System Monitoring**
 ```bash
 # Health and diagnostics
-mmu health-check              # Full system validation
-mmu --debug health-check      # Detailed diagnostic output
-mmu --config /custom/path.toml health-check  # Custom config
+craftops health-check              # Full system validation
+craftops --debug health-check      # Detailed diagnostic output
+craftops --config /custom/path.toml health-check  # Custom config
 ```
 
 ---
@@ -315,9 +313,8 @@ backup_count = 5          # Number of log files to keep
 | **Linux** | ARM64 | ✅ Full Support | Raspberry Pi, ARM servers |
 | **macOS** | x64 | ✅ Full Support | Intel Macs |
 | **macOS** | ARM64 | ✅ Full Support | Apple Silicon (M1/M2) |
-| **Windows** | x64 | ❌ Not Supported | Server management requires Unix tools |
 
-> **Note**: Windows support is not available because server management relies on Unix-specific tools like `screen`. Consider using WSL2 or Docker on Windows.
+> **Note**: Server management relies on Unix-specific tools like `screen`. For Windows users, consider using WSL2 or Docker.
 
 ---
 
@@ -389,7 +386,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 <div align="center">
 
-**Made with ❤️ for the Minecraft community**
+**Made with ❤️ for the Minecraft cocraftopsnity**
 
 [⭐ Star this project](https://github.com/dacrab/craftops) • [🐛 Report Issues](https://github.com/dacrab/craftops/issues) • [💬 Discussions](https://github.com/dacrab/craftops/discussions)
 

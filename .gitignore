@@ -14,8 +14,6 @@ dist/
 *.out
 coverage.html
 
-# Go module cache
-go.sum
 
 # IDE files
 .vscode/
@@ -47,7 +45,6 @@ logs/
 
 # Configuration files (keep examples)
 config.toml
-!conf.toml
 
 # Test artifacts
 test-config.toml

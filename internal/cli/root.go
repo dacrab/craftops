@@ -30,7 +30,6 @@ var rootCmd = &cobra.Command{
 	Long: `CraftOps is a comprehensive CLI tool for Minecraft server operations and mod management.
 
 Features:
-• Automated mod updates from Modrinth (CurseForge & GitHub coming in v2.1.0)
 • Server lifecycle management (start, stop, restart) - Linux/macOS only
 • Automated backups with retention policies
 • Discord notifications and player warnings

@@ -1,4 +1,4 @@
-# Minecraft Mod Manager Makefile
+# CraftOps Makefile
 
 .PHONY: help build install clean test lint format run dev
 
@@ -38,11 +38,9 @@ install:
 	go install $(LDFLAGS) ./cmd/craftops
 	@echo "Creating aliases..."
 	@if [ -w "$(shell go env GOPATH)/bin" ]; then \
-		ln -sf $(BINARY_NAME) $(shell go env GOPATH)/bin/cops; \
-		ln -sf $(BINARY_NAME) $(shell go env GOPATH)/bin/mmu; \
-		echo "Created aliases: cops, mmu"; \
+		echo "Installed $(BINARY_NAME)"; \
 	else \
-		echo "Note: Run 'sudo ln -sf $(shell go env GOPATH)/bin/$(BINARY_NAME) /usr/local/bin/mmu' to create system aliases"; \
+		echo "Note: Run 'sudo ln -sf $(shell go env GOPATH)/bin/$(BINARY_NAME) /usr/local/bin/craftops' to create system aliases"; \
 	fi
 
 # Clean build artifacts
@@ -52,7 +50,6 @@ clean:
 	rm -rf $(DIST_DIR)/
 	go clean -cache
 	go clean -testcache
-	go clean -modcache
 
 # Run tests
 test:
@@ -103,10 +100,9 @@ install-system: build
 	sudo cp $(BUILD_DIR)/$(BINARY_NAME) /usr/local/bin/
 	sudo chmod +x /usr/local/bin/$(BINARY_NAME)
 	@echo "Creating system aliases..."
-	sudo ln -sf /usr/local/bin/$(BINARY_NAME) /usr/local/bin/cops
-	sudo ln -sf /usr/local/bin/$(BINARY_NAME) /usr/local/bin/mmu
+	# No aliases needed - craftops is short and memorable
 	@echo "✅ System installation complete!"
-	@echo "Available commands: $(BINARY_NAME), cops, mmu"
+	@echo "Available command: $(BINARY_NAME)"
 
 # Create distribution packages
 package: clean build

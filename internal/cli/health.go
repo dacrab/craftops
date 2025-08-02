@@ -21,7 +21,7 @@ This command checks:
 • Directory permissions and accessibility
 • Server JAR file existence
 • Java runtime availability
-• API connectivity (Modrinth, CurseForge)
+• API connectivity (Modrinth)
 • Discord webhook configuration
 • Backup system functionality`,
 	RunE: func(cmd *cobra.Command, args []string) error {

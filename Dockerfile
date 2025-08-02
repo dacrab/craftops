@@ -1,4 +1,4 @@
-# Multi-stage Docker build for Minecraft Mod Manager (Go)
+# Multi-stage Docker build for CraftOps (Go)
 FROM golang:1.21-alpine AS builder
 
 # Set environment variables
@@ -48,7 +48,7 @@ RUN mkdir -p /minecraft/server /minecraft/mods /minecraft/backups /config /logs 
     && chown -R minecraft:minecraft /minecraft /config /logs
 
 # Copy default config
-COPY conf.toml /config/config.toml.example
+COPY config.toml /config/config.toml.example
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

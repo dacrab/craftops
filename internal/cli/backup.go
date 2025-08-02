@@ -9,14 +9,12 @@ import (
 	"craftops/internal/services"
 )
 
-// backupCmd represents the backup command group
 var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "💾 Backup management commands",
 	Long:  `Commands for creating and managing server backups.`,
 }
 
-// backupCreateCmd represents the backup create command
 var backupCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "💾 Create a backup of the server",
@@ -26,7 +24,6 @@ The backup will include all server files except those matching the configured
 exclude patterns. Backups are automatically cleaned up based on the retention policy.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := getContext()
-
 		backupService := services.NewBackupService(cfg, logger)
 
 		printInfo("Creating backup...")
@@ -53,7 +50,6 @@ exclude patterns. Backups are automatically cleaned up based on the retention po
 	},
 }
 
-// backupListCmd represents the backup list command
 var backupListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "📋 List available backups",
@@ -72,8 +68,7 @@ var backupListCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Println()
-		fmt.Println("💾 Available Backups")
+		fmt.Println("\n💾 Available Backups")
 		fmt.Println("────────────────────")
 		fmt.Printf("%-40s %-20s %s\n", "Name", "Date", "Size")
 		fmt.Printf("%-40s %-20s %s\n", "────", "────", "────")
@@ -83,15 +78,12 @@ var backupListCmd = &cobra.Command{
 		}
 
 		fmt.Printf("\nTotal: %d backups\n", len(backups))
-
 		return nil
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(backupCmd)
-
-	// Add subcommands
 	backupCmd.AddCommand(backupCreateCmd)
 	backupCmd.AddCommand(backupListCmd)
 }

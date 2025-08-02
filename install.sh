@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Minecraft Mod Manager - Installation Script
+# CraftOps - Installation Script
 # This script downloads and installs the latest release
 
 set -e
@@ -104,9 +104,6 @@ log_info "Latest version: $VERSION"
 
 # Construct download URL
 BINARY_FILE="${BINARY_NAME}-${PLATFORM}"
-if [ "$OS" = "windows" ]; then
-    BINARY_FILE="${BINARY_FILE}.exe"
-fi
 
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$BINARY_FILE"
 log_info "Download URL: $DOWNLOAD_URL"
@@ -164,8 +161,7 @@ create_alias() {
     log_success "Created alias: $alias_name"
 }
 
-create_alias "cops"
-create_alias "mmu"
+# No aliases needed - craftops is short and memorable
 
 # Verify installation
 log_info "Verifying installation..."
@@ -177,14 +173,12 @@ else
     echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
 fi
 
-# Test aliases
-for alias_cmd in "cops" "mmu"; do
-    if command -v "$alias_cmd" >/dev/null 2>&1; then
-        log_success "Alias '$alias_cmd' is working"
-    else
-        log_warning "Alias '$alias_cmd' not found in PATH"
-    fi
-done
+# Test main command
+if command -v "$BINARY_NAME" >/dev/null 2>&1; then
+    log_success "Command '$BINARY_NAME' is working"
+else
+    log_warning "Command '$BINARY_NAME' not found in PATH"
+fi
 
 # Create default configuration
 log_info "Setting up configuration..."
@@ -215,34 +209,32 @@ fi
 echo ""
 echo -e "${GREEN}🎉 Installation completed successfully!${NC}"
 echo ""
-echo "📋 Available commands:"
-echo "  • craftops               (full name)"
-echo "  • cops                   (short alias)"
-echo "  • mmu                    (legacy alias)"
+echo "📋 Available command:"
+echo "  • craftops               (simple and memorable)"
 echo ""
 echo "🚀 Quick start:"
 echo "  1. Edit your configuration:"
 echo "     nano $CONFIG_FILE"
 echo ""
 echo "  2. Run health check:"
-echo "     cops health-check"
+echo "     craftops health-check"
 echo ""
 echo "  3. Update mods:"
-echo "     cops update-mods"
+echo "     craftops update-mods"
 echo ""
 echo "  4. Server management:"
-echo "     cops server start"
-echo "     cops server stop"
-echo "     cops server restart"
-echo "     cops server status"
+echo "     craftops server start"
+echo "     craftops server stop"
+echo "     craftops server restart"
+echo "     craftops server status"
 echo ""
 echo "  5. Backup management:"
-echo "     cops backup create"
-echo "     cops backup list"
+echo "     craftops backup create"
+echo "     craftops backup list"
 echo ""
 echo "💡 For help:"
-echo "  cops --help"
-echo "  cops [command] --help"
+echo "  craftops --help"
+echo "  craftops [command] --help"
 echo ""
 
 if [ "$EUID" -ne 0 ] && [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then

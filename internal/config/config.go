@@ -46,23 +46,15 @@ type ServerConfig struct {
 	StartupTimeout int      `toml:"startup_timeout"`
 }
 
-// ModSourcesConfig holds mod source URLs
-type ModSourcesConfig struct {
-	Modrinth []string `toml:"modrinth"`
-	// Note: CurseForge and GitHub support coming in v2.1.0
-	// CurseForge []string `toml:"curseforge"`
-	// GitHub     []string `toml:"github"`
-}
-
 // ModsConfig holds mod management settings
 type ModsConfig struct {
-	AutoUpdate          bool             `toml:"auto_update"`
-	BackupBeforeUpdate  bool             `toml:"backup_before_update"`
-	ConcurrentDownloads int              `toml:"concurrent_downloads"`
-	MaxRetries          int              `toml:"max_retries"`
-	RetryDelay          float64          `toml:"retry_delay"`
-	Timeout             int              `toml:"timeout"`
-	Sources             ModSourcesConfig `toml:"sources"`
+	AutoUpdate          bool     `toml:"auto_update"`
+	BackupBeforeUpdate  bool     `toml:"backup_before_update"`
+	ConcurrentDownloads int      `toml:"concurrent_downloads"`
+	MaxRetries          int      `toml:"max_retries"`
+	RetryDelay          float64  `toml:"retry_delay"`
+	Timeout             int      `toml:"timeout"`
+	ModrinthSources     []string `toml:"modrinth_sources"`
 }
 
 // BackupConfig holds backup settings
@@ -96,6 +88,7 @@ type LoggingConfig struct {
 // DefaultConfig returns a configuration with sensible defaults
 func DefaultConfig() *Config {
 	homeDir, _ := os.UserHomeDir()
+	serverPath := filepath.Join(homeDir, "minecraft", "server")
 
 	return &Config{
 		Debug:  false,
@@ -105,8 +98,8 @@ func DefaultConfig() *Config {
 			Modloader: "fabric",
 		},
 		Paths: PathsConfig{
-			Server:  filepath.Join(homeDir, "minecraft", "server"),
-			Mods:    filepath.Join(homeDir, "minecraft", "server", "mods"),
+			Server:  serverPath,
+			Mods:    filepath.Join(serverPath, "mods"),
 			Backups: filepath.Join(homeDir, "minecraft", "backups"),
 			Logs:    filepath.Join(homeDir, ".local", "share", "craftops", "logs"),
 		},
@@ -128,9 +121,7 @@ func DefaultConfig() *Config {
 			MaxRetries:          3,
 			RetryDelay:          2.0,
 			Timeout:             30,
-			Sources: ModSourcesConfig{
-				Modrinth: []string{},
-			},
+			ModrinthSources:     []string{},
 		},
 		Backup: BackupConfig{
 			Enabled:          true,
@@ -165,28 +156,14 @@ func LoadConfig(configPath string) (*Config, error) {
 	config := DefaultConfig()
 
 	if configPath == "" {
-		// Try default locations
-		defaultPaths := []string{
-			"conf.toml",
-			filepath.Join(os.Getenv("HOME"), ".config", "craftops", "config.toml"),
-			"/etc/craftops/config.toml",
-		}
-
-		for _, path := range defaultPaths {
-			if _, err := os.Stat(path); err == nil {
-				configPath = path
-				break
-			}
-		}
+		configPath = findDefaultConfig()
 	}
-
 	if configPath != "" {
 		if _, err := toml.DecodeFile(configPath, config); err != nil {
 			return nil, fmt.Errorf("failed to load config file %s: %w", configPath, err)
 		}
 	}
 
-	// Validate configuration
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %w", err)
 	}
@@ -212,51 +189,12 @@ func (c *Config) SaveConfig(configPath string) error {
 
 // Validate validates the configuration
 func (c *Config) Validate() error {
-	// Validate modloader
-	validModloaders := []string{"fabric", "forge", "quilt", "neoforge"}
-	modloader := strings.ToLower(c.Minecraft.Modloader)
-	valid := false
-	for _, v := range validModloaders {
-		if modloader == v {
-			valid = true
-			break
-		}
+	if err := c.validateModloader(); err != nil {
+		return err
 	}
-	if !valid {
-		return fmt.Errorf("unsupported modloader: %s. Must be one of %v", c.Minecraft.Modloader, validModloaders)
+	if err := c.validateLogging(); err != nil {
+		return err
 	}
-	c.Minecraft.Modloader = modloader
-
-	// Validate log level
-	validLevels := []string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-	level := strings.ToUpper(c.Logging.Level)
-	valid = false
-	for _, v := range validLevels {
-		if level == v {
-			valid = true
-			break
-		}
-	}
-	if !valid {
-		return fmt.Errorf("invalid log level: %s. Must be one of %v", c.Logging.Level, validLevels)
-	}
-	c.Logging.Level = level
-
-	// Validate log format
-	validFormats := []string{"json", "text"}
-	format := strings.ToLower(c.Logging.Format)
-	valid = false
-	for _, v := range validFormats {
-		if format == v {
-			valid = true
-			break
-		}
-	}
-	if !valid {
-		return fmt.Errorf("invalid log format: %s. Must be one of %v", c.Logging.Format, validFormats)
-	}
-	c.Logging.Format = format
-
 	return nil
 }
 
@@ -264,4 +202,69 @@ func (c *Config) Validate() error {
 func (s *ServerConfig) GetStartCommand() string {
 	javaArgs := strings.Join(s.JavaFlags, " ")
 	return fmt.Sprintf("java %s -jar %s nogui", javaArgs, s.JarName)
+}
+// findDefaultConfig searches for config file in default locations
+func findDefaultConfig() string {
+	defaultPaths := []string{
+		"config.toml",
+		filepath.Join(os.Getenv("HOME"), ".config", "craftops", "config.toml"),
+		"/etc/craftops/config.toml",
+	}
+
+	for _, path := range defaultPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return ""
+}
+
+// validateModloader validates the modloader configuration
+func (c *Config) validateModloader() error {
+	validModloaders := []string{"fabric", "forge", "quilt", "neoforge"}
+	modloader := strings.ToLower(c.Minecraft.Modloader)
+	
+	for _, v := range validModloaders {
+		if modloader == v {
+			c.Minecraft.Modloader = modloader
+			return nil
+		}
+	}
+	
+	return fmt.Errorf("unsupported modloader: %s. Must be one of %v", c.Minecraft.Modloader, validModloaders)
+}
+
+// validateLogging validates the logging configuration
+func (c *Config) validateLogging() error {
+	validLevels := []string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+	level := strings.ToUpper(c.Logging.Level)
+	
+	levelValid := false
+	for _, v := range validLevels {
+		if level == v {
+			levelValid = true
+			break
+		}
+	}
+	if !levelValid {
+		return fmt.Errorf("invalid log level: %s. Must be one of %v", c.Logging.Level, validLevels)
+	}
+	c.Logging.Level = level
+
+	validFormats := []string{"json", "text"}
+	format := strings.ToLower(c.Logging.Format)
+	
+	formatValid := false
+	for _, v := range validFormats {
+		if format == v {
+			formatValid = true
+			break
+		}
+	}
+	if !formatValid {
+		return fmt.Errorf("invalid log format: %s. Must be one of %v", c.Logging.Format, validFormats)
+	}
+	c.Logging.Format = format
+
+	return nil
 }

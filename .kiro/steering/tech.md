@@ -1,65 +1,83 @@
 # Technology Stack
 
 ## Language & Runtime
-- **Python 3.9+** - Core language with modern type hints
-- **Async/Await** - Asynchronous programming for HTTP requests and I/O operations
+- **Go 1.21+** - Modern, compiled language with excellent concurrency support
+- **Goroutines & Channels** - Concurrent processing for mod downloads and operations
+- **Context Package** - Proper cancellation and timeout handling
 
 ## Key Dependencies
-- **aiohttp** - Async HTTP client for API requests to Modrinth/CurseForge
-- **tqdm** - Progress bars for user feedback during operations
-- **toml** - Configuration file parsing
+- **github.com/spf13/cobra** - Modern CLI framework with subcommands and flags
+- **github.com/BurntSushi/toml** - TOML configuration file parsing
+- **github.com/fatih/color** - Colored terminal output for better UX
+- **github.com/schollz/progressbar/v3** - Progress bars for user feedback
+- **go.uber.org/zap** - Structured, high-performance logging
 
 ## Development Tools
-- **pytest** - Testing framework with async support
-- **mypy** - Static type checking with strict settings
-- **ruff** - Fast Python linter and formatter (100 char line limit)
-- **pytest-cov** - Code coverage reporting
+- **golangci-lint** - Comprehensive Go linter with multiple analyzers
+- **go test** - Built-in testing framework with coverage support
+- **go fmt/goimports** - Code formatting and import organization
+- **go vet** - Static analysis for common Go mistakes
 
 ## Build System
-- **setuptools** - Package building via pyproject.toml
-- **PyInstaller** - Single-file executable generation
-- **pip** - Package management and installation
+- **Go modules** - Native dependency management (go.mod/go.sum)
+- **Makefile** - Build automation and development workflows
+- **Multi-platform builds** - Cross-compilation for Linux/macOS (x64/ARM64)
+- **Docker** - Containerized deployment with multi-stage builds
 
 ## Common Commands
 
 ### Development Setup
 ```bash
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate
+# Clone and setup
+git clone <repo>
+cd craftops
+make dev  # Install development dependencies
 
-# Install in development mode
-pip install -e .
+# Build locally
+make build
 
-# Install development dependencies
-pip install -r requirements-dev.txt
+# Run tests
+make test
+
+# Format and lint
+make format
+make lint
 ```
 
-### Testing
+### Building & Installation
 ```bash
-# Run tests with coverage
-pytest --cov=minecraft_mod_manager
+# Build for current platform
+make build
 
-# Type checking
-mypy minecraft_mod_manager/
+# Install locally
+make install
 
-# Linting
-ruff check minecraft_mod_manager/
+# Install system-wide (requires sudo)
+make install-system
+
+# Create distribution packages
+make package
 ```
 
-### Building
+### Running
 ```bash
-# Standard package build
-./package-build.sh
+# Initialize configuration
+craftops init-config
 
-# Single-file executable
-./executable-build.sh
+# Health check
+craftops health-check
 
-# PyPI package
-python -m build
+# Update mods
+craftops update-mods
+
+# Server management
+craftops server start
+craftops server stop
+craftops server restart
 ```
 
 ## Configuration
 - **TOML format** for all configuration files
-- **Dataclasses** for type-safe configuration handling
-- **Default config** bundled in package at `minecraft_mod_manager/config/config.toml`
+- **Go structs with tags** for type-safe configuration handling
+- **Default config** generated via `craftops init-config`
+- **Multiple config locations** supported (./config.toml, ~/.config/craftops/, /etc/craftops/)
