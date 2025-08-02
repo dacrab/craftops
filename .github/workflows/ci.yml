@@ -1,95 +1,66 @@
-name: CI
-
+name: Continuous Integration
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
-  GO_VERSION: '1.21'
+  GO_VERSION: "1.21"
 
 jobs:
   test:
-    name: Test
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-    - name: Set up Go
-      uses: actions/setup-go@v4
+      - uses: actions/setup-go@v4
       with:
         go-version: ${{ env.GO_VERSION }}
         
-    - name: Get dependencies
+      - name: Download dependencies
       run: go mod download
       
-    - name: Run tests
-      run: go test -v -race -coverprofile=coverage.out ./...
+      - name: Execute tests
+        run: go test -race -coverprofile=coverage.out ./...
       
-    - name: Upload coverage to Codecov
+      - name: Upload coverage
       uses: codecov/codecov-action@v4
       with:
-        file: ./coverage.out
-        flags: unittests
-        name: codecov-umbrella
-
+          file: coverage.out
   lint:
-    name: Lint
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-    - name: Set up Go
-      uses: actions/setup-go@v4
+      - uses: actions/setup-go@v4
       with:
         go-version: ${{ env.GO_VERSION }}
         
-    - name: Run golangci-lint
+      - name: Lint code
       uses: golangci/golangci-lint-action@v3
       with:
         version: latest
-        args: --timeout=5m
-
   build:
-    name: Build
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, darwin]
-        goarch: [amd64, arm64]
-    
+        os: [linux, darwin]
+        arch: [amd64, arm64]
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-    - name: Set up Go
-      uses: actions/setup-go@v4
+      - uses: actions/setup-go@v4
       with:
         go-version: ${{ env.GO_VERSION }}
         
-    - name: Get dependencies
-      run: go mod download
-      
-    - name: Build
+      - name: Build binary
       env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
         CGO_ENABLED: 0
       run: |
-        mkdir -p build
-        go build \
-          -trimpath \
-          -ldflags "-X main.Version=dev -s -w" \
-          -o "build/craftops-${{ matrix.goos }}-${{ matrix.goarch }}" \
-          ./cmd/craftops
-          
-    - name: Test binary
-      if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-      run: |
-        ./build/craftops-linux-amd64 --version
-        ./build/craftops-linux-amd64 --help
+          go build -trimpath -ldflags="-s -w" -o craftops-${{ matrix.os }}-${{ matrix.arch }} ./cmd/craftops
+      - name: Verify build
+        if: matrix.os == 'linux' && matrix.arch == 'amd64'
+        run: ./craftops-linux-amd64 --version
