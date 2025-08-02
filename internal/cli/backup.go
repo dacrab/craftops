@@ -33,7 +33,7 @@ exclude patterns. Backups are automatically cleaned up based on the retention po
 		)
 
 		backupPath, err := backupService.CreateBackup(ctx)
-		bar.Finish()
+		_ = bar.Finish()
 
 		if err != nil {
 			printError(fmt.Sprintf("Backup failed: %v", err))

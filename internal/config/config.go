@@ -203,6 +203,7 @@ func (s *ServerConfig) GetStartCommand() string {
 	javaArgs := strings.Join(s.JavaFlags, " ")
 	return fmt.Sprintf("java %s -jar %s nogui", javaArgs, s.JarName)
 }
+
 // findDefaultConfig searches for config file in default locations
 func findDefaultConfig() string {
 	defaultPaths := []string{
@@ -223,14 +224,14 @@ func findDefaultConfig() string {
 func (c *Config) validateModloader() error {
 	validModloaders := []string{"fabric", "forge", "quilt", "neoforge"}
 	modloader := strings.ToLower(c.Minecraft.Modloader)
-	
+
 	for _, v := range validModloaders {
 		if modloader == v {
 			c.Minecraft.Modloader = modloader
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("unsupported modloader: %s. Must be one of %v", c.Minecraft.Modloader, validModloaders)
 }
 
@@ -238,7 +239,7 @@ func (c *Config) validateModloader() error {
 func (c *Config) validateLogging() error {
 	validLevels := []string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 	level := strings.ToUpper(c.Logging.Level)
-	
+
 	levelValid := false
 	for _, v := range validLevels {
 		if level == v {
@@ -253,7 +254,7 @@ func (c *Config) validateLogging() error {
 
 	validFormats := []string{"json", "text"}
 	format := strings.ToLower(c.Logging.Format)
-	
+
 	formatValid := false
 	for _, v := range validFormats {
 		if format == v {
