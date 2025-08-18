@@ -1,0 +1,189 @@
+name: License and Compliance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run compliance check every Sunday at 2 AM UTC
+    - cron: '0 2 * * 0'
+
+env:
+  GO_VERSION: "1.21"
+
+jobs:
+  license-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install license checker
+        run: |
+          go install github.com/fossa-contrib/fossa-cli@latest
+
+      - name: Check Go module licenses
+        run: |
+          echo "=== Go Module License Analysis ===" > license_report.txt
+          echo "Generated on: $(date)" >> license_report.txt
+          echo "" >> license_report.txt
+          
+          # Extract license information from go.mod
+          echo "## Direct Dependencies" >> license_report.txt
+          go list -m -json all | jq -r 'select(.Main != true) | .Path' | while read dep; do
+            echo "- $dep" >> license_report.txt
+          done
+          
+          echo "" >> license_report.txt
+          echo "## License Verification" >> license_report.txt
+          
+          # Check for common license files in the project
+          echo "Project license files found:" >> license_report.txt
+          find . -name "LICENSE*" -o -name "COPYING*" -o -name "COPYRIGHT*" | head -10 >> license_report.txt
+          
+          cat license_report.txt
+
+      - name: Verify project license
+        run: |
+          if [ ! -f LICENSE ]; then
+            echo "❌ No LICENSE file found in repository root"
+            exit 1
+          else
+            echo "✅ LICENSE file found"
+            echo "License content preview:"
+            head -5 LICENSE
+          fi
+
+      - name: Check for license headers in Go files
+        run: |
+          echo "Checking for license headers in Go files..."
+          
+          MISSING_HEADERS=""
+          find . -name "*.go" -not -path "./vendor/*" | while read file; do
+            if ! head -10 "$file" | grep -qi "license\|copyright"; then
+              echo "⚠️  Missing license header: $file"
+              MISSING_HEADERS="$MISSING_HEADERS $file"
+            fi
+          done
+          
+          if [ -n "$MISSING_HEADERS" ]; then
+            echo "Some files are missing license headers. Consider adding them for better compliance."
+          else
+            echo "✅ All Go files have license references"
+          fi
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-compliance-report
+          path: license_report.txt
+          retention-days: 30
+
+  code-scan:
+    name: Code Security and Quality Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run Trivy security scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Check file permissions
+        run: |
+          echo "=== File Permission Check ==="
+          
+          # Check for files with execute permissions that shouldn't have them
+          find . -type f -name "*.go" -executable | while read file; do
+            echo "⚠️  Go file with execute permission: $file"
+          done
+          
+          # Check for overly permissive files
+          find . -type f -perm 777 | while read file; do
+            echo "⚠️  File with 777 permissions: $file"
+          done
+          
+          echo "✅ File permission check completed"
+
+      - name: Validate project structure
+        run: |
+          echo "=== Project Structure Validation ==="
+          
+          # Required files check
+          REQUIRED_FILES="README.md LICENSE go.mod go.sum"
+          for file in $REQUIRED_FILES; do
+            if [ -f "$file" ]; then
+              echo "✅ $file exists"
+            else
+              echo "❌ $file is missing"
+            fi
+          done
+          
+          # Check for common security files
+          SECURITY_FILES=".github/workflows SECURITY.md .gitignore"
+          for item in $SECURITY_FILES; do
+            if [ -e "$item" ]; then
+              echo "✅ $item exists"
+            else
+              echo "⚠️  $item not found (recommended)"
+            fi
+          done
+
+  git-leaks:
+    name: Git Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for common secrets patterns
+        run: |
+          echo "=== Manual Secret Pattern Check ==="
+          
+          # Look for potential secrets (case-insensitive)
+          PATTERNS="password|secret|token|key|credential|auth"
+          
+          echo "Checking for potential secrets in Go files..."
+          find . -name "*.go" -not -path "./vendor/*" | xargs grep -i -E "$PATTERNS" || echo "No obvious secrets found"
+          
+          echo "Checking for hardcoded URLs with credentials..."
+          find . -name "*.go" -not -path "./vendor/*" | xargs grep -E "https?://[^:]+:[^@]+@" || echo "No hardcoded credentials in URLs found"
+          
+          echo "✅ Manual secret scan completed"

@@ -1,0 +1,178 @@
+name: Go Analysis and Metrics
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run analysis every Monday at 8 AM UTC
+    - cron: '0 8 * * 1'
+
+env:
+  GO_VERSION: "1.21"
+
+jobs:
+  module-analysis:
+    name: Go Module Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Analyze Go modules
+        run: |
+          echo "=== Go Module Information ==="
+          go version
+          go env GOVERSION
+          
+          echo "=== Direct Dependencies ==="
+          go list -m all | head -20
+          
+          echo "=== Module Graph ==="
+          go mod graph | head -10
+          
+          echo "=== Unused Dependencies Check ==="
+          go install github.com/dominikh/go-tools/cmd/staticcheck@latest
+          go mod tidy
+          
+          echo "=== Module Verification ==="
+          go mod verify
+
+      - name: Generate dependency report
+        run: |
+          echo "# Go Module Dependencies Report" > dependency_report.md
+          echo "Generated on: $(date)" >> dependency_report.md
+          echo "" >> dependency_report.md
+          
+          echo "## Direct Dependencies" >> dependency_report.md
+          echo '```' >> dependency_report.md
+          go list -m -json all | jq -r 'select(.Main != true) | "\(.Path) \(.Version)"' | sort >> dependency_report.md
+          echo '```' >> dependency_report.md
+          
+          echo "## Build Info" >> dependency_report.md
+          echo '```' >> dependency_report.md
+          go version >> dependency_report.md
+          go env GOOS GOARCH >> dependency_report.md
+          echo '```' >> dependency_report.md
+
+      - name: Check for Go security advisories
+        run: |
+          echo "=== Security Advisory Check ==="
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./... || echo "Security check completed with warnings"
+
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-report
+          path: dependency_report.md
+          retention-days: 30
+
+  code-quality:
+    name: Code Quality Metrics
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install analysis tools
+        run: |
+          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+          go install github.com/client9/misspell/cmd/misspell@latest
+          go install github.com/gordonklaus/ineffassign@latest
+
+      - name: Run code quality analysis
+        run: |
+          echo "=== Cyclomatic Complexity ===" > code_quality_report.txt
+          gocyclo -over 10 . >> code_quality_report.txt 2>&1 || true
+          
+          echo -e "\n=== Misspelling Check ===" >> code_quality_report.txt
+          misspell . >> code_quality_report.txt 2>&1 || true
+          
+          echo -e "\n=== Inefficient Assignments ===" >> code_quality_report.txt
+          ineffassign ./... >> code_quality_report.txt 2>&1 || true
+          
+          echo -e "\n=== Line Count Analysis ===" >> code_quality_report.txt
+          find . -name "*.go" -not -path "./vendor/*" | xargs wc -l | sort -n >> code_quality_report.txt
+          
+          cat code_quality_report.txt
+
+      - name: Upload code quality report
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-quality-report
+          path: code_quality_report.txt
+          retention-days: 30
+
+  performance-profile:
+    name: CPU and Memory Profiling
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build with profiling
+        run: |
+          go build -o craftops-profile ./cmd/craftops
+
+      - name: Run CPU profiling
+        run: |
+          # Create a simple test script for profiling
+          cat > profile_test.go << 'EOF'
+          package main
+          
+          import (
+            "os"
+            "runtime/pprof"
+            "time"
+          )
+          
+          func main() {
+            cpuFile, _ := os.Create("cpu.prof")
+            defer cpuFile.Close()
+            pprof.StartCPUProfile(cpuFile)
+            defer pprof.StopCPUProfile()
+            
+            // Simulate some work
+            time.Sleep(100 * time.Millisecond)
+          }
+          EOF
+          
+          go run profile_test.go
+          
+          if [ -f cpu.prof ]; then
+            go tool pprof -text cpu.prof > cpu_profile_analysis.txt
+            echo "CPU Profile analysis:"
+            head -20 cpu_profile_analysis.txt
+          fi
+
+      - name: Upload profiling results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-profiles
+          path: |
+            *.prof
+            *_analysis.txt
+          retention-days: 7

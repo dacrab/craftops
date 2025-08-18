@@ -1,0 +1,87 @@
+name: Auto-merge Dependabot PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  auto-merge:
+    name: Auto-merge Dependabot PR
+    runs-on: ubuntu-latest
+    # Only run for Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Dependabot metadata
+        id: dependabot-metadata
+        uses: dependabot/fetch-metadata@v1
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Auto-approve and merge minor/patch updates
+        if: steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor'
+        run: |
+          echo "Auto-approving ${{ steps.dependabot-metadata.outputs.update-type }} update"
+          
+          # Approve the PR
+          gh pr review --approve "$PR_URL"
+          
+          # Wait for status checks to complete
+          echo "Waiting for status checks..."
+          sleep 30
+          
+          # Check if all status checks passed
+          STATUS=$(gh pr status --json statusCheckRollup --jq '.currentBranch.statusCheckRollup[].conclusion' "$PR_URL")
+          
+          if echo "$STATUS" | grep -v "SUCCESS" | grep -v "NEUTRAL" | grep -q .; then
+            echo "Some status checks failed, not merging"
+            exit 1
+          fi
+          
+          # Merge the PR
+          gh pr merge --auto --squash "$PR_URL"
+          
+          echo "✅ Auto-merged Dependabot PR for ${{ steps.dependabot-metadata.outputs.dependency-names }}"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on major updates
+        if: steps.dependabot-metadata.outputs.update-type == 'version-update:semver-major'
+        run: |
+          gh pr comment "$PR_URL" --body "🚨 This is a **major version update** for ${{ steps.dependabot-metadata.outputs.dependency-names }}. Please review manually before merging."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Label PR based on update type
+        run: |
+          LABELS=""
+          
+          case "${{ steps.dependabot-metadata.outputs.update-type }}" in
+            "version-update:semver-patch")
+              LABELS="dependencies,patch"
+              ;;
+            "version-update:semver-minor")
+              LABELS="dependencies,minor"
+              ;;
+            "version-update:semver-major")
+              LABELS="dependencies,major,needs-review"
+              ;;
+            *)
+              LABELS="dependencies"
+              ;;
+          esac
+          
+          # Apply labels
+          echo "$LABELS" | tr ',' '\n' | xargs -I {} gh pr edit "$PR_URL" --add-label {}
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
