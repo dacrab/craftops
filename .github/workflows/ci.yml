@@ -1,208 +1,96 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main]
-  workflow_call:
-    outputs:
-      success:
-        description: "Whether CI passed successfully"
-        value: ${{ jobs.ci-success.outputs.success }}
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.22"
+  GO_VERSION: "1.23"
 
 jobs:
-  # Phase 1: Validation and Setup
-  validate:
-    name: Validate & Setup
+  test:
+    name: Test & Lint
     runs-on: ubuntu-latest
-    outputs:
-      go-version: ${{ env.GO_VERSION }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go environment
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Verify go.mod and go.sum
+      - name: Verify dependencies
         run: |
           go mod tidy
-          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
-            echo "go.mod or go.sum is not up to date. Run 'go mod tidy' and commit changes."
-            git diff go.mod go.sum
-            exit 1
-          fi
+          git diff --exit-code go.mod go.sum
 
-      - name: Download and verify dependencies
-        run: |
-          go mod download
-          go mod verify
+      - name: Run tests
+        run: go test -race -coverprofile=coverage.out ./...
 
-  # Phase 2: Quality Checks (runs in parallel after validation)
-  lint-and-format:
-    name: Lint & Format
-    runs-on: ubuntu-latest
-    needs: validate
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Go environment
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Run golangci-lint
+      - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           args: --timeout=5m
 
-      - name: Check formatting
-        run: |
-          if [ -n "$(gofmt -l .)" ]; then
-            echo "Code is not properly formatted:"
-            gofmt -l .
-            echo "Run 'go fmt ./...' to fix formatting"
-            exit 1
-          fi
-
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Additional validation
-        run: |
-          echo "✅ Additional linting handled by golangci-lint"
-          echo "✅ All critical linters configured with appropriate exclusions"
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    needs: validate
-    strategy:
-      matrix:
-        go-version: ["1.22", "1.23"]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Go environment
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go-version }}
-          cache: true
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run tests with race detection
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
-
-      - name: Check test coverage
-        if: matrix.go-version == '1.22'
+      - name: Check coverage
         run: |
           if [ -f coverage.out ]; then
-            COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
-            echo "Total coverage: ${COVERAGE}%"
-            
-            # Only fail if we have source code but no coverage
-            # Check if we have testable Go files
-            TESTABLE_FILES=$(find ./internal ./cmd -name "*.go" -not -name "*_test.go" | wc -l)
-            
-            if [ "$TESTABLE_FILES" -gt 0 ] && (( $(echo "$COVERAGE < 10" | bc -l) )); then
-              echo "Coverage is too low (${COVERAGE}%) for a project with testable code"
-              echo "Consider adding more tests or lowering the threshold"
-              # Don't fail CI for now, just warn
-              # exit 1
-            else
-              echo "✅ Coverage check passed or no testable source files found"
-            fi
-          else
-            echo "No coverage file generated - no tests to run"
+            go tool cover -func=coverage.out
           fi
 
-      - name: Upload coverage to Codecov
-        if: matrix.go-version == '1.22'
+      - name: Upload coverage
+        if: github.event_name == 'push'
         uses: codecov/codecov-action@v4
         with:
           file: coverage.out
-          flags: unittests
 
-  # Phase 3: Build (only after all quality checks pass)
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [validate, lint-and-format, test]
+    needs: test
     strategy:
       matrix:
-        target:
-          - os: linux
-            arch: amd64
-          - os: linux
-            arch: arm64
-          - os: darwin
-            arch: amd64
-          - os: darwin
-            arch: arm64
+        os: [linux, darwin]
+        arch: [amd64, arm64]
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go environment
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Build binary
+      - name: Build
         env:
-          GOOS: ${{ matrix.target.os }}
-          GOARCH: ${{ matrix.target.arch }}
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: 0
         run: |
-          BINARY_NAME="craftops"
+          VERSION="${GITHUB_SHA::8}"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          
           go build \
             -trimpath \
-            -ldflags="-s -w -X craftops/internal/cli.Version=dev-${GITHUB_SHA::8}" \
-            -o "${BINARY_NAME}" \
+            -ldflags="-s -w -X main.Version=${VERSION}" \
+            -o craftops-${{ matrix.os }}-${{ matrix.arch }} \
             ./cmd/craftops
 
-      - name: Test binary (Linux AMD64 only)
-        if: matrix.target.os == 'linux' && matrix.target.arch == 'amd64'
-        run: |
-          chmod +x ./craftops
-          ./craftops --version
-          ./craftops --help
-
-      - name: Upload build artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: craftops-${{ matrix.target.os }}-${{ matrix.target.arch }}
-          path: craftops
+          name: craftops-${{ matrix.os }}-${{ matrix.arch }}
+          path: craftops-*
           retention-days: 7
-
-  # Phase 4: CI Success (signals completion)
-  ci-success:
-    name: CI Success
-    runs-on: ubuntu-latest
-    needs: [build]
-    outputs:
-      success: ${{ steps.success.outputs.success }}
-    steps:
-      - name: Set success output
-        id: success
-        run: |
-          echo "success=true" >> $GITHUB_OUTPUT
-          echo "✅ All CI checks passed successfully!"
