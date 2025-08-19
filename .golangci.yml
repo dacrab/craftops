@@ -46,8 +46,7 @@ linters-settings:
     check-type-assertions: false  # Less strict
     check-blank: false           # Less strict
 
-  govet:
-    check-shadowing: false  # Less strict
+
 
 issues:
   max-issues-per-linter: 0
