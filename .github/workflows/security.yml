@@ -1,113 +1,155 @@
-name: Security Scanning
+name: Security & Maintenance
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
   schedule:
-    # Run security scan every Monday at 6 AM UTC
-    - cron: '0 6 * * 1'
+    # Run weekly security scans on Sundays at 3 AM UTC
+    - cron: '0 3 * * 0'
 
 env:
   GO_VERSION: "1.21"
 
 jobs:
-  codeql:
-    name: CodeQL Security Analysis
+  security-scan:
+    name: Security Analysis
     runs-on: ubuntu-latest
     permissions:
+      security-events: write
       actions: read
       contents: read
-      security-events: write
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ['go']
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Setup Go environment
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
-        cache: true
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-      with:
-        languages: ${{ matrix.language }}
-        # Use default CodeQL query suites + security-and-quality
-        queries: security-and-quality
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+          queries: security-and-quality
 
-    - name: Download Go modules
-      run: go mod download
+      - name: Download dependencies
+        run: go mod download
 
-    - name: Build project for analysis
-      run: go build -v ./...
+      - name: Build for CodeQL
+        run: go build -v ./...
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
-      with:
-        category: "/language:${{matrix.language}}"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:go"
 
-  gosec:
-    name: Gosec Security Scanner
+      - name: Run Gosec Security Scanner
+        run: |
+          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+          gosec -fmt sarif -out gosec-results.sarif ./...
+
+      - name: Upload Gosec results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: gosec-results.sarif
+
+      - name: Run vulnerability checks
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs.sarif'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-fs.sarif'
+
+  secret-scan:
+    name: Secret Detection
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Setup Go environment
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
-        cache: true
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Download dependencies
-      run: go mod download
+      - name: Additional secret patterns check
+        run: |
+          echo "=== Checking for potential secrets ==="
+          PATTERNS="password|secret|token|key|credential|auth"
+          
+          find . -name "*.go" -not -path "./vendor/*" | xargs grep -i -E "$PATTERNS" && {
+            echo "⚠️ Potential secrets found in code"
+            exit 1
+          } || echo "✅ No obvious secrets found"
 
-    - name: Install and run Gosec
-      run: |
-        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-        gosec -fmt sarif -out gosec-results.sarif ./...
-
-    - name: Upload SARIF file
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: gosec-results.sarif
-
-    - name: Upload Gosec results artifact
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: gosec-results
-        path: gosec-results.sarif
-        retention-days: 30
-
-  dependency-check:
-    name: Dependency Vulnerability Check
+  license-compliance:
+    name: License & Compliance
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' # Only run on pushes and scheduled runs
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup Go environment
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
-        cache: true
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
 
-    - name: Run Nancy (Go dependency vulnerability scanner)
-      run: |
-        go install github.com/sonatypecommunity/nancy@latest
-        go list -json -deps ./... | nancy sleuth
+      - name: Verify license file exists
+        run: |
+          if [ ! -f LICENSE ]; then
+            echo "❌ No LICENSE file found"
+            exit 1
+          fi
+          echo "✅ LICENSE file found"
 
-    - name: Run govulncheck
-      run: |
-        go install golang.org/x/vuln/cmd/govulncheck@latest
-        govulncheck ./...
+      - name: Generate dependency report
+        run: |
+          echo "# Dependency License Report" > license_report.md
+          echo "Generated: $(date)" >> license_report.md
+          echo "" >> license_report.md
+          echo "## Direct Dependencies" >> license_report.md
+          go list -m -json all | jq -r 'select(.Main != true) | "- \(.Path) \(.Version)"' | sort >> license_report.md
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: license_report.md
+          retention-days: 30
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
