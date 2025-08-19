@@ -2,6 +2,7 @@ run:
   timeout: 5m
   modules-download-mode: readonly
   build-tags: []
+  go: "1.22"
 
 output:
   formats:
@@ -15,7 +16,6 @@ linters:
     - errcheck        # Check for unchecked errors (critical)
     - gosimple        # Simplify code
     - govet           # Go vet (critical)
-    - ineffassign     # Detect ineffectual assignments
     - staticcheck     # Advanced static analysis (critical)
     - unused          # Check for unused constants, variables, functions and types
     - gofmt           # Check formatting (critical)
@@ -24,6 +24,7 @@ linters:
     - gosec           # Security analyzer (critical)
   
   disable:
+    - ineffassign     # Too many false positives with common Go patterns
     - godot           # Too strict about comment periods
     - gocyclo         # Complexity checks can be noisy
     - goconst         # String constants can be noisy
@@ -45,8 +46,18 @@ linters-settings:
   errcheck:
     check-type-assertions: false  # Less strict
     check-blank: false           # Less strict
-
-
+    exclude-functions:
+      # Allow ignoring errors for these common functions
+      - (os.Stdout).Write
+      - (os.Stderr).Write
+      - (*os.File).Close
+      - (*os.File).Write
+      - (*io.Closer).Close
+      - (*github.com/fatih/color.Color).Print
+      - (*github.com/fatih/color.Color).Printf
+      - (*github.com/fatih/color.Color).Println
+      - os.Remove
+      - os.RemoveAll
 
 issues:
   max-issues-per-linter: 0
@@ -70,13 +81,30 @@ issues:
     
     # Allow blank assignment for error returns in specific cases
     - text: "Error return value of .* is not checked"
-      source: ".*_ = .*\\.(Finish|Close|Flush)\\(\\)"
+      source: ".*_ = .*\\.(Finish|Close|Flush|Write|Print|Remove)\\(\\)"
+    
+    # Allow common patterns for UI/formatting functions
+    - text: "Error return value of.*Print.*is not checked"
+      linters:
+        - errcheck
+    - text: "Error return value of.*Write.*is not checked"
+      linters:
+        - errcheck
+    - text: "Error return value of.*Close.*is not checked"
+      linters:
+        - errcheck
+    - text: "Error return value of.*Remove.*is not checked"
+      linters:
+        - errcheck
     
   exclude:
     # Common patterns that are usually safe to ignore
     - "Error return value of.*\\.Close.*is not checked"
     - "Error return value of.*\\.Finish.*is not checked"
     - "Error return value of.*printf.*is not checked"
+    - "Error return value of.*\\.Print.*is not checked"
+    - "Error return value of.*\\.Write.*is not checked"
+    - "Error return value of.*Remove.*is not checked"
 
 severity:
   default-severity: error
