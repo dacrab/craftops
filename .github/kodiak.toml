@@ -1,96 +1,37 @@
 [kodiak]
-# Version of the configuration schema
 version = 1
 
 [kodiak.merge]
-# Merge method to use for PRs
 method = "squash"
-
-# Delete branch after merge
 delete_branch_on_merge = true
-
-# Require approval before merging
 require_automerge_label = false
-
-# Block merge if any blocking labels are present
 blocking_labels = ["needs-review", "do-not-merge", "wip", "work-in-progress"]
-
-# Optional labels that can trigger auto-merge
 automerge_label = "auto-merge"
-
-# Only merge if all required status checks pass
-optimistic_updates = false
-
-# Don't merge PRs with these labels
-dont_wait_on_status_checks = []
-
-# Priority merge for these labels (security updates, etc)
 priority_merge_label = "urgent"
 
 [kodiak.merge.message]
-# Use PR title and body for merge commit message
 title = "pull_request_title"
-body = "pull_request_body" 
-
-# Strip HTML comments from PR body
+body = "pull_request_body"
 strip_html_comments = true
 
 [kodiak.update]
-# Automatically update PR branches when they become outdated
 always = true
 
-# Don't update draft PRs
-require_automerge_label = false
-
 [kodiak.approve]
-# Auto-approve PRs that meet certain criteria
 auto_approve_usernames = ["renovate[bot]", "dependabot[bot]", "github-actions[bot]"]
-
-# Only auto-approve if all of these are true:
 auto_approve_labels = ["dependencies", "auto-merge"]
-
-# Don't auto-approve PRs with these labels
 block_auto_approve_labels = ["needs-review", "major-update"]
 
 [kodiak.checks]
-# Required status checks that must pass before merging (updated for new workflow structure)
+# Simple status checks for the new workflow
 required_statuses = [
-    "Main Pipeline / CI Pipeline / Validate & Setup",
-    "Main Pipeline / CI Pipeline / Lint & Format", 
-    "Main Pipeline / CI Pipeline / Test (1.21)",
-    "Main Pipeline / CI Pipeline / Test (1.22)",
-    "Main Pipeline / CI Pipeline / Build (linux, amd64)",
-    "Main Pipeline / CI Pipeline / Build (linux, arm64)",
-    "Main Pipeline / CI Pipeline / Build (darwin, amd64)",
-    "Main Pipeline / CI Pipeline / Build (darwin, arm64)",
-    "Main Pipeline / CI Pipeline / CI Success"
+    "Test & Lint",
+    "Build (linux, amd64)",
+    "Build (linux, arm64)",
+    "Build (darwin, amd64)",
+    "Build (darwin, arm64)"
 ]
 
-# Optional status checks (won't block merge if they fail)
 optional_statuses = [
-    "Main Pipeline / Security Analysis / Security Analysis",
-    "Main Pipeline / Security Analysis / Secret Detection",
-    "Main Pipeline / Security Analysis / License & Compliance"
+    "Security Analysis"
 ]
-
-# Don't wait for these checks on dependency updates
-dependency_update_ignore = []
-
-[kodiak.github]
-# GitHub API settings
-api_version = "v3"
-
-# Comment on PR when auto-merging
-notify_on_conflict = true
-notify_on_merge = false
-
-# Custom messages
-conflict_comment = "🔄 This PR has merge conflicts. Please resolve them and I'll merge automatically once CI passes."
-merge_comment = ""
-
-# Security settings
-ignore_bot_authors = false
-
-[kodiak.config]
-# Advanced configuration
-log_level = "info"

@@ -1,41 +1,32 @@
 run:
   timeout: 5m
-  modules-download-mode: readonly
-  build-tags: []
-  go: "1.22"
+  go: "1.23"
 
 output:
   formats:
     - format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-  sort-results: true
 
 linters:
   enable:
-    - errcheck        # Check for unchecked errors (critical)
-    - gosimple        # Simplify code
-    - govet           # Go vet (critical)
-    - staticcheck     # Advanced static analysis (critical)
-    - unused          # Check for unused constants, variables, functions and types
-    - gofmt           # Check formatting (critical)
-    - goimports       # Check imports formatting
-    - misspell        # Check for misspellings
-    - gosec           # Security analyzer (critical)
+    - errcheck
+    - gosimple
+    - govet
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - gosec
   
   disable:
-    - ineffassign     # Too many false positives with common Go patterns
-    - godot           # Too strict about comment periods
-    - gocyclo         # Complexity checks can be noisy
-    - goconst         # String constants can be noisy
-    - dupl            # Code clone detection can be noisy
-    - unconvert       # Can be noisy
+    - ineffassign  # Too many false positives
+    - godot        # Too strict
 
 linters-settings:
   gosec:
     severity: "medium"
     excludes:
-      - G104  # Audit errors not checked (covered by errcheck)
+      - G104  # Covered by errcheck
 
   goimports:
     local-prefixes: craftops
@@ -44,27 +35,10 @@ linters-settings:
     locale: US
 
   errcheck:
-    check-type-assertions: false  # Less strict
-    check-blank: false           # Less strict
-    exclude-functions:
-      # Allow ignoring errors for these common functions
-      - (os.Stdout).Write
-      - (os.Stderr).Write
-      - (*os.File).Close
-      - (*os.File).Write
-      - (*io.Closer).Close
-      - (*github.com/fatih/color.Color).Print
-      - (*github.com/fatih/color.Color).Printf
-      - (*github.com/fatih/color.Color).Println
-      - os.Remove
-      - os.RemoveAll
+    check-type-assertions: false
+    check-blank: false
 
 issues:
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  new: false
-  uniq-by-line: true
-  
   exclude-rules:
     - path: _test\.go
       linters:
@@ -73,38 +47,21 @@ issues:
     
     - path: cmd/
       linters:
-        - errcheck  # CLI code often ignores some errors intentionally
+        - errcheck
     
-    # Allow deferred error checks with blank identifier
+    # Allow deferred error checks
     - text: "Error return value of .* is not checked"
       source: "defer.*\\."
     
-    # Allow blank assignment for error returns in specific cases
-    - text: "Error return value of .* is not checked"
-      source: ".*_ = .*\\.(Finish|Close|Flush|Write|Print|Remove)\\(\\)"
-    
-    # Allow common patterns for UI/formatting functions
+    # Common safe patterns
     - text: "Error return value of.*Print.*is not checked"
-      linters:
-        - errcheck
+      linters: [errcheck]
     - text: "Error return value of.*Write.*is not checked"
-      linters:
-        - errcheck
+      linters: [errcheck]
     - text: "Error return value of.*Close.*is not checked"
-      linters:
-        - errcheck
+      linters: [errcheck]
     - text: "Error return value of.*Remove.*is not checked"
-      linters:
-        - errcheck
-    
-  exclude:
-    # Common patterns that are usually safe to ignore
-    - "Error return value of.*\\.Close.*is not checked"
-    - "Error return value of.*\\.Finish.*is not checked"
-    - "Error return value of.*printf.*is not checked"
-    - "Error return value of.*\\.Print.*is not checked"
-    - "Error return value of.*\\.Write.*is not checked"
-    - "Error return value of.*Remove.*is not checked"
+      linters: [errcheck]
 
 severity:
   default-severity: error
