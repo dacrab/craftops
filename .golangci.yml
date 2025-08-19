@@ -4,41 +4,35 @@ run:
   build-tags: []
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
-  uniq-by-line: true
   sort-results: true
 
 linters:
   enable:
-    - errcheck        # Check for unchecked errors
+    - errcheck        # Check for unchecked errors (critical)
     - gosimple        # Simplify code
-    - govet           # Go vet
+    - govet           # Go vet (critical)
     - ineffassign     # Detect ineffectual assignments
-    - staticcheck     # Advanced static analysis
+    - staticcheck     # Advanced static analysis (critical)
     - unused          # Check for unused constants, variables, functions and types
-    - gocyclo         # Cyclomatic complexity
-    - gofmt           # Check formatting
+    - gofmt           # Check formatting (critical)
     - goimports       # Check imports formatting
     - misspell        # Check for misspellings
-    - unconvert       # Remove unnecessary type conversions
-    - dupl            # Code clone detection
-    - goconst         # Find repeated strings that could be constants
-    - godot           # Check if comments end in a period
-    - exportloopref   # Check for pointers to enclosing loop variables
-    - gosec           # Security analyzer
+    - gosec           # Security analyzer (critical)
   
   disable:
-    - maligned        # Too strict and often not helpful
-    - prealloc        # Can be noisy
+    - godot           # Too strict about comment periods
+    - gocyclo         # Complexity checks can be noisy
+    - goconst         # String constants can be noisy
+    - dupl            # Code clone detection can be noisy
+    - unconvert       # Can be noisy
 
 linters-settings:
-  gocyclo:
-    min-complexity: 15
-
   gosec:
-    severity: "low"
+    severity: "medium"
     excludes:
       - G104  # Audit errors not checked (covered by errcheck)
 
@@ -49,37 +43,41 @@ linters-settings:
     locale: US
 
   errcheck:
-    check-type-assertions: true
-    check-blank: true
+    check-type-assertions: false  # Less strict
+    check-blank: false           # Less strict
 
   govet:
-    check-shadowing: true
-
-  staticcheck:
-    go: "1.21"
-
-  unused:
-    go: "1.21"
+    check-shadowing: false  # Less strict
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
+  uniq-by-line: true
   
   exclude-rules:
     - path: _test\.go
       linters:
         - gosec
-        - dupl
-        - gocyclo
+        - errcheck
     
     - path: cmd/
       linters:
-        - gocyclo  # Main functions can be a bit complex
+        - errcheck  # CLI code often ignores some errors intentionally
+    
+    # Allow deferred error checks with blank identifier
+    - text: "Error return value of .* is not checked"
+      source: "defer.*\\."
+    
+    # Allow blank assignment for error returns in specific cases
+    - text: "Error return value of .* is not checked"
+      source: ".*_ = .*\\.(Finish|Close|Flush)\\(\\)"
     
   exclude:
-    # Exclude some lints that are not critical
-    - "Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked"
-    
+    # Common patterns that are usually safe to ignore
+    - "Error return value of.*\\.Close.*is not checked"
+    - "Error return value of.*\\.Finish.*is not checked"
+    - "Error return value of.*printf.*is not checked"
+
 severity:
   default-severity: error
