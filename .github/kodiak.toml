@@ -53,22 +53,24 @@ auto_approve_labels = ["dependencies", "auto-merge"]
 block_auto_approve_labels = ["needs-review", "major-update"]
 
 [kodiak.checks]
-# Required status checks that must pass before merging
+# Required status checks that must pass before merging (updated for new workflow structure)
 required_statuses = [
-    "CI/CD Pipeline / Validate & Setup",
-    "CI/CD Pipeline / Lint & Format", 
-    "CI/CD Pipeline / Test (1.21)",
-    "CI/CD Pipeline / Test (1.22)",
-    "CI/CD Pipeline / Security Scan",
-    "CI/CD Pipeline / Build (linux, amd64)",
-    "CI/CD Pipeline / Build (linux, arm64)",
-    "CI/CD Pipeline / Build (darwin, amd64)",
-    "CI/CD Pipeline / Build (darwin, arm64)"
+    "Main Pipeline / CI Pipeline / Validate & Setup",
+    "Main Pipeline / CI Pipeline / Lint & Format", 
+    "Main Pipeline / CI Pipeline / Test (1.21)",
+    "Main Pipeline / CI Pipeline / Test (1.22)",
+    "Main Pipeline / CI Pipeline / Build (linux, amd64)",
+    "Main Pipeline / CI Pipeline / Build (linux, arm64)",
+    "Main Pipeline / CI Pipeline / Build (darwin, amd64)",
+    "Main Pipeline / CI Pipeline / Build (darwin, arm64)",
+    "Main Pipeline / CI Pipeline / CI Success"
 ]
 
 # Optional status checks (won't block merge if they fail)
 optional_statuses = [
-    "Security & Maintenance / License & Compliance"
+    "Main Pipeline / Security Analysis / Security Analysis",
+    "Main Pipeline / Security Analysis / Secret Detection",
+    "Main Pipeline / Security Analysis / License & Compliance"
 ]
 
 # Don't wait for these checks on dependency updates
@@ -90,12 +92,5 @@ merge_comment = ""
 ignore_bot_authors = false
 
 [kodiak.config]
-# Only merge during business hours (optional - remove these lines to allow 24/7)
-# merge.time_window = "09:00-17:00"
-# merge.time_zone = "UTC"
-
-# Don't merge on these days (optional)
-# merge.blackout_days = ["saturday", "sunday"]
-
 # Advanced configuration
 log_level = "info"

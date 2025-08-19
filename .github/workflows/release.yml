@@ -1,9 +1,29 @@
 name: Release
 
 on:
-  push:
-    branches: [main]
+  workflow_call:
+    inputs:
+      force-release:
+        description: "Force a release even if no changes detected"
+        required: false
+        default: false
+        type: boolean
   workflow_dispatch:
+    inputs:
+      release-type:
+        description: 'Type of release'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   GO_VERSION: "1.21"
@@ -67,7 +87,7 @@ jobs:
                 ]
               }],
               ["@semantic-release/git", {
-                "assets": ["CHANGELOG.md", "go.mod"],
+                "assets": ["CHANGELOG.md"],
                 "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
               }]
             ]

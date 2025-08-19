@@ -5,6 +5,19 @@ on:
     # Run daily at 2 AM UTC for issue management
     - cron: '0 2 * * *'
   workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Maintenance operation to run'
+        required: true
+        default: 'stale-management'
+        type: choice
+        options:
+          - stale-management
+          - full-cleanup
+
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
 
 permissions:
   issues: write
@@ -14,6 +27,7 @@ jobs:
   stale-management:
     name: Stale Issues & PRs
     runs-on: ubuntu-latest
+    if: inputs.operation == 'stale-management' || github.event_name == 'schedule'
     steps:
       - name: Mark stale issues and PRs
         uses: actions/stale@v9
@@ -56,3 +70,14 @@ jobs:
           
           # Remove stale label when updated
           remove-stale-when-updated: true
+
+  cleanup:
+    name: Full Repository Cleanup
+    runs-on: ubuntu-latest
+    if: inputs.operation == 'full-cleanup'
+    steps:
+      - name: Repository cleanup
+        run: |
+          echo "🧹 Running full repository cleanup"
+          echo "This would perform comprehensive cleanup operations"
+          # Add additional cleanup operations here if needed
