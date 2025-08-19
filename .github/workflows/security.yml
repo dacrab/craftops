@@ -1,13 +1,30 @@
-name: Security & Maintenance
+name: Security Analysis
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_call:
+    inputs:
+      trigger-reason:
+        description: "Reason for triggering security scan"
+        required: false
+        default: "workflow_call"
+        type: string
   schedule:
     # Run weekly security scans on Sundays at 3 AM UTC
     - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      scan-type:
+        description: 'Type of security scan to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - quick
+
+concurrency:
+  group: security-${{ github.ref }}-${{ inputs.trigger-reason || 'schedule' }}
+  cancel-in-progress: false
 
 env:
   GO_VERSION: "1.21"
@@ -106,7 +123,7 @@ jobs:
   license-compliance:
     name: License & Compliance
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' # Only run on pushes and scheduled runs
+    if: github.event_name != 'pull_request'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
