@@ -4,7 +4,7 @@
 
 **A powerful, modern CLI tool for Minecraft server operations and automated mod management**
 
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
 [![Release](https://img.shields.io/github/v/release/dacrab/craftops?style=for-the-badge&logo=github)](https://github.com/dacrab/craftops/releases)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Available-2496ED?style=for-the-badge&logo=docker)](https://github.com/dacrab/craftops/pkgs/container/craftops)
@@ -229,9 +229,9 @@ craftops --config /custom/path.toml health-check  # Custom config
 
 | Document | Description |
 |----------|-------------|
-| **[📚 Usage Guide](USAGE_GUIDE.md)** | Comprehensive user manual with examples and troubleshooting |
-| **[🚀 Deployment Guide](DEPLOYMENT_GUIDE.md)** | Release process, CI/CD, and distribution strategy |
-| **[🏗️ Project Structure](PROJECT_STRUCTURE.md)** | Codebase organization and architecture details |
+| **[📚 Usage Guide](docs/USAGE_GUIDE.md)** | Comprehensive user manual with examples and troubleshooting |
+| **[🚀 Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** | Release process, CI/CD, and distribution strategy |
+| **[🏗️ Project Structure](docs/PROJECT_STRUCTURE.md)** | Codebase organization and architecture details |
 
 ---
 
@@ -386,7 +386,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 <div align="center">
 
-**Made with ❤️ for the Minecraft cocraftopsnity**
+**Made with ❤️ for the Minecraft community**
 
 [⭐ Star this project](https://github.com/dacrab/craftops) • [🐛 Report Issues](https://github.com/dacrab/craftops/issues) • [💬 Discussions](https://github.com/dacrab/craftops/discussions)
 
