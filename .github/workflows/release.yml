@@ -1,195 +1,91 @@
-name: Build and Release
+name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
         description: 'Release tag (e.g., v1.0.0)'
         required: true
-        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
-  GO_VERSION: '1.21'
-  REGISTRY: ghcr.io
+  GO_VERSION: "1.23"
 
 jobs:
-  build:
-    name: Build Cross-Platform Binaries
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target:
-          - os: linux
-            arch: amd64
-            name: linux-amd64
-          - os: linux
-            arch: arm64
-            name: linux-arm64
-          - os: darwin
-            arch: amd64
-            name: darwin-amd64
-          - os: darwin
-            arch: arm64
-            name: darwin-arm64
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Setup Go environment
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
-        cache: true
-
-    - name: Download Go modules
-      run: go mod download
-
-    - name: Determine version
-      id: version
-      run: |
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          VERSION="${{ github.event.inputs.tag }}"
-        else
-          VERSION="${GITHUB_REF#refs/tags/}"
-        fi
-        echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        echo "clean_version=${VERSION#v}" >> $GITHUB_OUTPUT
-        
-    - name: Compile binary
-      env:
-        GOOS: ${{ matrix.target.os }}
-        GOARCH: ${{ matrix.target.arch }}
-        CGO_ENABLED: 0
-      run: |
-        mkdir -p build
-        BINARY_NAME="craftops-${{ matrix.target.name }}"
-        
-        go build \
-          -trimpath \
-          -ldflags="-s -w -X craftops/internal/cli.Version=${{ steps.version.outputs.clean_version }}" \
-          -o "build/${BINARY_NAME}" \
-          ./cmd/craftops
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: craftops-${{ matrix.target.name }}
-        path: build/
-        retention-days: 1
-
   release:
-    name: Create GitHub Release
-    needs: build
+    name: Create Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: release-assets/
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Organize release files
-      run: |
-        mkdir -p release
-        find release-assets/ -name "craftops-*" -type f -exec cp {} release/ \;
-        ls -la release/
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
 
-    - name: Determine version
-      id: version
-      run: |
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          VERSION="${{ github.event.inputs.tag }}"
-        else
-          VERSION="${GITHUB_REF#refs/tags/}"
-        fi
-        echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        
-    - name: Generate checksums
-      run: |
-        cd release
-        sha256sum * > SHA256SUMS
-        cat SHA256SUMS
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "clean_version=${VERSION#v}" >> $GITHUB_OUTPUT
 
-    - name: Create release notes
-      id: notes
-      run: |
-        VERSION="${{ steps.version.outputs.version }}"
-        
-        cat > RELEASE_NOTES.md << 'EOF'
-        # CraftOps ${{ steps.version.outputs.version }}
-        
-        ## 🎯 What's New
-        
-        A powerful Minecraft server management tool that simplifies mod updates, server operations, and backup management.
-        
-        ## 📥 Installation
-        
-        ### Quick Install Script
-        ```bash
-        # Linux/macOS
-        curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
-        ```
-        
-        ### Manual Installation
-        
-        | Platform | Architecture | Binary |
-        |----------|-------------|---------|
-        | Linux | x64 | craftops-linux-amd64 |
-        | Linux | ARM64 | craftops-linux-arm64 |
-        | macOS | x64 | craftops-darwin-amd64 |
-        | macOS | ARM64 | craftops-darwin-arm64 |
-        
-        ## 🎮 Quick Start
-        
-        ```bash
-        # Initialize configuration
-        craftops init-config
-        
-        # Edit configuration
-        nano config.toml
-        
-        # Run health check
-        craftops health-check
-        
-        # Update mods
-        craftops update-mods
-        ```
-        
-        ## ✅ Verification
-        
-        ```bash
-        # Verify installation
-        craftops --version
-        
-        # Check help
-        craftops --help
-        ```
-        
-        ## 📋 Checksums
-        
-        See `SHA256SUMS` file for binary verification.
-        EOF
+      - name: Build binaries
+        run: |
+          VERSION="${{ steps.version.outputs.clean_version }}"
+          mkdir -p dist
+          
+          for OS in linux darwin; do
+            for ARCH in amd64 arm64; do
+              echo "Building ${OS}/${ARCH}..."
+              GOOS=${OS} GOARCH=${ARCH} CGO_ENABLED=0 \
+                go build \
+                  -trimpath \
+                  -ldflags="-s -w -X main.Version=${VERSION}" \
+                  -o "dist/craftops-${OS}-${ARCH}" \
+                  ./cmd/craftops
+            done
+          done
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.version.outputs.version }}
-        name: CraftOps ${{ steps.version.outputs.version }}
-        body_path: RELEASE_NOTES.md
-        files: |
-          release/*
-          release/SHA256SUMS
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          if git tag --list | tail -2 | head -1 > /dev/null 2>&1; then
+            PREVIOUS_TAG=$(git tag --list | tail -2 | head -1)
+            echo "## Changes" > CHANGELOG.md
+            git log --oneline ${PREVIOUS_TAG}..HEAD >> CHANGELOG.md
+          else
+            echo "## Initial Release" > CHANGELOG.md
+            echo "First release of CraftOps" >> CHANGELOG.md
+          fi
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: CraftOps ${{ steps.version.outputs.version }}
+          body_path: CHANGELOG.md
+          files: |
+            dist/*
+          draft: false
+          prerelease: false
