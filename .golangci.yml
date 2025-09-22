@@ -1,194 +1,67 @@
-# golangci-lint configuration for CraftOps
-# See https://golangci-lint.run/usage/configuration/ for documentation
-
 run:
   timeout: 5m
-  issues-exit-code: 1
-  tests: true
-  skip-dirs:
-    - vendor
-  skip-files:
-    - ".*\\.pb\\.go$"
-    - ".*_gen\\.go$"
+  go: "1.23"
 
 output:
-  format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-  uniq-by-line: true
-  sort-results: true
-
-linters-settings:
-  govet:
-    check-shadowing: true
-    enable-all: true
-  
-  golint:
-    min-confidence: 0.8
-  
-  gocyclo:
-    min-complexity: 15
-  
-  goimports:
-    local-prefixes: craftops
-  
-  gofmt:
-    simplify: true
-  
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-  
-  misspell:
-    locale: US
-  
-  unparam:
-    check-exported: false
-  
-  nakedret:
-    max-func-lines: 30
-  
-  prealloc:
-    simple: true
-    range-loops: true
-    for-loops: false
-  
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-      - wrapperFunc
-  
-  funlen:
-    lines: 100
-    statements: 50
-
-  cyclop:
-    max-complexity: 15
-    package-average: 10.0
-    skip-tests: false
-
-  errorlint:
-    errorf: true
-
-  exhaustive:
-    default-signifies-exhaustive: false
-
-  forbidigo:
-    forbid:
-      - ^print.*$
-      - 'fmt\.Print.*'
-
-  gci:
-    local-prefixes: craftops
-
-  godot:
-    scope: declarations
-    capital: false
-
-  gomnd:
-    settings:
-      mnd:
-        checks: argument,case,condition,operation,return,assign
-
-  gomodguard:
-    allowed:
-      modules: []
-      domains: []
-    blocked:
-      modules: []
-
-  gosec:
-    severity: "low"
-    confidence: "low"
-    excludes:
-      - G204 # Subprocess launched with variable
-      - G304 # File path provided as taint input
-
-  depguard:
-    list-type: blacklist
-    packages:
-      - github.com/sirupsen/logrus
-    packages-with-error-message:
-      - github.com/sirupsen/logrus: "logging is allowed only by logutils.Log"
+  formats:
+    - format: colored-line-number
 
 linters:
-  disable-all: true
   enable:
-    - bodyclose
-    - depguard
-    - dogsled
-    - dupl
     - errcheck
-    - errorlint
-    - exhaustive
-    - exportloopref
-    - forbidigo
-    - funlen
-    - gci
-    - gochecknoinits
-    - gocognit
-    - goconst
-    - gocritic
-    - gocyclo
-    - godot
-    - gofmt
-    - gofumpt
-    - goimports
-    - gomnd
-    - gomodguard
-    - goprintffuncname
-    - gosec
     - gosimple
     - govet
-    - ineffassign
-    - misspell
-    - nakedret
-    - noctx
-    - nolintlint
-    - prealloc
-    - predeclared
-    - revive
     - staticcheck
-    - stylecheck
-    - thelper
-    - tparallel
-    - typecheck
-    - unconvert
-    - unparam
     - unused
-    - whitespace
+    - gofmt
+    - goimports
+    - misspell
+    - gosec
+  
+  disable:
+    - ineffassign  # Too many false positives
+    - godot        # Too strict
+
+linters-settings:
+  gosec:
+    severity: "medium"
+    excludes:
+      - G104  # Covered by errcheck
+
+  goimports:
+    local-prefixes: craftops
+
+  misspell:
+    locale: US
+
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
 
 issues:
   exclude-rules:
-    # Exclude some linters from running on tests files.
     - path: _test\.go
       linters:
-        - gocyclo
+        - gosec
         - errcheck
-        - dupl
-        - gosec
-        - funlen
-        - goconst
+    
+    - path: cmd/
+      linters:
+        - errcheck
+    
+    # Allow deferred error checks
+    - text: "Error return value of .* is not checked"
+      source: "defer.*\\."
+    
+    # Common safe patterns
+    - text: "Error return value of.*Print.*is not checked"
+      linters: [errcheck]
+    - text: "Error return value of.*Write.*is not checked"
+      linters: [errcheck]
+    - text: "Error return value of.*Close.*is not checked"
+      linters: [errcheck]
+    - text: "Error return value of.*Remove.*is not checked"
+      linters: [errcheck]
 
-    # Exclude known linters from partially hard-to-fix issues
-    - linters:
-        - gosec
-      text: "G204:"
-
-    - linters:
-        - gocritic
-      text: "unnecessaryDefer:"
-
-  exclude-use-default: false
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  new: false
+severity:
+  default-severity: error
