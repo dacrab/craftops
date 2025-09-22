@@ -38,23 +38,21 @@ type DiscordWebhookPayload struct {
 
 // NotificationService handles notification operations
 type NotificationService struct {
-	config *config.Config
-	logger *zap.Logger
+	*BaseService
 	client *http.Client
 }
 
 // NewNotificationService creates a new notification service instance
-func NewNotificationService(cfg *config.Config, logger *zap.Logger) *NotificationService {
+func NewNotificationService(cfg *config.Config, logger *zap.Logger) NotificationServiceInterface {
 	return &NotificationService{
-		config: cfg,
-		logger: logger,
-		client: &http.Client{Timeout: 30 * time.Second},
+		BaseService: NewBaseService(cfg, logger),
+		client:      &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
 // SendSuccessNotification sends a success notification
 func (ns *NotificationService) SendSuccessNotification(ctx context.Context, message string) error {
-	if !ns.config.Notifications.SuccessNotifications {
+	if !ns.GetConfig().Notifications.SuccessNotifications {
 		return nil
 	}
 	return ns.sendDiscordNotification(ctx, "✅ Success", message, ColorGreen)
@@ -62,7 +60,7 @@ func (ns *NotificationService) SendSuccessNotification(ctx context.Context, mess
 
 // SendErrorNotification sends an error notification
 func (ns *NotificationService) SendErrorNotification(ctx context.Context, message string) error {
-	if !ns.config.Notifications.ErrorNotifications {
+	if !ns.GetConfig().Notifications.ErrorNotifications {
 		return nil
 	}
 	return ns.sendDiscordNotification(ctx, "❌ Error", message, ColorRed)
@@ -70,18 +68,18 @@ func (ns *NotificationService) SendErrorNotification(ctx context.Context, messag
 
 // SendRestartWarnings sends restart warning notifications
 func (ns *NotificationService) SendRestartWarnings(ctx context.Context) error {
-	intervals := ns.config.Notifications.WarningIntervals
+	intervals := ns.GetConfig().Notifications.WarningIntervals
 	if len(intervals) == 0 {
 		return nil
 	}
 
-	ns.logger.Info("Sending restart warnings", zap.Ints("intervals", intervals))
+	ns.GetLogger().Info("Sending restart warnings", zap.Ints("intervals", intervals))
 
 	for i, minutes := range intervals {
-		warningMsg := strings.ReplaceAll(ns.config.Notifications.WarningMessage, "{minutes}", fmt.Sprintf("%d", minutes))
+		warningMsg := strings.ReplaceAll(ns.GetConfig().Notifications.WarningMessage, "{minutes}", fmt.Sprintf("%d", minutes))
 
 		if err := ns.sendDiscordNotification(ctx, "⚠️ Server Restart Warning", warningMsg, ColorOrange); err != nil {
-			ns.logger.Error("Failed to send restart warning", zap.Error(err))
+			ns.GetLogger().Error("Failed to send restart warning", zap.Error(err))
 			return err
 		}
 
@@ -93,7 +91,7 @@ func (ns *NotificationService) SendRestartWarnings(ctx context.Context) error {
 				waitTime = time.Minute
 			}
 
-			ns.logger.Info("Waiting before next warning", zap.Duration("wait_time", waitTime))
+			ns.GetLogger().Info("Waiting before next warning", zap.Duration("wait_time", waitTime))
 
 			select {
 			case <-ctx.Done():
@@ -108,13 +106,13 @@ func (ns *NotificationService) SendRestartWarnings(ctx context.Context) error {
 
 // sendDiscordNotification sends a notification to Discord webhook
 func (ns *NotificationService) sendDiscordNotification(ctx context.Context, title, message string, color int) error {
-	if ns.config.Notifications.DiscordWebhook == "" {
-		ns.logger.Debug("Discord webhook not configured, skipping notification")
+	if ns.GetConfig().Notifications.DiscordWebhook == "" {
+		ns.GetLogger().Debug("Discord webhook not configured, skipping notification")
 		return nil
 	}
 
-	if ns.config.DryRun {
-		ns.logger.Info("Dry run: Would send Discord notification",
+	if ns.GetConfig().DryRun {
+		ns.GetLogger().Info("Dry run: Would send Discord notification",
 			zap.String("title", title),
 			zap.String("message", message))
 		return nil
@@ -139,7 +137,7 @@ func (ns *NotificationService) sendDiscordNotification(ctx context.Context, titl
 		return fmt.Errorf("failed to marshal Discord payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", ns.config.Notifications.DiscordWebhook, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", ns.GetConfig().Notifications.DiscordWebhook, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create Discord request: %w", err)
 	}
@@ -156,7 +154,7 @@ func (ns *NotificationService) sendDiscordNotification(ctx context.Context, titl
 		return fmt.Errorf("discord API returned status %d", resp.StatusCode)
 	}
 
-	ns.logger.Debug("Discord notification sent successfully")
+	ns.GetLogger().Debug("Discord notification sent successfully")
 	return nil
 }
 
@@ -173,7 +171,7 @@ func (ns *NotificationService) HealthCheck(ctx context.Context) []HealthCheck {
 }
 
 func (ns *NotificationService) checkDiscordWebhook() HealthCheck {
-	if ns.config.Notifications.DiscordWebhook == "" {
+	if ns.GetConfig().Notifications.DiscordWebhook == "" {
 		return HealthCheck{
 			Name:    "Discord webhook",
 			Status:  "⚠️",
@@ -181,7 +179,7 @@ func (ns *NotificationService) checkDiscordWebhook() HealthCheck {
 		}
 	}
 
-	if !strings.HasPrefix(ns.config.Notifications.DiscordWebhook, "https://discord.com/api/webhooks/") {
+	if !strings.HasPrefix(ns.GetConfig().Notifications.DiscordWebhook, "https://discord.com/api/webhooks/") {
 		return HealthCheck{
 			Name:    "Discord webhook",
 			Status:  "❌",
@@ -197,7 +195,7 @@ func (ns *NotificationService) checkDiscordWebhook() HealthCheck {
 }
 
 func (ns *NotificationService) checkNotificationSettings() HealthCheck {
-	if !ns.config.Notifications.ErrorNotifications && !ns.config.Notifications.SuccessNotifications {
+	if !ns.GetConfig().Notifications.ErrorNotifications && !ns.GetConfig().Notifications.SuccessNotifications {
 		return HealthCheck{
 			Name:    "Notification settings",
 			Status:  "⚠️",

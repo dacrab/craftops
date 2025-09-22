@@ -169,7 +169,7 @@ craftops health-check
 
 ### 4️⃣ **Start Managing Your Server**
 ```bash
-craftops update-mods     # Update all mods
+craftops update-mods     # Update all mods (aliases: update, upgrade)
 craftops server restart  # Restart with player warnings
 ```
 

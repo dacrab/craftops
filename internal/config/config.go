@@ -155,20 +155,44 @@ func DefaultConfig() *Config {
 func LoadConfig(configPath string) (*Config, error) {
 	config := DefaultConfig()
 
-	if configPath == "" {
-		configPath = findDefaultConfig()
-	}
-	if configPath != "" {
-		if _, err := toml.DecodeFile(configPath, config); err != nil {
-			return nil, fmt.Errorf("failed to load config file %s: %w", configPath, err)
-		}
+	configPath = resolveConfigPath(configPath)
+	if err := loadConfigFile(configPath, config); err != nil {
+		return nil, err
 	}
 
-	if err := config.Validate(); err != nil {
+	normalizeConfigPaths(config)
+
+	if err := validateConfig(config); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %w", err)
 	}
 
 	return config, nil
+}
+
+// resolveConfigPath determines the configuration file path to use
+func resolveConfigPath(configPath string) string {
+	if configPath != "" {
+		return configPath
+	}
+	return findDefaultConfig()
+}
+
+// loadConfigFile loads the TOML configuration file if it exists
+func loadConfigFile(configPath string, config *Config) error {
+	if configPath == "" {
+		return nil // No config file found, use defaults
+	}
+
+	if _, err := toml.DecodeFile(configPath, config); err != nil {
+		return fmt.Errorf("failed to load config file %s: %w", configPath, err)
+	}
+	return nil
+}
+
+// validateConfig validates the loaded configuration
+func validateConfig(config *Config) error {
+	validator := NewValidator()
+	return validator.ValidateConfig(config)
 }
 
 // SaveConfig saves the configuration to a TOML file
@@ -187,17 +211,6 @@ func (c *Config) SaveConfig(configPath string) error {
 	return nil
 }
 
-// Validate validates the configuration
-func (c *Config) Validate() error {
-	if err := c.validateModloader(); err != nil {
-		return err
-	}
-	if err := c.validateLogging(); err != nil {
-		return err
-	}
-	return nil
-}
-
 // GetStartCommand returns the complete server start command
 func (s *ServerConfig) GetStartCommand() string {
 	javaArgs := strings.Join(s.JavaFlags, " ")
@@ -206,6 +219,13 @@ func (s *ServerConfig) GetStartCommand() string {
 
 // findDefaultConfig searches for config file in default locations
 func findDefaultConfig() string {
+	// Highest priority: environment variable
+	if envPath := os.Getenv("CRAFTOPS_CONFIG"); envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			return envPath
+		}
+	}
+
 	defaultPaths := []string{
 		"config.toml",
 		filepath.Join(os.Getenv("HOME"), ".config", "craftops", "config.toml"),
@@ -220,52 +240,29 @@ func findDefaultConfig() string {
 	return ""
 }
 
-// validateModloader validates the modloader configuration
-func (c *Config) validateModloader() error {
-	validModloaders := []string{"fabric", "forge", "quilt", "neoforge"}
-	modloader := strings.ToLower(c.Minecraft.Modloader)
-
-	for _, v := range validModloaders {
-		if modloader == v {
-			c.Minecraft.Modloader = modloader
-			return nil
-		}
-	}
-
-	return fmt.Errorf("unsupported modloader: %s. Must be one of %v", c.Minecraft.Modloader, validModloaders)
+// normalizeConfigPaths expands ~ and converts relative paths to absolute
+func normalizeConfigPaths(cfg *Config) {
+	cfg.Paths.Server = normalizePath(cfg.Paths.Server)
+	cfg.Paths.Mods = normalizePath(cfg.Paths.Mods)
+	cfg.Paths.Backups = normalizePath(cfg.Paths.Backups)
+	cfg.Paths.Logs = normalizePath(cfg.Paths.Logs)
 }
 
-// validateLogging validates the logging configuration
-func (c *Config) validateLogging() error {
-	validLevels := []string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-	level := strings.ToUpper(c.Logging.Level)
-
-	levelValid := false
-	for _, v := range validLevels {
-		if level == v {
-			levelValid = true
-			break
+func normalizePath(p string) string {
+	if p == "" {
+		return p
+	}
+	// expand ~ to user home
+	if strings.HasPrefix(p, "~") {
+		if home, err := os.UserHomeDir(); err == nil {
+			p = filepath.Join(home, strings.TrimPrefix(p, "~"))
 		}
 	}
-	if !levelValid {
-		return fmt.Errorf("invalid log level: %s. Must be one of %v", c.Logging.Level, validLevels)
-	}
-	c.Logging.Level = level
-
-	validFormats := []string{"json", "text"}
-	format := strings.ToLower(c.Logging.Format)
-
-	formatValid := false
-	for _, v := range validFormats {
-		if format == v {
-			formatValid = true
-			break
+	// make absolute
+	if !filepath.IsAbs(p) {
+		if abs, err := filepath.Abs(p); err == nil {
+			p = abs
 		}
 	}
-	if !formatValid {
-		return fmt.Errorf("invalid log format: %s. Must be one of %v", c.Logging.Format, validFormats)
-	}
-	c.Logging.Format = format
-
-	return nil
+	return p
 }

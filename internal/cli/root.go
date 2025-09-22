@@ -3,75 +3,78 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
+	"io"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"craftops/internal/config"
+	"craftops/internal/logger"
+	"craftops/internal/view"
 )
 
 var (
 	cfgFile string
 	debug   bool
 	dryRun  bool
-	cfg     *config.Config
-	logger  *zap.Logger
 	// Version can be set by ldflags during build
 	Version = "2.0.1"
 )
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "craftops",
-	Short: "🎮 Modern Minecraft server operations and mod management",
-	Long: `CraftOps is a comprehensive CLI tool for Minecraft server operations and mod management.
+// NewRootCmd creates the root command and sets up its flags and subcommands.
+func NewRootCmd(serviceFactory ServiceFactory) *cobra.Command {
+	var actualFactory ServiceFactory = serviceFactory
 
+	rootCmd := &cobra.Command{
+		Use:   "craftops",
+		Short: "🎮 Modern Minecraft server operations and mod management",
+		Long: `CraftOps is a comprehensive CLI tool for Minecraft server operations and mod management.
+	
 Features:
 • Server lifecycle management (start, stop, restart) - Linux/macOS only
 • Automated backups with retention policies
 • Discord notifications and player warnings
 • Health checks and configuration validation`,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Initialize configuration
-		var err error
-		cfg, err = config.LoadConfig(cfgFile)
-		if err != nil {
-			return fmt.Errorf("failed to load configuration: %w", err)
-		}
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// ensure view output goes to cobra's output writer
+			var w io.Writer = cmd.OutOrStdout()
+			view.SetWriter(w)
+			// Initialize factory only if not provided (for real application, not tests)
+			if actualFactory == nil {
+				cfg, err := config.LoadConfig(cfgFile)
+				if err != nil {
+					return fmt.Errorf("failed to load configuration: %w", err)
+				}
 
-		// Override config with CLI flags
-		if debug {
-			cfg.Debug = true
-			cfg.Logging.Level = "DEBUG"
-		}
-		if dryRun {
-			cfg.DryRun = true
-		}
+				// Override config with CLI flags
+				if debug {
+					cfg.Debug = true
+					cfg.Logging.Level = "DEBUG"
+				}
+				if dryRun {
+					cfg.DryRun = true
+				}
 
-		// Initialize logger
-		logger = initLogger(cfg)
+				appLogger := logger.New(cfg)
+				actualFactory = NewServiceFactory(cfg, appLogger)
+			}
+			return nil
+		},
+	}
 
-		return nil
-	},
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-func Execute() error {
-	return rootCmd.Execute()
-}
-
-func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file path")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug mode")
-	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "show what would be done without making changes")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "enable debug mode")
+	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would be done without making changes")
 
-	// Add version flag
+	// Add subcommands
+	addBackupCommands(rootCmd, actualFactory)
+	addHealthCheckCommand(rootCmd, actualFactory)
+	addInitCommand(rootCmd)
+	addModsCommands(rootCmd, actualFactory)
+	addServerCommands(rootCmd, actualFactory)
+	addRootShortcuts(rootCmd, actualFactory)
+
+	// Add version flag and alias top-level help/version
 	rootCmd.Flags().BoolP("version", "v", false, "show version information")
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
 		if version, _ := cmd.Flags().GetBool("version"); version {
@@ -80,210 +83,101 @@ func init() {
 		}
 		_ = cmd.Help()
 	}
+
+	return rootCmd
 }
 
-// initLogger initializes the logger based on configuration
-func initLogger(cfg *config.Config) *zap.Logger {
-	// Parse log level
-	var level zapcore.Level
-	switch cfg.Logging.Level {
-	case "DEBUG":
-		level = zapcore.DebugLevel
-	case "INFO":
-		level = zapcore.InfoLevel
-	case "WARNING":
-		level = zapcore.WarnLevel
-	case "ERROR":
-		level = zapcore.ErrorLevel
-	case "CRITICAL":
-		level = zapcore.FatalLevel
-	default:
-		level = zapcore.InfoLevel
-	}
+// Execute adds all child commands to the root command and sets flags appropriately.
+func Execute() error {
+	cmd := NewRootCmd(nil)
+	return cmd.Execute()
+}
 
-	// Create encoder config
-	var encoderConfig zapcore.EncoderConfig
-	if cfg.Logging.Format == "json" {
-		encoderConfig = zap.NewProductionEncoderConfig()
-	} else {
-		encoderConfig = zap.NewDevelopmentEncoderConfig()
-		encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	}
+// Helper functions for adding subcommands
+func addBackupCommands(rootCmd *cobra.Command, factory ServiceFactory) {
+	rootCmd.AddCommand(newBackupCmd(factory))
+}
 
-	// Create cores
-	var cores []zapcore.Core
+func addHealthCheckCommand(rootCmd *cobra.Command, factory ServiceFactory) {
+	rootCmd.AddCommand(newHealthCheckCmd(factory))
+}
 
-	// Console core
-	if cfg.Logging.ConsoleEnabled {
-		var encoder zapcore.Encoder
-		if cfg.Logging.Format == "json" {
-			encoder = zapcore.NewJSONEncoder(encoderConfig)
-		} else {
-			encoder = zapcore.NewConsoleEncoder(encoderConfig)
-		}
+func addInitCommand(rootCmd *cobra.Command) {
+	rootCmd.AddCommand(newInitCmd())
+}
 
-		consoleCore := zapcore.NewCore(
-			encoder,
-			zapcore.AddSync(os.Stderr),
-			level,
-		)
-		cores = append(cores, consoleCore)
-	}
+func addModsCommands(rootCmd *cobra.Command, factory ServiceFactory) {
+	rootCmd.AddCommand(newModsCmd(factory))
+	rootCmd.AddCommand(newUpdateModsStandaloneCmd(factory))
+}
 
-	// File core
-	if cfg.Logging.FileEnabled {
-		// Ensure log directory exists
-		logDir := filepath.Dir(cfg.Paths.Logs)
-		_ = os.MkdirAll(logDir, 0755)
+func addServerCommands(rootCmd *cobra.Command, factory ServiceFactory) {
+	rootCmd.AddCommand(newServerCmd(factory))
+}
 
-		logFile := filepath.Join(cfg.Paths.Logs, "craftops.log")
-		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err == nil {
-			var encoder zapcore.Encoder
-			if cfg.Logging.Format == "json" {
-				encoder = zapcore.NewJSONEncoder(encoderConfig)
-			} else {
-				encoder = zapcore.NewConsoleEncoder(encoderConfig)
+// addRootShortcuts registers simplified top-level commands for better UX
+func addRootShortcuts(rootCmd *cobra.Command, factory ServiceFactory) {
+	handler := NewCommandHandler(factory)
+
+	// Server shortcuts
+	startCmd := createSimpleCommand("start", "Start the Minecraft server", []string{"up"}, func() error {
+		view.PrintInfo("Starting server...")
+		return handler.ExecuteWithSpinner("Starting server...", func(ctx context.Context) error {
+			if err := factory.GetServerService().Start(ctx); err != nil {
+				return handleError(err, "Failed to start server")
+			}
+			view.PrintSuccess("Server is now running")
+			return nil
+		})
+	})
+
+	stopCmd := createSimpleCommand("stop", "Stop the Minecraft server", nil, func() error {
+		view.PrintInfo("Stopping server...")
+		return handler.ExecuteWithSpinner("Stopping server...", func(ctx context.Context) error {
+			if err := factory.GetServerService().Stop(ctx); err != nil {
+				return handleError(err, "Failed to stop server")
+			}
+			view.PrintSuccess("Server has been stopped")
+			return nil
+		})
+	})
+
+	restartCmd := createSimpleCommand("restart", "Restart the Minecraft server", []string{"reload"}, func() error {
+		return handler.ExecuteWithContext(func(ctx context.Context) error {
+			srv := factory.GetServerService()
+			notify := factory.GetNotificationService()
+
+			// Send warnings if configured
+			if len(factory.GetConfig().Notifications.WarningIntervals) > 0 {
+				view.PrintInfo("Sending restart warnings to players...")
+				if err := notify.SendRestartWarnings(ctx); err != nil {
+					view.PrintWarning("Failed to send warnings: " + err.Error())
+				}
 			}
 
-			fileCore := zapcore.NewCore(
-				encoder,
-				zapcore.AddSync(file),
-				level,
-			)
-			cores = append(cores, fileCore)
-		}
-	}
+			view.PrintInfo("Restarting server...")
+			return runWithSpinner("Restarting server...", func() error {
+				if err := srv.Restart(ctx); err != nil {
+					_ = notify.SendErrorNotification(ctx, "Server restart failed: "+err.Error())
+					return handleError(err, "Failed to restart server")
+				}
+				view.PrintSuccess("Server has been restarted")
+				_ = notify.SendSuccessNotification(ctx, "Server restarted successfully")
+				return nil
+			})
+		})
+	})
 
-	// Create logger
-	core := zapcore.NewTee(cores...)
-	newLogger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
-
-	return newLogger
-}
-
-// getContext returns a context for operations
-func getContext() context.Context {
-	return context.Background()
-}
-
-// Color scheme
-var (
-	successColor = color.New(color.FgGreen, color.Bold)
-	errorColor   = color.New(color.FgRed, color.Bold)
-	warningColor = color.New(color.FgYellow, color.Bold)
-	infoColor    = color.New(color.FgCyan, color.Bold)
-	headerColor  = color.New(color.FgMagenta, color.Bold)
-	accentColor  = color.New(color.FgBlue, color.Bold)
-	dimColor     = color.New(color.FgHiBlack)
-)
-
-// printBanner prints a beautiful banner
-func printBanner(title string) {
-	width := 60
-	padding := (width - len(title) - 4) / 2
-
-	headerColor.Println(strings.Repeat("═", width))
-	headerColor.Printf("║%s🎮 %s 🎮%s║\n",
-		strings.Repeat(" ", padding),
-		title,
-		strings.Repeat(" ", padding))
-	headerColor.Println(strings.Repeat("═", width))
-	fmt.Println()
-}
-
-// printSection prints a section header
-func printSection(title string) {
-	accentColor.Printf("\n▶ %s\n", title)
-	dimColor.Println(strings.Repeat("─", len(title)+2))
-}
-
-// printSuccess prints a success message
-func printSuccess(message string) {
-	successColor.Printf("✅ %s\n", message)
-}
-
-// printError prints an error message
-func printError(message string) {
-	errorColor.Printf("❌ %s\n", message)
-}
-
-// printWarning prints a warning message
-func printWarning(message string) {
-	warningColor.Printf("⚠️  %s\n", message)
-}
-
-// printInfo prints an info message
-func printInfo(message string) {
-	infoColor.Printf("ℹ️  %s\n", message)
-}
-
-// printStep prints a step in a process
-func printStep(step int, total int, message string) {
-	accentColor.Printf("[%d/%d] ", step, total)
-	fmt.Printf("%s\n", message)
-}
-
-// printTable prints a formatted table
-func printTable(headers []string, rows [][]string) {
-	// Calculate column widths
-	widths := make([]int, len(headers))
-	for i, header := range headers {
-		widths[i] = len(header)
-	}
-
-	for _, row := range rows {
-		for i, cell := range row {
-			if i < len(widths) && len(cell) > widths[i] {
-				widths[i] = len(cell)
+	statusCmd := createSimpleCommand("status", "Show server status", nil, func() error {
+		return handler.ExecuteWithContext(func(ctx context.Context) error {
+			status, err := factory.GetServerService().GetStatus(ctx)
+			if err != nil {
+				return handleError(err, "Failed to get server status")
 			}
-		}
-	}
+			printServerStatus(status)
+			return nil
+		})
+	})
 
-	// Print header
-	accentColor.Print("┌")
-	for i, width := range widths {
-		accentColor.Print(strings.Repeat("─", width+2))
-		if i < len(widths)-1 {
-			accentColor.Print("┬")
-		}
-	}
-	accentColor.Println("┐")
-
-	accentColor.Print("│")
-	for i, header := range headers {
-		fmt.Printf(" %-*s ", widths[i], header)
-		accentColor.Print("│")
-	}
-	fmt.Println()
-
-	accentColor.Print("├")
-	for i, width := range widths {
-		accentColor.Print(strings.Repeat("─", width+2))
-		if i < len(widths)-1 {
-			accentColor.Print("┼")
-		}
-	}
-	accentColor.Println("┤")
-
-	// Print rows
-	for _, row := range rows {
-		accentColor.Print("│")
-		for i, cell := range row {
-			if i < len(widths) {
-				fmt.Printf(" %-*s ", widths[i], cell)
-				accentColor.Print("│")
-			}
-		}
-		fmt.Println()
-	}
-
-	accentColor.Print("└")
-	for i, width := range widths {
-		accentColor.Print(strings.Repeat("─", width+2))
-		if i < len(widths)-1 {
-			accentColor.Print("┴")
-		}
-	}
-	accentColor.Println("┘")
+	rootCmd.AddCommand(startCmd, stopCmd, restartCmd, statusCmd)
 }

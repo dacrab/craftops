@@ -16,8 +16,7 @@ import (
 
 // ServerService handles server management operations
 type ServerService struct {
-	config *config.Config
-	logger *zap.Logger
+	*BaseService
 }
 
 // ServerStatus represents server status information
@@ -29,10 +28,9 @@ type ServerStatus struct {
 }
 
 // NewServerService creates a new server service instance
-func NewServerService(cfg *config.Config, logger *zap.Logger) *ServerService {
+func NewServerService(cfg *config.Config, logger *zap.Logger) ServerServiceInterface {
 	return &ServerService{
-		config: cfg,
-		logger: logger,
+		BaseService: NewBaseService(cfg, logger),
 	}
 }
 
@@ -50,7 +48,7 @@ func (ss *ServerService) HealthCheck(ctx context.Context) []HealthCheck {
 }
 
 func (ss *ServerService) checkServerDirectory() HealthCheck {
-	if info, err := os.Stat(ss.config.Paths.Server); err == nil && info.IsDir() {
+	if info, err := os.Stat(ss.GetConfig().Paths.Server); err == nil && info.IsDir() {
 		return HealthCheck{
 			Name:    "Server directory",
 			Status:  "✅",
@@ -65,7 +63,7 @@ func (ss *ServerService) checkServerDirectory() HealthCheck {
 }
 
 func (ss *ServerService) checkServerJAR() HealthCheck {
-	serverJar := filepath.Join(ss.config.Paths.Server, ss.config.Server.JarName)
+	serverJar := filepath.Join(ss.GetConfig().Paths.Server, ss.GetConfig().Server.JarName)
 	if info, err := os.Stat(serverJar); err == nil && !info.IsDir() {
 		sizeMB := float64(info.Size()) / (1024 * 1024)
 		return HealthCheck{
@@ -77,7 +75,7 @@ func (ss *ServerService) checkServerJAR() HealthCheck {
 	return HealthCheck{
 		Name:    "Server JAR",
 		Status:  "❌",
-		Message: fmt.Sprintf("Not found: %s", ss.config.Server.JarName),
+		Message: fmt.Sprintf("Not found: %s", ss.GetConfig().Server.JarName),
 	}
 }
 
@@ -105,7 +103,7 @@ func (ss *ServerService) GetStatus(ctx context.Context) (*ServerStatus, error) {
 	cmd := exec.CommandContext(ctx, "screen", "-ls")
 	output, err := cmd.Output()
 	if err != nil {
-		ss.logger.Error("Error checking server status", zap.Error(err))
+		ss.GetLogger().Error("Error checking server status", zap.Error(err))
 		return &ServerStatus{IsRunning: false}, nil
 	}
 
@@ -115,8 +113,8 @@ func (ss *ServerService) GetStatus(ctx context.Context) (*ServerStatus, error) {
 
 // Start starts the Minecraft server
 func (ss *ServerService) Start(ctx context.Context) error {
-	if ss.config.DryRun {
-		ss.logger.Info("Dry run: Would start server")
+	if ss.GetConfig().DryRun {
+		ss.GetLogger().Info("Dry run: Would start server")
 		return nil
 	}
 
@@ -124,21 +122,21 @@ func (ss *ServerService) Start(ctx context.Context) error {
 	if status, err := ss.GetStatus(ctx); err != nil {
 		return fmt.Errorf("failed to check server status: %w", err)
 	} else if status.IsRunning {
-		ss.logger.Warn("Server is already running")
+		ss.GetLogger().Warn("Server is already running")
 		return nil
 	}
 
 	// Validate server JAR exists
-	serverJar := filepath.Join(ss.config.Paths.Server, ss.config.Server.JarName)
+	serverJar := filepath.Join(ss.GetConfig().Paths.Server, ss.GetConfig().Server.JarName)
 	if _, err := os.Stat(serverJar); os.IsNotExist(err) {
 		return fmt.Errorf("server JAR not found: %s", serverJar)
 	}
 	// Start server in screen session
-	javaArgs := append(ss.config.Server.JavaFlags, "-jar", ss.config.Server.JarName, "nogui")
+	javaArgs := append(ss.GetConfig().Server.JavaFlags, "-jar", ss.GetConfig().Server.JarName, "nogui")
 	cmdArgs := append([]string{"-dmS", "minecraft", "java"}, javaArgs...)
 
 	cmd := exec.CommandContext(ctx, "screen", cmdArgs...)
-	cmd.Dir = ss.config.Paths.Server
+	cmd.Dir = ss.GetConfig().Paths.Server
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)
 	}
@@ -151,14 +149,14 @@ func (ss *ServerService) Start(ctx context.Context) error {
 		return fmt.Errorf("server failed to start")
 	}
 
-	ss.logger.Info("Server started successfully")
+	ss.GetLogger().Info("Server started successfully")
 	return nil
 }
 
 // Stop stops the Minecraft server
 func (ss *ServerService) Stop(ctx context.Context) error {
-	if ss.config.DryRun {
-		ss.logger.Info("Dry run: Would stop server")
+	if ss.GetConfig().DryRun {
+		ss.GetLogger().Info("Dry run: Would stop server")
 		return nil
 	}
 
@@ -166,12 +164,12 @@ func (ss *ServerService) Stop(ctx context.Context) error {
 	if status, err := ss.GetStatus(ctx); err != nil {
 		return fmt.Errorf("failed to check server status: %w", err)
 	} else if !status.IsRunning {
-		ss.logger.Warn("Server is not running")
+		ss.GetLogger().Warn("Server is not running")
 		return nil
 	}
 
 	// Send stop command
-	stopCmd := fmt.Sprintf("%s\n", ss.config.Server.StopCommand)
+	stopCmd := fmt.Sprintf("%s\n", ss.GetConfig().Server.StopCommand)
 	cmd := exec.CommandContext(ctx, "screen", "-S", "minecraft", "-X", "stuff", stopCmd)
 
 	if err := cmd.Run(); err != nil {
@@ -183,7 +181,7 @@ func (ss *ServerService) Stop(ctx context.Context) error {
 }
 
 func (ss *ServerService) waitForStop(ctx context.Context) error {
-	maxWait := time.Duration(ss.config.Server.MaxStopWait) * time.Second
+	maxWait := time.Duration(ss.GetConfig().Server.MaxStopWait) * time.Second
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
@@ -193,7 +191,7 @@ func (ss *ServerService) waitForStop(ctx context.Context) error {
 	for {
 		select {
 		case <-timeout:
-			return fmt.Errorf("server failed to stop within timeout (%d seconds)", ss.config.Server.MaxStopWait)
+			return fmt.Errorf("server failed to stop within timeout (%d seconds)", ss.GetConfig().Server.MaxStopWait)
 		case <-ticker.C:
 			status, err := ss.GetStatus(ctx)
 			if err != nil {
@@ -201,7 +199,7 @@ func (ss *ServerService) waitForStop(ctx context.Context) error {
 			}
 			if !status.IsRunning {
 				waitTime := time.Since(startTime)
-				ss.logger.Info("Server stopped successfully", zap.Duration("wait_time", waitTime))
+				ss.GetLogger().Info("Server stopped successfully", zap.Duration("wait_time", waitTime))
 				return nil
 			}
 		}
@@ -210,7 +208,7 @@ func (ss *ServerService) waitForStop(ctx context.Context) error {
 
 // Restart restarts the Minecraft server
 func (ss *ServerService) Restart(ctx context.Context) error {
-	ss.logger.Info("Restarting server")
+	ss.GetLogger().Info("Restarting server")
 
 	if err := ss.Stop(ctx); err != nil {
 		return fmt.Errorf("failed to stop server: %w", err)

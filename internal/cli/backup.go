@@ -1,89 +1,69 @@
 package cli
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 
-	"craftops/internal/services"
+	"craftops/internal/view"
 )
 
-var backupCmd = &cobra.Command{
-	Use:   "backup",
-	Short: "💾 Backup management commands",
-	Long:  `Commands for creating and managing server backups.`,
-}
+func newBackupCmd(factory ServiceFactory) *cobra.Command {
+	handler := NewCommandHandler(factory)
 
-var backupCreateCmd = &cobra.Command{
-	Use:   "create",
-	Short: "💾 Create a backup of the server",
-	Long: `Create a compressed backup of the server directory.
+	backupCmd := &cobra.Command{
+		Use:     "backup",
+		Aliases: []string{"bk"},
+		Short:   "💾 Backup management commands",
+		Long:    `Commands for creating and managing server backups.`,
+	}
 
-The backup will include all server files except those matching the configured
-exclude patterns. Backups are automatically cleaned up based on the retention policy.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := getContext()
-		backupService := services.NewBackupService(cfg, logger)
-
-		printInfo("Creating backup...")
-		bar := progressbar.NewOptions(-1,
-			progressbar.OptionSetDescription("Creating backup..."),
-			progressbar.OptionSpinnerType(14),
-		)
-
-		backupPath, err := backupService.CreateBackup(ctx)
-		_ = bar.Finish()
-
+	// Create backup command
+	createCmd := createSimpleCommand("create", "💾 Create a backup of the server", []string{"now", "run"}, func() error {
+		view.PrintInfo("Creating backup...")
+		var backupPath string
+		err := handler.ExecuteWithSpinner("Creating backup...", func(ctx context.Context) error {
+			var e error
+			backupPath, e = factory.GetBackupService().CreateBackup(ctx)
+			return e
+		})
 		if err != nil {
-			printError(fmt.Sprintf("Backup failed: %v", err))
-			return err
+			return handleError(err, "Backup failed")
 		}
 
 		if backupPath != "" {
-			printSuccess(fmt.Sprintf("Backup created: %s", backupPath))
+			view.PrintSuccess("Backup created: " + backupPath)
 		} else {
-			printInfo("Backup creation skipped (disabled or dry run)")
+			view.PrintInfo("Backup creation skipped (disabled or dry run)")
 		}
-
 		return nil
-	},
-}
+	})
 
-var backupListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "📋 List available backups",
-	Long:  `List all available backups with their creation dates and sizes.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		backupService := services.NewBackupService(cfg, logger)
-
-		backups, err := backupService.ListBackups()
+	// List backups command
+	listCmd := createSimpleCommand("list", "📋 List available backups", []string{"ls"}, func() error {
+		backups, err := factory.GetBackupService().ListBackups()
 		if err != nil {
-			printError(fmt.Sprintf("Failed to list backups: %v", err))
-			return err
+			return handleError(err, "Failed to list backups")
 		}
-
-		if len(backups) == 0 {
-			printWarning("No backups found")
-			return nil
-		}
-
-		fmt.Println("\n💾 Available Backups")
-		fmt.Println("────────────────────")
-		fmt.Printf("%-40s %-20s %s\n", "Name", "Date", "Size")
-		fmt.Printf("%-40s %-20s %s\n", "────", "────", "────")
-
-		for _, backup := range backups {
-			fmt.Printf("%-40s %-20s %s\n", backup.Name, backup.CreatedAt, backup.Size)
-		}
-
-		fmt.Printf("\nTotal: %d backups\n", len(backups))
+		printBackupTable(backups)
 		return nil
-	},
-}
+	})
 
-func init() {
-	rootCmd.AddCommand(backupCmd)
-	backupCmd.AddCommand(backupCreateCmd)
-	backupCmd.AddCommand(backupListCmd)
+	// Restore backup command
+	var force bool
+	restoreCmd := createArgsCommand("restore <path-to-backup>", "♻️ Restore a backup archive", cobra.ExactArgs(1), func(args []string) error {
+		view.PrintInfo("Restoring backup...")
+		return handler.ExecuteWithSpinner("Restoring...", func(ctx context.Context) error {
+			err := factory.GetBackupService().RestoreBackup(ctx, args[0], force)
+			if err != nil {
+				return handleError(err, "Restore failed")
+			}
+			view.PrintSuccess("Backup restored successfully")
+			return nil
+		})
+	})
+	restoreCmd.Flags().BoolVarP(&force, "force", "f", false, "overwrite existing files in server directory")
+
+	backupCmd.AddCommand(createCmd, listCmd, restoreCmd)
+	return backupCmd
 }

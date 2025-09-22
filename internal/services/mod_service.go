@@ -21,8 +21,7 @@ import (
 
 // ModService handles mod management operations
 type ModService struct {
-	config *config.Config
-	logger *zap.Logger
+	*BaseService
 	client *http.Client
 }
 
@@ -50,10 +49,9 @@ type HealthCheck struct {
 }
 
 // NewModService creates a new mod service instance
-func NewModService(cfg *config.Config, logger *zap.Logger) *ModService {
+func NewModService(cfg *config.Config, logger *zap.Logger) ModServiceInterface {
 	return &ModService{
-		config: cfg,
-		logger: logger,
+		BaseService: NewBaseService(cfg, logger),
 		client: &http.Client{
 			Timeout: time.Duration(cfg.Mods.Timeout) * time.Second,
 		},
@@ -71,7 +69,7 @@ func (ms *ModService) HealthCheck(ctx context.Context) []HealthCheck {
 
 // UpdateAllMods updates all configured mods to their latest versions
 func (ms *ModService) UpdateAllMods(ctx context.Context, force bool) (*ModUpdateResult, error) {
-	ms.logger.Info("Starting mod update process", zap.Bool("force", force))
+	ms.GetLogger().Info("Starting mod update process", zap.Bool("force", force))
 
 	result := &ModUpdateResult{
 		UpdatedMods: []string{},
@@ -79,21 +77,21 @@ func (ms *ModService) UpdateAllMods(ctx context.Context, force bool) (*ModUpdate
 		SkippedMods: []string{},
 	}
 
-	if ms.config.DryRun {
-		ms.logger.Info("Dry run mode - no actual changes will be made")
+	if ms.GetConfig().DryRun {
+		ms.GetLogger().Info("Dry run mode - no actual changes will be made")
 		result.UpdatedMods = []string{"example-mod (dry-run)"}
 		return result, nil
 	}
 
-	sources := ms.config.Mods.ModrinthSources
+	sources := ms.GetConfig().Mods.ModrinthSources
 	if len(sources) == 0 {
-		ms.logger.Info("No mod sources configured")
+		ms.GetLogger().Info("No mod sources configured")
 		return result, nil
 	}
 
 	ms.processModsParallel(ctx, sources, force, result)
 
-	ms.logger.Info("Mod update process completed",
+	ms.GetLogger().Info("Mod update process completed",
 		zap.Int("updated", len(result.UpdatedMods)),
 		zap.Int("failed", len(result.FailedMods)),
 		zap.Int("skipped", len(result.SkippedMods)))
@@ -103,7 +101,7 @@ func (ms *ModService) UpdateAllMods(ctx context.Context, force bool) (*ModUpdate
 
 // ListInstalledMods lists all currently installed mods
 func (ms *ModService) ListInstalledMods() ([]map[string]interface{}, error) {
-	files, err := filepath.Glob(filepath.Join(ms.config.Paths.Mods, "*.jar"))
+	files, err := filepath.Glob(filepath.Join(ms.GetConfig().Paths.Mods, "*.jar"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list mod files: %w", err)
 	}
@@ -131,7 +129,7 @@ func (ms *ModService) ListInstalledMods() ([]map[string]interface{}, error) {
 
 // checkModsDirectory checks if the mods directory exists and counts JAR files
 func (ms *ModService) checkModsDirectory() HealthCheck {
-	modsDir := ms.config.Paths.Mods
+	modsDir := ms.GetConfig().Paths.Mods
 	info, err := os.Stat(modsDir)
 	if err != nil || !info.IsDir() {
 		return HealthCheck{
@@ -154,7 +152,7 @@ func (ms *ModService) checkModsDirectory() HealthCheck {
 
 // checkModSources checks the mod sources configuration
 func (ms *ModService) checkModSources() HealthCheck {
-	totalSources := len(ms.config.Mods.ModrinthSources)
+	totalSources := len(ms.GetConfig().Mods.ModrinthSources)
 	if totalSources == 0 {
 		return HealthCheck{
 			Name:    "Mod sources",
@@ -210,7 +208,7 @@ func (ms *ModService) checkAPIConnectivity(ctx context.Context) HealthCheck {
 
 // processModsParallel processes mods concurrently
 func (ms *ModService) processModsParallel(ctx context.Context, sources []string, force bool, result *ModUpdateResult) {
-	semaphore := make(chan struct{}, ms.config.Mods.ConcurrentDownloads)
+	semaphore := make(chan struct{}, ms.GetConfig().Mods.ConcurrentDownloads)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
@@ -225,7 +223,7 @@ func (ms *ModService) processModsParallel(ctx context.Context, sources []string,
 				mu.Lock()
 				result.FailedMods[src] = err.Error()
 				mu.Unlock()
-				ms.logger.Error("Failed to update mod", zap.String("url", src), zap.Error(err))
+				ms.GetLogger().Error("Failed to update mod", zap.String("url", src), zap.Error(err))
 			} else {
 				mu.Lock()
 				result.UpdatedMods = append(result.UpdatedMods, src)
@@ -271,7 +269,7 @@ func (ms *ModService) parseModrinthProjectID(modURL string) (string, error) {
 // fetchModrinthLatestVersion fetches the latest compatible version from Modrinth API
 func (ms *ModService) fetchModrinthLatestVersion(ctx context.Context, projectID string) (*ModInfo, error) {
 	url := fmt.Sprintf("https://api.modrinth.com/v2/project/%s/version?game_versions=[\"%s\"]&loaders=[\"%s\"]",
-		projectID, ms.config.Minecraft.Version, ms.config.Minecraft.Modloader)
+		projectID, ms.GetConfig().Minecraft.Version, ms.GetConfig().Minecraft.Modloader)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -321,7 +319,7 @@ func (ms *ModService) fetchModrinthLatestVersion(ctx context.Context, projectID 
 
 // downloadMod downloads a mod file
 func (ms *ModService) downloadMod(ctx context.Context, downloadURL, filename string) error {
-	modsDir := ms.config.Paths.Mods
+	modsDir := ms.GetConfig().Paths.Mods
 
 	if err := os.MkdirAll(modsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create mods directory: %w", err)
@@ -353,6 +351,6 @@ func (ms *ModService) downloadMod(ctx context.Context, downloadURL, filename str
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
-	ms.logger.Info("Downloaded mod", zap.String("filename", filename))
+	ms.GetLogger().Info("Downloaded mod", zap.String("filename", filename))
 	return nil
 }
