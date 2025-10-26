@@ -7,7 +7,6 @@ linters:
   enable:
     - govet
     - staticcheck
-    - gosimple
     - errcheck
     - misspell
     - gosec
