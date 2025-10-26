@@ -61,7 +61,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Lock closed issues and PRs after 30 days
-        uses: dessant/lock-threads@v4
+        uses: dessant/lock-threads@v5
         with:
           issue-inactive-days: 30
           pr-inactive-days: 30
