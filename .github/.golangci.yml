@@ -1,9 +1,5 @@
 run:
   timeout: 3m
-  modules-download-mode: readonly
-  skip-dirs:
-    - build
-    - dist
 
 linters:
   enable:
@@ -32,6 +28,9 @@ linters-settings:
       - G104  # Duplicate with errcheck
 
 issues:
+  exclude-dirs:
+    - build
+    - dist
   exclude-rules:
     # Tests: relax security and errcheck noise
     - path: _test\.go
