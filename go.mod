@@ -2,8 +2,6 @@ module craftops
 
 go 1.24
 
-toolchain go1.24.9
-
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/fatih/color v1.18.0
