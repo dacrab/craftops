@@ -203,7 +203,7 @@ func (ms *ModService) checkAPIConnectivity(ctx context.Context) HealthCheck {
 			Message: fmt.Sprintf("Connection failed: %v", err),
 		}
 	}
-    defer func() { _ = resp.Body.Close() }()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return HealthCheck{
@@ -311,7 +311,7 @@ func (ms *ModService) fetchModrinthLatestVersion(ctx context.Context, projectID 
 			lastErr = err
 		} else {
 			func() {
-                defer func() { _ = resp.Body.Close() }()
+				defer func() { _ = resp.Body.Close() }()
 				if resp.StatusCode == 200 {
 					body, err := io.ReadAll(resp.Body)
 					if err != nil {
@@ -371,7 +371,7 @@ func (ms *ModService) fetchModrinthLatestVersion(ctx context.Context, projectID 
 func (ms *ModService) downloadMod(ctx context.Context, downloadURL, filename string, force bool) (bool, error) {
 	modsDir := ms.config.Paths.Mods
 
-    if err := os.MkdirAll(modsDir, 0o750); err != nil {
+	if err := os.MkdirAll(modsDir, 0o750); err != nil {
 		return false, fmt.Errorf("failed to create mods directory: %w", err)
 	}
 
@@ -393,8 +393,8 @@ func (ms *ModService) downloadMod(ctx context.Context, downloadURL, filename str
 	for attempt := 0; attempt <= ms.config.Mods.MaxRetries; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 		if err != nil {
-            _ = tmpFile.Close()
-            _ = os.Remove(tmpPath)
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpPath)
 			return false, err
 		}
 		req.Header.Set("User-Agent", "craftops/"+time.Now().Format("20060102"))
@@ -404,7 +404,7 @@ func (ms *ModService) downloadMod(ctx context.Context, downloadURL, filename str
 			lastErr = err
 		} else {
 			func() {
-                defer func() { _ = resp.Body.Close() }()
+				defer func() { _ = resp.Body.Close() }()
 				if resp.StatusCode == 200 {
 					if _, err = io.Copy(tmpFile, resp.Body); err != nil {
 						lastErr = fmt.Errorf("failed to write temp file: %w", err)
@@ -428,25 +428,25 @@ func (ms *ModService) downloadMod(ctx context.Context, downloadURL, filename str
 		delay := time.Duration(ms.config.Mods.RetryDelay * float64(time.Second))
 		select {
 		case <-ctx.Done():
-            _ = tmpFile.Close()
-            _ = os.Remove(tmpPath)
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpPath)
 			return false, ctx.Err()
 		case <-time.After(delay):
 		}
 	}
-	if lastErr != nil {
+    if lastErr != nil {
         _ = tmpFile.Close()
-		os.Remove(tmpPath)
-		return false, lastErr
-	}
-	tmpFile.Close()
+        _ = os.Remove(tmpPath)
+        return false, lastErr
+    }
+    _ = tmpFile.Close()
 
 	// Replace existing file atomically when possible
 	if _, err := os.Stat(finalPath); err == nil {
-        _ = os.Remove(finalPath)
+		_ = os.Remove(finalPath)
 	}
 	if err := os.Rename(tmpPath, finalPath); err != nil {
-        _ = os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return false, fmt.Errorf("failed to move temp file into place: %w", err)
 	}
 
