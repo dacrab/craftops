@@ -123,7 +123,7 @@ func (bs *BackupService) validateServerDirectory() error {
 }
 
 func (bs *BackupService) ensureBackupDir() error {
-    return os.MkdirAll(bs.config.Paths.Backups, 0o750)
+	return os.MkdirAll(bs.config.Paths.Backups, 0o750)
 }
 
 func (bs *BackupService) createBackupFile(ctx context.Context) (string, error) {
@@ -133,29 +133,29 @@ func (bs *BackupService) createBackupFile(ctx context.Context) (string, error) {
 
 	bs.logger.Info("Creating backup", zap.String("backup_name", backupName))
 
-    // #nosec G304 -- backup path is constructed within configured backups directory
-    backupFile, err := os.Create(backupPath)
+	// #nosec G304 -- backup path is constructed within configured backups directory
+	backupFile, err := os.Create(backupPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create backup file: %w", err)
 	}
-    defer func() { _ = backupFile.Close() }()
+	defer func() { _ = backupFile.Close() }()
 
-    gzipWriter, err := gzip.NewWriterLevel(backupFile, clampGzipLevel(bs.config.Backup.CompressionLevel))
+	gzipWriter, err := gzip.NewWriterLevel(backupFile, clampGzipLevel(bs.config.Backup.CompressionLevel))
 	if err != nil {
 		return "", fmt.Errorf("failed to create gzip writer: %w", err)
 	}
-    defer func() { _ = gzipWriter.Close() }()
+	defer func() { _ = gzipWriter.Close() }()
 
-    tarWriter := tar.NewWriter(gzipWriter)
-    defer func() { _ = tarWriter.Close() }()
+	tarWriter := tar.NewWriter(gzipWriter)
+	defer func() { _ = tarWriter.Close() }()
 
-    if err := bs.addFilesToBackup(ctx, tarWriter); err != nil {
-        _ = os.Remove(backupPath)
+	if err := bs.addFilesToBackup(ctx, tarWriter); err != nil {
+		_ = os.Remove(backupPath)
 		return "", fmt.Errorf("failed to create backup: %w", err)
 	}
 
-    if err := bs.verifyBackup(backupPath); err != nil {
-        _ = os.Remove(backupPath)
+	if err := bs.verifyBackup(backupPath); err != nil {
+		_ = os.Remove(backupPath)
 		return "", err
 	}
 
@@ -207,12 +207,12 @@ func (bs *BackupService) addFilesToBackup(ctx context.Context, tarWriter *tar.Wr
 }
 
 func (bs *BackupService) copyFileToTar(path string, tarWriter *tar.Writer) error {
-    // #nosec G304 -- reading from path within server directory
-    file, err := os.Open(path)
+	// #nosec G304 -- reading from path within server directory
+	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-    defer func() { _ = file.Close() }()
+	defer func() { _ = file.Close() }()
 
 	_, err = io.Copy(tarWriter, file)
 	return err
@@ -326,10 +326,11 @@ func (bs *BackupService) checkBackupDirectory() HealthCheck {
 		}
 	}
 
-	testFile := filepath.Join(bs.config.Paths.Backups, ".health_check_test")
-	if file, err := os.Create(testFile); err == nil {
-		file.Close()
-		os.Remove(testFile)
+    testFile := filepath.Join(bs.config.Paths.Backups, ".health_check_test")
+    // #nosec G304 -- creating a sentinel file to verify write permissions in backups directory
+    if file, err := os.Create(testFile); err == nil {
+        _ = file.Close()
+        _ = os.Remove(testFile)
 		return HealthCheck{
 			Name:    "Backup directory",
 			Status:  "OK",

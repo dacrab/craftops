@@ -132,12 +132,13 @@ func initLogger(cfg *config.Config) *zap.Logger {
 		cores = append(cores, consoleCore)
 	}
 
-    // File core
+	// File core
 	if cfg.Logging.FileEnabled {
 		// Ensure log directory exists
-        _ = os.MkdirAll(cfg.Paths.Logs, 0o750)
+		_ = os.MkdirAll(cfg.Paths.Logs, 0o750)
 
-		logFile := filepath.Join(cfg.Paths.Logs, "craftops.log")
+        logFile := filepath.Join(cfg.Paths.Logs, "craftops.log")
+        // #nosec G304 -- log path is derived from configuration and created with safe perms
         file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err == nil {
 			var encoder zapcore.Encoder
@@ -188,25 +189,25 @@ func printBanner(title string) {
 	width := 60
 	padding := (width - len(title) - 4) / 2
 
-    _, _ = headerColor.Println(strings.Repeat("═", width))
-    _, _ = headerColor.Printf("║%s %s %s║\n",
+	_, _ = headerColor.Println(strings.Repeat("═", width))
+	_, _ = headerColor.Printf("║%s %s %s║\n",
 		strings.Repeat(" ", padding),
 		title,
 		strings.Repeat(" ", padding))
-    _, _ = headerColor.Println(strings.Repeat("═", width))
+	_, _ = headerColor.Println(strings.Repeat("═", width))
 	fmt.Println()
 }
 
 // printSection prints a section header
 func printSection(title string) {
-    _, _ = accentColor.Printf("\n▶ %s\n", title)
-    _, _ = dimColor.Println(strings.Repeat("─", len(title)+2))
+	_, _ = accentColor.Printf("\n▶ %s\n", title)
+	_, _ = dimColor.Println(strings.Repeat("─", len(title)+2))
 }
 
 // printSuccess prints a success message
 func printSuccess(message string) {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
-        _, _ = successColor.Printf("%s\n", message)
+		_, _ = successColor.Printf("%s\n", message)
 	} else {
 		fmt.Printf("SUCCESS: %s\n", message)
 	}
@@ -215,7 +216,7 @@ func printSuccess(message string) {
 // printError prints an error message
 func printError(message string) {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
-        _, _ = errorColor.Printf("%s\n", message)
+		_, _ = errorColor.Printf("%s\n", message)
 	} else {
 		fmt.Printf("ERROR: %s\n", message)
 	}
@@ -224,7 +225,7 @@ func printError(message string) {
 // printWarning prints a warning message
 func printWarning(message string) {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
-        _, _ = warningColor.Printf("%s\n", message)
+		_, _ = warningColor.Printf("%s\n", message)
 	} else {
 		fmt.Printf("WARNING: %s\n", message)
 	}
@@ -233,7 +234,7 @@ func printWarning(message string) {
 // printInfo prints an info message
 func printInfo(message string) {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
-        _, _ = infoColor.Printf("%s\n", message)
+		_, _ = infoColor.Printf("%s\n", message)
 	} else {
 		fmt.Printf("INFO: %s\n", message)
 	}
@@ -241,7 +242,7 @@ func printInfo(message string) {
 
 // printStep prints a step in a process
 func printStep(step int, total int, message string) {
-    _, _ = accentColor.Printf("[%d/%d] ", step, total)
+	_, _ = accentColor.Printf("[%d/%d] ", step, total)
 	fmt.Printf("%s\n", message)
 }
 
@@ -262,34 +263,34 @@ func printTable(headers []string, rows [][]string) {
 	}
 
 	// Print header
-    _, _ = accentColor.Print("┌")
+	_, _ = accentColor.Print("┌")
 	for i, width := range widths {
-        _, _ = accentColor.Print(strings.Repeat("─", width+2))
+		_, _ = accentColor.Print(strings.Repeat("─", width+2))
 		if i < len(widths)-1 {
-            _, _ = accentColor.Print("┬")
+			_, _ = accentColor.Print("┬")
 		}
 	}
-    _, _ = accentColor.Println("┐")
+	_, _ = accentColor.Println("┐")
 
-    _, _ = accentColor.Print("│")
+	_, _ = accentColor.Print("│")
 	for i, header := range headers {
 		fmt.Printf(" %-*s ", widths[i], header)
-        _, _ = accentColor.Print("│")
+		_, _ = accentColor.Print("│")
 	}
 	fmt.Println()
 
-    _, _ = accentColor.Print("├")
+	_, _ = accentColor.Print("├")
 	for i, width := range widths {
-        _, _ = accentColor.Print(strings.Repeat("─", width+2))
+		_, _ = accentColor.Print(strings.Repeat("─", width+2))
 		if i < len(widths)-1 {
-            _, _ = accentColor.Print("┼")
+			_, _ = accentColor.Print("┼")
 		}
 	}
-    _, _ = accentColor.Println("┤")
+	_, _ = accentColor.Println("┤")
 
 	// Print rows
 	for _, row := range rows {
-        _, _ = accentColor.Print("│")
+		_, _ = accentColor.Print("│")
 		for i, cell := range row {
 			if i < len(widths) {
 				fmt.Printf(" %-*s ", widths[i], cell)
@@ -299,12 +300,12 @@ func printTable(headers []string, rows [][]string) {
 		fmt.Println()
 	}
 
-    _, _ = accentColor.Print("└")
+	_, _ = accentColor.Print("└")
 	for i, width := range widths {
-        _, _ = accentColor.Print(strings.Repeat("─", width+2))
+		_, _ = accentColor.Print(strings.Repeat("─", width+2))
 		if i < len(widths)-1 {
-            _, _ = accentColor.Print("┴")
+			_, _ = accentColor.Print("┴")
 		}
 	}
-    _, _ = accentColor.Println("┘")
+	_, _ = accentColor.Println("┘")
 }

@@ -125,10 +125,11 @@ func checkPaths() []services.HealthCheck {
 		if info, err := os.Stat(path); err == nil {
 			if info.IsDir() {
 				// Check write permissions
-				testFile := filepath.Join(path, ".health_check_test")
-				if file, err := os.Create(testFile); err == nil {
-					file.Close()
-					os.Remove(testFile)
+                testFile := filepath.Join(path, ".health_check_test")
+                // #nosec G304 -- creating a sentinel file to verify write permissions in a known directory
+                if file, err := os.Create(testFile); err == nil {
+                    _ = file.Close()
+                    _ = os.Remove(testFile)
 					checks = append(checks, services.HealthCheck{
 						Name:    name,
 						Status:  "OK",

@@ -163,8 +163,8 @@ func (ss *ServerService) Start(ctx context.Context) error {
 	}
 	cmdArgs := append([]string{"-dmS", session, "java"}, javaArgs...)
 
-    // #nosec G204 -- arguments are controlled inputs for screen command
-    cmd := exec.CommandContext(ctx, "screen", cmdArgs...)
+	// #nosec G204 -- arguments are controlled inputs for screen command
+	cmd := exec.CommandContext(ctx, "screen", cmdArgs...)
 	cmd.Dir = ss.config.Paths.Server
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)
@@ -219,8 +219,8 @@ func (ss *ServerService) Stop(ctx context.Context) error {
 	if session == "" {
 		session = "minecraft"
 	}
-    // #nosec G204 -- stop command content is intentional and controlled
-    cmd := exec.CommandContext(ctx, "screen", "-S", session, "-X", "stuff", stopCmd)
+	// #nosec G204 -- stop command content is intentional and controlled
+	cmd := exec.CommandContext(ctx, "screen", "-S", session, "-X", "stuff", stopCmd)
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to send stop command: %w", err)
