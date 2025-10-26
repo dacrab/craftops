@@ -1,83 +1,86 @@
-name: Repository Maintenance
+name: Maintenance
 
 on:
   schedule:
-    # Run daily at 2 AM UTC for issue management
-    - cron: '0 2 * * *'
+    # Weekly on Sunday at 02:00 UTC
+    - cron: '0 2 * * 0'
   workflow_dispatch:
     inputs:
-      operation:
-        description: 'Maintenance operation to run'
+      task:
+        description: 'Maintenance task to run'
         required: true
-        default: 'stale-management'
+        default: 'stale'
         type: choice
         options:
-          - stale-management
-          - full-cleanup
+          - stale
+          - lock
+          - cleanup-runs
 
 concurrency:
   group: maintenance
   cancel-in-progress: false
 
-permissions:
-  issues: write
-  pull-requests: write
-
 jobs:
-  stale-management:
-    name: Stale Issues & PRs
+  stale:
+    name: Mark stale issues and PRs
     runs-on: ubuntu-latest
-    if: inputs.operation == 'stale-management' || github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event.inputs.task == 'stale'
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
-      - name: Mark stale issues and PRs
+      - name: Run stale bot
         uses: actions/stale@v9
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          
-          # Issue configuration
-          stale-issue-message: |
-            This issue has been automatically marked as stale because it has not had recent activity. 
-            It will be closed if no further activity occurs. 
-            
-            If this issue is still relevant, please add the `keep-open` label or comment to keep it active.
-          
-          close-issue-message: |
-            This issue was automatically closed due to inactivity.
-            If you believe this should remain open, please reopen it with updated information.
-          
-          # Pull request configuration  
-          stale-pr-message: |
-            This pull request has been automatically marked as stale because it has not had recent activity.
-            Please rebase against the latest main branch and address any feedback to keep it active.
-          
-          close-pr-message: |
-            This pull request was automatically closed due to inactivity.
-            Feel free to reopen with updated changes if you wish to continue this work.
-          
-          # Timing configuration
           days-before-stale: 30
           days-before-close: 7
           days-before-pr-close: 14
-          
-          # Labels
           stale-issue-label: 'stale'
           stale-pr-label: 'stale'
           exempt-issue-labels: 'keep-open,bug,enhancement,security,urgent'
           exempt-pr-labels: 'keep-open,work-in-progress,urgent'
-          
-          # Limits
-          operations-per-run: 50
-          
-          # Remove stale label when updated
           remove-stale-when-updated: true
+          stale-issue-message: |
+            This issue has been marked as stale due to 30 days of inactivity.
+            It will be closed in 7 days if no further activity occurs.
+            Add the `keep-open` label or comment to keep it active.
+          close-issue-message: |
+            This issue was automatically closed due to inactivity. Please reopen with updated details if needed.
+          stale-pr-message: |
+            This PR has been marked as stale due to inactivity. Please rebase and address feedback to keep it active.
+          close-pr-message: |
+            This PR was automatically closed due to inactivity. Reopen with updates to continue.
 
-  cleanup:
-    name: Full Repository Cleanup
+  lock:
+    name: Lock inactive closed threads
     runs-on: ubuntu-latest
-    if: inputs.operation == 'full-cleanup'
+    if: github.event_name == 'schedule' || github.event.inputs.task == 'lock'
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
-      - name: Repository cleanup
-        run: |
-          echo "🧹 Running full repository cleanup"
-          echo "This would perform comprehensive cleanup operations"
-          # Add additional cleanup operations here if needed
+      - name: Lock closed issues and PRs after 30 days
+        uses: dessant/lock-threads@v4
+        with:
+          issue-inactive-days: 30
+          pr-inactive-days: 30
+          exclude-any-issue-labels: 'keep-open'
+          add-issue-labels: 'locked'
+          add-pr-labels: 'locked'
+
+  cleanup-runs:
+    name: Cleanup old workflow runs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.task == 'cleanup-runs'
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Delete old workflow runs (keep 30 days / 50 min runs)
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: 30
+          keep_minimum_runs: 50

@@ -1,247 +1,95 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-# CraftOps - Installation Script
-# This script downloads and installs the latest release
-
-set -e
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Configuration
 REPO="dacrab/craftops"
-BINARY_NAME="craftops"
-INSTALL_DIR="/usr/local/bin"
+NAME="craftops"
 
-# Logging functions
-log_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+color() { printf '%b%s%b\n' "$1" "$2" "\033[0m"; }
+info() { color "\033[0;34m" "$1"; }
+ok() { color "\033[0;32m" "$1"; }
+warn() { color "\033[1;33m" "$1"; }
+err() { color "\033[0;31m" "$1"; }
+
+need() { command -v "$1" >/dev/null 2>&1 || { err "$1 is required"; exit 1; }; }
+
+detect_os() {
+  case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
+    linux) echo linux ;;
+    darwin) echo darwin ;;
+    *) err "unsupported OS"; exit 1;;
+  esac
 }
 
-log_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+detect_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) echo amd64 ;;
+    arm64|aarch64) echo arm64 ;;
+    *) err "unsupported architecture"; exit 1;;
+  esac
 }
 
-log_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+latest_tag() {
+  need curl
+  curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | \
+    sed -n 's/  "tag_name": "\([^"]\+\)".*/\1/p' | head -n1
 }
 
-log_error() {
-    echo -e "${RED}❌ $1${NC}"
+install_dir() {
+  if [ "${EUID:-$(id -u)}" -eq 0 ]; then echo /usr/local/bin; else echo "$HOME/.local/bin"; fi
 }
 
-# Header
-echo -e "${BLUE}"
-echo "🎮 CraftOps - Installation Script"
-echo "=============================================="
-echo -e "${NC}"
+main() {
+  local OS ARCH VERSION ASSET URL TMP DEST
+  OS=$(detect_os); ARCH=$(detect_arch)
+  VERSION=${VERSION:-"$(latest_tag)"}
+  [ -n "$VERSION" ] || { err "failed to resolve version"; exit 1; }
+  ASSET="${NAME}-${OS}-${ARCH}"
+  URL="https://github.com/${REPO}/releases/download/${VERSION}/${ASSET}"
+  DEST=$(install_dir)
 
-# Check if running as root for system-wide installation
-if [ "$EUID" -eq 0 ]; then
-    log_warning "Running as root - installing system-wide"
-    INSTALL_DIR="/usr/local/bin"
-else
-    log_info "Running as user - installing to ~/.local/bin"
-    INSTALL_DIR="$HOME/.local/bin"
-    mkdir -p "$INSTALL_DIR"
-    
-    # Add to PATH if not already there
-    if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-        echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> ~/.bashrc
-        echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> ~/.zshrc 2>/dev/null || true
-        log_info "Added $INSTALL_DIR to PATH in shell configuration"
-    fi
-fi
+  info "Installing ${NAME} ${VERSION} for ${OS}/${ARCH}"
+  info "Destination: ${DEST}"
+  mkdir -p "${DEST}"
 
-# Detect platform and architecture
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m)
-
-case $OS in
-    linux)
-        OS="linux"
-        ;;
-    darwin)
-        OS="darwin"
-        ;;
-    *)
-        log_error "Unsupported operating system: $OS"
-        exit 1
-        ;;
-esac
-
-case $ARCH in
-    x86_64|amd64)
-        ARCH="amd64"
-        ;;
-    arm64|aarch64)
-        ARCH="arm64"
-        ;;
-    *)
-        log_error "Unsupported architecture: $ARCH"
-        exit 1
-        ;;
-esac
-
-PLATFORM="${OS}-${ARCH}"
-log_info "Detected platform: $PLATFORM"
-
-# Get latest release version
-log_info "Fetching latest release information..."
-LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
-VERSION=$(echo "$LATEST_RELEASE" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-
-if [ -z "$VERSION" ]; then
-    log_error "Failed to get latest release version"
+  TMP=$(mktemp)
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL -o "${TMP}" "${URL}"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "${TMP}" "${URL}"
+  else
+    err "curl or wget required"
     exit 1
-fi
+  fi
 
-log_info "Latest version: $VERSION"
+  [ -s "${TMP}" ] || { err "download failed"; rm -f "${TMP}"; exit 1; }
+  chmod +x "${TMP}"
 
-# Construct download URL
-BINARY_FILE="${BINARY_NAME}-${PLATFORM}"
+  if [ -w "${DEST}" ]; then
+    mv "${TMP}" "${DEST}/${NAME}"
+  else
+    need sudo
+    sudo mv "${TMP}" "${DEST}/${NAME}"
+  fi
+  ok "Installed ${DEST}/${NAME}"
 
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$BINARY_FILE"
-log_info "Download URL: $DOWNLOAD_URL"
+  if ! command -v "${NAME}" >/dev/null 2>&1; then
+    warn "${DEST} may not be on PATH. Add: export PATH=\"${DEST}:\$PATH\""
+  fi
 
-# Download binary
-log_info "Downloading $BINARY_FILE..."
-TEMP_FILE=$(mktemp)
-
-if command -v curl >/dev/null 2>&1; then
-    curl -L -o "$TEMP_FILE" "$DOWNLOAD_URL"
-elif command -v wget >/dev/null 2>&1; then
-    wget -O "$TEMP_FILE" "$DOWNLOAD_URL"
-else
-    log_error "Neither curl nor wget is available. Please install one of them."
-    exit 1
-fi
-
-# Verify download
-if [ ! -s "$TEMP_FILE" ]; then
-    log_error "Download failed or file is empty"
-    rm -f "$TEMP_FILE"
-    exit 1
-fi
-
-# Install binary
-log_info "Installing to $INSTALL_DIR/$BINARY_NAME..."
-chmod +x "$TEMP_FILE"
-
-if [ "$EUID" -eq 0 ] || [ -w "$INSTALL_DIR" ]; then
-    mv "$TEMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
-else
-    sudo mv "$TEMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
-fi
-
-log_success "Binary installed successfully"
-
-# Create aliases
-log_info "Creating command aliases..."
-
-create_alias() {
-    local alias_name="$1"
-    local target_path="$INSTALL_DIR/$alias_name"
-    
-    if [ -e "$target_path" ]; then
-        log_warning "Alias $alias_name already exists, skipping"
-        return
-    fi
-    
-    if [ "$EUID" -eq 0 ] || [ -w "$INSTALL_DIR" ]; then
-        ln -sf "$INSTALL_DIR/$BINARY_NAME" "$target_path"
+  # Initialize config if missing
+  local CFG_DIR CFG
+  CFG_DIR="$HOME/.config/craftops"; CFG="${CFG_DIR}/config.toml"
+  if [ ! -f "${CFG}" ]; then
+    mkdir -p "${CFG_DIR}"
+    "${DEST}/${NAME}" init-config -o "${CFG}" >/dev/null 2>&1 || true
+    if [ -f "${CFG}" ]; then
+      ok "Created ${CFG}"
     else
-        sudo ln -sf "$INSTALL_DIR/$BINARY_NAME" "$target_path"
+      warn "Could not create default config"
     fi
-    
-    log_success "Created alias: $alias_name"
+  fi
+
+  ok "Done. Try: ${NAME} --version && ${NAME} health-check"
 }
 
-# No aliases needed - craftops is short and memorable
-
-# Verify installation
-log_info "Verifying installation..."
-if command -v "$BINARY_NAME" >/dev/null 2>&1; then
-    VERSION_OUTPUT=$("$BINARY_NAME" --version 2>/dev/null || echo "Version check failed")
-    log_success "Installation verified: $VERSION_OUTPUT"
-else
-    log_warning "Binary not found in PATH. You may need to restart your shell or run:"
-    echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
-fi
-
-# Test main command
-if command -v "$BINARY_NAME" >/dev/null 2>&1; then
-    log_success "Command '$BINARY_NAME' is working"
-else
-    log_warning "Command '$BINARY_NAME' not found in PATH"
-fi
-
-# Create default configuration
-log_info "Setting up configuration..."
-CONFIG_DIR="$HOME/.config/craftops"
-CONFIG_FILE="$CONFIG_DIR/config.toml"
-
-if [ ! -d "$CONFIG_DIR" ]; then
-    mkdir -p "$CONFIG_DIR"
-    log_success "Created config directory: $CONFIG_DIR"
-fi
-
-if [ ! -f "$CONFIG_FILE" ]; then
-    if command -v "$BINARY_NAME" >/dev/null 2>&1; then
-        "$BINARY_NAME" init-config -o "$CONFIG_FILE" >/dev/null 2>&1 || true
-        if [ -f "$CONFIG_FILE" ]; then
-            log_success "Created default configuration: $CONFIG_FILE"
-        else
-            log_warning "Failed to create default configuration"
-        fi
-    else
-        log_warning "Cannot create default config - binary not in PATH"
-    fi
-else
-    log_success "Configuration file already exists: $CONFIG_FILE"
-fi
-
-# Final instructions
-echo ""
-echo -e "${GREEN}🎉 Installation completed successfully!${NC}"
-echo ""
-echo "📋 Available command:"
-echo "  • craftops               (simple and memorable)"
-echo ""
-echo "🚀 Quick start:"
-echo "  1. Edit your configuration:"
-echo "     nano $CONFIG_FILE"
-echo ""
-echo "  2. Run health check:"
-echo "     craftops health-check"
-echo ""
-echo "  3. Update mods:"
-echo "     craftops update-mods"
-echo ""
-echo "  4. Server management:"
-echo "     craftops server start"
-echo "     craftops server stop"
-echo "     craftops server restart"
-echo "     craftops server status"
-echo ""
-echo "  5. Backup management:"
-echo "     craftops backup create"
-echo "     craftops backup list"
-echo ""
-echo "💡 For help:"
-echo "  craftops --help"
-echo "  craftops [command] --help"
-echo ""
-
-if [ "$EUID" -ne 0 ] && [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-    echo -e "${YELLOW}⚠️  Note: You may need to restart your shell or run:${NC}"
-    echo "  source ~/.bashrc"
-    echo ""
-fi
-
-echo -e "${BLUE}📖 Documentation: https://github.com/$REPO${NC}"
-echo -e "${BLUE}🐛 Issues: https://github.com/$REPO/issues${NC}"
+main "$@"

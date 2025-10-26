@@ -22,10 +22,7 @@ type ServerService struct {
 
 // ServerStatus represents server status information
 type ServerStatus struct {
-	IsRunning   bool   `json:"is_running"`
-	PID         *int   `json:"pid,omitempty"`
-	Uptime      string `json:"uptime,omitempty"`
-	MemoryUsage string `json:"memory_usage,omitempty"`
+	IsRunning bool `json:"is_running"`
 }
 
 // NewServerService creates a new server service instance
@@ -38,7 +35,7 @@ func NewServerService(cfg *config.Config, logger *zap.Logger) *ServerService {
 
 // HealthCheck performs health checks for the server service
 func (ss *ServerService) HealthCheck(ctx context.Context) []HealthCheck {
-	checks := make([]HealthCheck, 0, 3)
+	checks := make([]HealthCheck, 0, 4)
 
 	// Check server directory
 	checks = append(checks, ss.checkServerDirectory())
@@ -46,6 +43,8 @@ func (ss *ServerService) HealthCheck(ctx context.Context) []HealthCheck {
 	checks = append(checks, ss.checkServerJAR())
 	// Check Java availability
 	checks = append(checks, ss.checkJavaRuntime(ctx))
+	// Check screen availability
+	checks = append(checks, ss.checkScreen(ctx))
 	return checks
 }
 
@@ -53,13 +52,13 @@ func (ss *ServerService) checkServerDirectory() HealthCheck {
 	if info, err := os.Stat(ss.config.Paths.Server); err == nil && info.IsDir() {
 		return HealthCheck{
 			Name:    "Server directory",
-			Status:  "✅",
+            Status:  "OK",
 			Message: "OK",
 		}
 	}
 	return HealthCheck{
 		Name:    "Server directory",
-		Status:  "❌",
+        Status:  "ERROR",
 		Message: "Directory not found",
 	}
 }
@@ -70,13 +69,13 @@ func (ss *ServerService) checkServerJAR() HealthCheck {
 		sizeMB := float64(info.Size()) / (1024 * 1024)
 		return HealthCheck{
 			Name:    "Server JAR",
-			Status:  "✅",
+            Status:  "OK",
 			Message: fmt.Sprintf("Found (%.1f MB)", sizeMB),
 		}
 	}
 	return HealthCheck{
 		Name:    "Server JAR",
-		Status:  "❌",
+        Status:  "ERROR",
 		Message: fmt.Sprintf("Not found: %s", ss.config.Server.JarName),
 	}
 }
@@ -89,14 +88,32 @@ func (ss *ServerService) checkJavaRuntime(ctx context.Context) HealthCheck {
 	if err := cmd.Run(); err == nil {
 		return HealthCheck{
 			Name:    "Java Runtime",
-			Status:  "✅",
+            Status:  "OK",
 			Message: "Available",
 		}
 	}
 	return HealthCheck{
 		Name:    "Java Runtime",
-		Status:  "❌",
+        Status:  "ERROR",
 		Message: "Java not found or not working",
+	}
+}
+
+func (ss *ServerService) checkScreen(ctx context.Context) HealthCheck {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "screen", "-version")
+	if err := cmd.Run(); err == nil {
+		return HealthCheck{
+			Name:    "GNU screen",
+            Status:  "OK",
+			Message: "Available",
+		}
+	}
+	return HealthCheck{
+		Name:    "GNU screen",
+        Status:  "ERROR",
+		Message: "screen not found; required for server control",
 	}
 }
 
@@ -109,7 +126,12 @@ func (ss *ServerService) GetStatus(ctx context.Context) (*ServerStatus, error) {
 		return &ServerStatus{IsRunning: false}, nil
 	}
 
-	isRunning := strings.Contains(string(output), "minecraft")
+	session := ss.config.Server.SessionName
+	if session == "" {
+		session = "minecraft"
+	}
+	// screen -ls output typically includes lines like: "\t12345.<session>\t(Detached)"
+	isRunning := strings.Contains(string(output), "."+session)
 	return &ServerStatus{IsRunning: isRunning}, nil
 }
 
@@ -135,7 +157,11 @@ func (ss *ServerService) Start(ctx context.Context) error {
 	}
 	// Start server in screen session
 	javaArgs := append(ss.config.Server.JavaFlags, "-jar", ss.config.Server.JarName, "nogui")
-	cmdArgs := append([]string{"-dmS", "minecraft", "java"}, javaArgs...)
+	session := ss.config.Server.SessionName
+	if session == "" {
+		session = "minecraft"
+	}
+	cmdArgs := append([]string{"-dmS", session, "java"}, javaArgs...)
 
 	cmd := exec.CommandContext(ctx, "screen", cmdArgs...)
 	cmd.Dir = ss.config.Paths.Server
@@ -143,16 +169,32 @@ func (ss *ServerService) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to start server: %w", err)
 	}
 
-	// Verify server started
-	time.Sleep(2 * time.Second)
-	if status, err := ss.GetStatus(ctx); err != nil {
-		return fmt.Errorf("failed to verify server start: %w", err)
-	} else if !status.IsRunning {
-		return fmt.Errorf("server failed to start")
+	// Verify server started within StartupTimeout
+	timeoutSec := ss.config.Server.StartupTimeout
+	if timeoutSec <= 0 {
+		timeoutSec = 15
 	}
-
-	ss.logger.Info("Server started successfully")
-	return nil
+	start := time.Now()
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled while waiting for server start: %w", ctx.Err())
+		case <-ticker.C:
+			status, err := ss.GetStatus(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to verify server start: %w", err)
+			}
+			if status.IsRunning {
+				ss.logger.Info("Server started successfully", zap.Duration("startup_time", time.Since(start)))
+				return nil
+			}
+			if time.Since(start) > time.Duration(timeoutSec)*time.Second {
+				return fmt.Errorf("server failed to start within timeout (%ds)", timeoutSec)
+			}
+		}
+	}
 }
 
 // Stop stops the Minecraft server
@@ -172,7 +214,11 @@ func (ss *ServerService) Stop(ctx context.Context) error {
 
 	// Send stop command
 	stopCmd := fmt.Sprintf("%s\n", ss.config.Server.StopCommand)
-	cmd := exec.CommandContext(ctx, "screen", "-S", "minecraft", "-X", "stuff", stopCmd)
+	session := ss.config.Server.SessionName
+	if session == "" {
+		session = "minecraft"
+	}
+	cmd := exec.CommandContext(ctx, "screen", "-S", session, "-X", "stuff", stopCmd)
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to send stop command: %w", err)
@@ -183,29 +229,29 @@ func (ss *ServerService) Stop(ctx context.Context) error {
 }
 
 func (ss *ServerService) waitForStop(ctx context.Context) error {
-	maxWait := time.Duration(ss.config.Server.MaxStopWait) * time.Second
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
+    maxWait := time.Duration(ss.config.Server.MaxStopWait) * time.Second
+    ctx, cancel := context.WithTimeout(ctx, maxWait)
+    defer cancel()
+    ticker := time.NewTicker(time.Second)
+    defer ticker.Stop()
+    startTime := time.Now()
 
-	timeout := time.After(maxWait)
-	startTime := time.Now()
-
-	for {
-		select {
-		case <-timeout:
-			return fmt.Errorf("server failed to stop within timeout (%d seconds)", ss.config.Server.MaxStopWait)
-		case <-ticker.C:
-			status, err := ss.GetStatus(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to check server status: %w", err)
-			}
-			if !status.IsRunning {
-				waitTime := time.Since(startTime)
-				ss.logger.Info("Server stopped successfully", zap.Duration("wait_time", waitTime))
-				return nil
-			}
-		}
-	}
+    for {
+        select {
+        case <-ctx.Done():
+            return fmt.Errorf("server failed to stop within timeout (%d seconds)", ss.config.Server.MaxStopWait)
+        case <-ticker.C:
+            status, err := ss.GetStatus(ctx)
+            if err != nil {
+                return fmt.Errorf("failed to check server status: %w", err)
+            }
+            if !status.IsRunning {
+                waitTime := time.Since(startTime)
+                ss.logger.Info("Server stopped successfully", zap.Duration("wait_time", waitTime))
+                return nil
+            }
+        }
+    }
 }
 
 // Restart restarts the Minecraft server

@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 
-	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 
 	"craftops/internal/services"
@@ -12,14 +11,14 @@ import (
 // serverCmd represents the server command group
 var serverCmd = &cobra.Command{
 	Use:   "server",
-	Short: "🎮 Minecraft server management commands",
+    Short: "Minecraft server management commands",
 	Long:  `Commands for managing the Minecraft server lifecycle (start, stop, restart, status).`,
 }
 
 // serverStartCmd represents the server start command
 var serverStartCmd = &cobra.Command{
 	Use:   "start",
-	Short: "🚀 Start the Minecraft server",
+    Short: "Start the Minecraft server",
 	Long:  `Start the Minecraft server in a screen session.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := getContext()
@@ -27,13 +26,7 @@ var serverStartCmd = &cobra.Command{
 		serverService := services.NewServerService(cfg, logger)
 
 		printInfo("Starting server...")
-		bar := progressbar.NewOptions(-1,
-			progressbar.OptionSetDescription("Starting server..."),
-			progressbar.OptionSpinnerType(14),
-		)
-
 		err := serverService.Start(ctx)
-		_ = bar.Finish()
 
 		if err != nil {
 			printError(fmt.Sprintf("Failed to start server: %v", err))
@@ -48,7 +41,7 @@ var serverStartCmd = &cobra.Command{
 // serverStopCmd represents the server stop command
 var serverStopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "🛑 Stop the Minecraft server",
+    Short: "Stop the Minecraft server",
 	Long:  `Stop the Minecraft server gracefully.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := getContext()
@@ -56,13 +49,7 @@ var serverStopCmd = &cobra.Command{
 		serverService := services.NewServerService(cfg, logger)
 
 		printInfo("Stopping server...")
-		bar := progressbar.NewOptions(-1,
-			progressbar.OptionSetDescription("Stopping server..."),
-			progressbar.OptionSpinnerType(14),
-		)
-
 		err := serverService.Stop(ctx)
-		_ = bar.Finish()
 
 		if err != nil {
 			printError(fmt.Sprintf("Failed to stop server: %v", err))
@@ -77,7 +64,7 @@ var serverStopCmd = &cobra.Command{
 // serverRestartCmd represents the server restart command
 var serverRestartCmd = &cobra.Command{
 	Use:   "restart",
-	Short: "🔄 Restart the Minecraft server",
+    Short: "Restart the Minecraft server",
 	Long: `Restart the Minecraft server with optional player warnings.
 
 This command will:
@@ -101,13 +88,7 @@ This command will:
 
 		// Restart server
 		printInfo("Restarting server...")
-		bar := progressbar.NewOptions(-1,
-			progressbar.OptionSetDescription("Restarting server..."),
-			progressbar.OptionSpinnerType(14),
-		)
-
 		err := serverService.Restart(ctx)
-		_ = bar.Finish()
 
 		if err != nil {
 			printError(fmt.Sprintf("Failed to restart server: %v", err))
@@ -125,7 +106,7 @@ This command will:
 // serverStatusCmd represents the server status command
 var serverStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "📊 Check Minecraft server status",
+    Short: "Check Minecraft server status",
 	Long:  `Check the current status of the Minecraft server.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := getContext()
@@ -138,21 +119,12 @@ var serverStatusCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println()
-		fmt.Println("🎮 Server Status")
-		fmt.Println("─────────────────")
+        fmt.Println()
+        fmt.Println("Server Status")
+        fmt.Println("─────────────────")
 
 		if status.IsRunning {
 			printSuccess("Server is running")
-			if status.PID != nil {
-				fmt.Printf("PID: %d\n", *status.PID)
-			}
-			if status.Uptime != "" {
-				fmt.Printf("Uptime: %s\n", status.Uptime)
-			}
-			if status.MemoryUsage != "" {
-				fmt.Printf("Memory: %s\n", status.MemoryUsage)
-			}
 		} else {
 			printError("Server is not running")
 		}

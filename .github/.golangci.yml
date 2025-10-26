@@ -1,58 +1,45 @@
 run:
-  timeout: 5m
-  go: "1.23"
-
-output:
-  formats:
-    - format: colored-line-number
+  timeout: 3m
+  go: "1.24"
+  modules-download-mode: readonly
+  skip-dirs:
+    - build
+    - dist
 
 linters:
   enable:
-    - errcheck
-    - gosimple
     - govet
     - staticcheck
-    - unused
+    - gosimple
+    - errcheck
     - gofmt
     - goimports
     - misspell
     - gosec
-  
   disable:
-    - ineffassign  # Too many false positives
-    - godot        # Too strict
+    - godot
 
 linters-settings:
-  gosec:
-    severity: "medium"
-    excludes:
-      - G104  # Covered by errcheck
-
   goimports:
     local-prefixes: craftops
-
   misspell:
     locale: US
-
   errcheck:
     check-type-assertions: false
     check-blank: false
+  gosec:
+    severity: medium
+    excludes:
+      - G104  # Duplicate with errcheck
 
 issues:
   exclude-rules:
+    # Tests: relax security and errcheck noise
     - path: _test\.go
-      linters:
-        - gosec
-        - errcheck
-    
+      linters: [gosec, errcheck]
+    # CLI entrypoint often prints and ignores errors intentionally
     - path: cmd/
-      linters:
-        - errcheck
-    
-    # Allow deferred error checks
-    - text: "Error return value of .* is not checked"
-      source: "defer.*\\."
-    
+      linters: [errcheck]
     # Common safe patterns
     - text: "Error return value of.*Print.*is not checked"
       linters: [errcheck]

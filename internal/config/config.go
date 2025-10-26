@@ -44,12 +44,11 @@ type ServerConfig struct {
 	StopCommand    string   `toml:"stop_command"`
 	MaxStopWait    int      `toml:"max_stop_wait"`
 	StartupTimeout int      `toml:"startup_timeout"`
+	SessionName    string   `toml:"session_name"`
 }
 
 // ModsConfig holds mod management settings
 type ModsConfig struct {
-	AutoUpdate          bool     `toml:"auto_update"`
-	BackupBeforeUpdate  bool     `toml:"backup_before_update"`
 	ConcurrentDownloads int      `toml:"concurrent_downloads"`
 	MaxRetries          int      `toml:"max_retries"`
 	RetryDelay          float64  `toml:"retry_delay"`
@@ -81,8 +80,6 @@ type LoggingConfig struct {
 	Format         string `toml:"format"`
 	FileEnabled    bool   `toml:"file_enabled"`
 	ConsoleEnabled bool   `toml:"console_enabled"`
-	MaxFileSize    string `toml:"max_file_size"`
-	BackupCount    int    `toml:"backup_count"`
 }
 
 // DefaultConfig returns a configuration with sensible defaults
@@ -113,10 +110,9 @@ func DefaultConfig() *Config {
 			StopCommand:    "stop",
 			MaxStopWait:    300,
 			StartupTimeout: 120,
+			SessionName:    "minecraft",
 		},
 		Mods: ModsConfig{
-			AutoUpdate:          true,
-			BackupBeforeUpdate:  true,
 			ConcurrentDownloads: 5,
 			MaxRetries:          3,
 			RetryDelay:          2.0,
@@ -145,8 +141,6 @@ func DefaultConfig() *Config {
 			Format:         "json",
 			FileEnabled:    true,
 			ConsoleEnabled: true,
-			MaxFileSize:    "10MB",
-			BackupCount:    5,
 		},
 	}
 }
@@ -196,12 +190,6 @@ func (c *Config) Validate() error {
 		return err
 	}
 	return nil
-}
-
-// GetStartCommand returns the complete server start command
-func (s *ServerConfig) GetStartCommand() string {
-	javaArgs := strings.Join(s.JavaFlags, " ")
-	return fmt.Sprintf("java %s -jar %s nogui", javaArgs, s.JarName)
 }
 
 // findDefaultConfig searches for config file in default locations

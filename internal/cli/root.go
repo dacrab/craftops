@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/term"
 
 	"craftops/internal/config"
 )
@@ -28,7 +29,7 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "craftops",
-	Short: "🎮 Modern Minecraft server operations and mod management",
+    Short: "Modern Minecraft server operations and mod management",
 	Long: `CraftOps is a comprehensive CLI tool for Minecraft server operations and mod management.
 
 Features:
@@ -70,16 +71,10 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file path")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug mode")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "show what would be done without making changes")
-
-	// Add version flag
-	rootCmd.Flags().BoolP("version", "v", false, "show version information")
-	rootCmd.Run = func(cmd *cobra.Command, args []string) {
-		if version, _ := cmd.Flags().GetBool("version"); version {
-			fmt.Printf("CraftOps v%s\n", Version)
-			return
-		}
-		_ = cmd.Help()
-	}
+	// Cobra native version support
+	rootCmd.Version = Version
+	rootCmd.SetVersionTemplate("CraftOps v{{.Version}}\n")
+	rootCmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Help() }
 }
 
 // initLogger initializes the logger based on configuration
@@ -103,12 +98,19 @@ func initLogger(cfg *config.Config) *zap.Logger {
 
 	// Create encoder config
 	var encoderConfig zapcore.EncoderConfig
+	isTTY := term.IsTerminal(int(os.Stderr.Fd()))
 	if cfg.Logging.Format == "json" {
 		encoderConfig = zap.NewProductionEncoderConfig()
 	} else {
 		encoderConfig = zap.NewDevelopmentEncoderConfig()
-		encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		if isTTY {
+			encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		} else {
+			encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		}
 	}
+	// Disable ANSI colors on non-TTY outputs
+	color.NoColor = !isTTY
 
 	// Create cores
 	var cores []zapcore.Core
@@ -133,8 +135,7 @@ func initLogger(cfg *config.Config) *zap.Logger {
 	// File core
 	if cfg.Logging.FileEnabled {
 		// Ensure log directory exists
-		logDir := filepath.Dir(cfg.Paths.Logs)
-		_ = os.MkdirAll(logDir, 0755)
+		_ = os.MkdirAll(cfg.Paths.Logs, 0755)
 
 		logFile := filepath.Join(cfg.Paths.Logs, "craftops.log")
 		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -180,11 +181,15 @@ var (
 
 // printBanner prints a beautiful banner
 func printBanner(title string) {
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		fmt.Printf("%s\n", title)
+		return
+	}
 	width := 60
 	padding := (width - len(title) - 4) / 2
 
 	headerColor.Println(strings.Repeat("═", width))
-	headerColor.Printf("║%s🎮 %s 🎮%s║\n",
+    headerColor.Printf("║%s %s %s║\n",
 		strings.Repeat(" ", padding),
 		title,
 		strings.Repeat(" ", padding))
@@ -200,22 +205,38 @@ func printSection(title string) {
 
 // printSuccess prints a success message
 func printSuccess(message string) {
-	successColor.Printf("✅ %s\n", message)
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+        successColor.Printf("%s\n", message)
+	} else {
+		fmt.Printf("SUCCESS: %s\n", message)
+	}
 }
 
 // printError prints an error message
 func printError(message string) {
-	errorColor.Printf("❌ %s\n", message)
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+        errorColor.Printf("%s\n", message)
+	} else {
+		fmt.Printf("ERROR: %s\n", message)
+	}
 }
 
 // printWarning prints a warning message
 func printWarning(message string) {
-	warningColor.Printf("⚠️  %s\n", message)
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+        warningColor.Printf("%s\n", message)
+	} else {
+		fmt.Printf("WARNING: %s\n", message)
+	}
 }
 
 // printInfo prints an info message
 func printInfo(message string) {
-	infoColor.Printf("ℹ️  %s\n", message)
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+        infoColor.Printf("%s\n", message)
+	} else {
+		fmt.Printf("INFO: %s\n", message)
+	}
 }
 
 // printStep prints a step in a process

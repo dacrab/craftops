@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,7 +20,6 @@ const (
 	ColorGreen  = 0x00FF00 // Success
 	ColorRed    = 0xFF0000 // Error
 	ColorOrange = 0xFFA500 // Warning
-	ColorBlue   = 0x0099FF // Info
 )
 
 // DiscordEmbed represents a Discord embed
@@ -57,7 +57,7 @@ func (ns *NotificationService) SendSuccessNotification(ctx context.Context, mess
 	if !ns.config.Notifications.SuccessNotifications {
 		return nil
 	}
-	return ns.sendDiscordNotification(ctx, "✅ Success", message, ColorGreen)
+    return ns.sendDiscordNotification(ctx, "Success", message, ColorGreen)
 }
 
 // SendErrorNotification sends an error notification
@@ -65,33 +65,35 @@ func (ns *NotificationService) SendErrorNotification(ctx context.Context, messag
 	if !ns.config.Notifications.ErrorNotifications {
 		return nil
 	}
-	return ns.sendDiscordNotification(ctx, "❌ Error", message, ColorRed)
+    return ns.sendDiscordNotification(ctx, "Error", message, ColorRed)
 }
 
 // SendRestartWarnings sends restart warning notifications
 func (ns *NotificationService) SendRestartWarnings(ctx context.Context) error {
-	intervals := ns.config.Notifications.WarningIntervals
+	intervals := append([]int(nil), ns.config.Notifications.WarningIntervals...)
 	if len(intervals) == 0 {
 		return nil
 	}
+	// Ensure descending order (e.g., 15,10,5,1)
+	sort.Slice(intervals, func(i, j int) bool { return intervals[i] > intervals[j] })
 
 	ns.logger.Info("Sending restart warnings", zap.Ints("intervals", intervals))
 
 	for i, minutes := range intervals {
 		warningMsg := strings.ReplaceAll(ns.config.Notifications.WarningMessage, "{minutes}", fmt.Sprintf("%d", minutes))
 
-		if err := ns.sendDiscordNotification(ctx, "⚠️ Server Restart Warning", warningMsg, ColorOrange); err != nil {
+        if err := ns.sendDiscordNotification(ctx, "Server Restart Warning", warningMsg, ColorOrange); err != nil {
 			ns.logger.Error("Failed to send restart warning", zap.Error(err))
 			return err
 		}
 
 		if i < len(intervals)-1 {
-			var waitTime time.Duration
-			if i > 0 {
-				waitTime = time.Duration(intervals[i-1]-minutes) * time.Minute
-			} else {
-				waitTime = time.Minute
+			next := intervals[i+1]
+			diff := minutes - next
+			if diff < 0 {
+				diff = 0
 			}
+			waitTime := time.Duration(diff) * time.Minute
 
 			ns.logger.Info("Waiting before next warning", zap.Duration("wait_time", waitTime))
 
@@ -176,7 +178,7 @@ func (ns *NotificationService) checkDiscordWebhook() HealthCheck {
 	if ns.config.Notifications.DiscordWebhook == "" {
 		return HealthCheck{
 			Name:    "Discord webhook",
-			Status:  "⚠️",
+            Status:  "WARN",
 			Message: "Not configured",
 		}
 	}
@@ -184,14 +186,14 @@ func (ns *NotificationService) checkDiscordWebhook() HealthCheck {
 	if !strings.HasPrefix(ns.config.Notifications.DiscordWebhook, "https://discord.com/api/webhooks/") {
 		return HealthCheck{
 			Name:    "Discord webhook",
-			Status:  "❌",
+            Status:  "ERROR",
 			Message: "Invalid webhook URL format",
 		}
 	}
 
 	return HealthCheck{
 		Name:    "Discord webhook",
-		Status:  "✅",
+        Status:  "OK",
 		Message: "Configured",
 	}
 }
@@ -200,14 +202,14 @@ func (ns *NotificationService) checkNotificationSettings() HealthCheck {
 	if !ns.config.Notifications.ErrorNotifications && !ns.config.Notifications.SuccessNotifications {
 		return HealthCheck{
 			Name:    "Notification settings",
-			Status:  "⚠️",
+            Status:  "WARN",
 			Message: "All notifications disabled",
 		}
 	}
 
 	return HealthCheck{
 		Name:    "Notification settings",
-		Status:  "✅",
+        Status:  "OK",
 		Message: "Configured",
 	}
 }

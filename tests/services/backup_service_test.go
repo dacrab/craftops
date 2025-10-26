@@ -1,75 +1,74 @@
 package services_test
 
 import (
-	"context"
-	"testing"
-	"time"
+    "context"
+    "testing"
+    "time"
 
-	"go.uber.org/zap"
+    "go.uber.org/zap"
 
-	"craftops/internal/config"
-	"craftops/internal/services"
+    "craftops/internal/config"
+    "craftops/internal/services"
 )
 
-func TestNewBackupService(t *testing.T) {
-	cfg := config.DefaultConfig()
-	logger := zap.NewNop()
+func TestBackupServiceVariants(t *testing.T) {
+    t.Run("new service + list", func(t *testing.T) {
+        cfg := config.DefaultConfig()
+        logger := zap.NewNop()
 
-	service := services.NewBackupService(cfg, logger)
-	if service == nil {
-		t.Fatal("NewBackupService returned nil")
-	}
+        svc := services.NewBackupService(cfg, logger)
+        if svc == nil {
+            t.Fatal("NewBackupService returned nil")
+        }
+        backups, err := svc.ListBackups()
+        if err != nil {
+            t.Errorf("ListBackups error: %v", err)
+        }
+        if backups == nil {
+            t.Error("ListBackups should return empty slice, not nil")
+        }
+    })
 
-	// Test that service was created successfully (can't access private fields)
-	// Verify by calling a public method
-	backups, err := service.ListBackups()
-	if err != nil {
-		t.Errorf("Service not properly initialized: %v", err)
-	}
-	if backups == nil {
-		t.Error("Service should return empty slice, not nil")
-	}
-}
+    t.Run("health check", func(t *testing.T) {
+        cfg := config.DefaultConfig()
+        logger := zap.NewNop()
+        svc := services.NewBackupService(cfg, logger)
 
-func TestBackupServiceHealthCheck(t *testing.T) {
-	cfg := config.DefaultConfig()
-	logger := zap.NewNop()
-	service := services.NewBackupService(cfg, logger)
+        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer cancel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+        checks := svc.HealthCheck(ctx)
+        if len(checks) == 0 {
+            t.Error("HealthCheck should return at least one check")
+        }
+        for _, check := range checks {
+            if check.Name == "" {
+                t.Error("health check name should not be empty")
+            }
+            if check.Status == "" {
+                t.Error("health check status should not be empty")
+            }
+            if check.Message == "" {
+                t.Error("health check message should not be empty")
+            }
+        }
+    })
 
-	checks := service.HealthCheck(ctx)
-	if len(checks) == 0 {
-		t.Error("HealthCheck should return at least one check")
-	}
+    t.Run("create backup (dry-run)", func(t *testing.T) {
+        cfg := config.DefaultConfig()
+        cfg.DryRun = true
+        logger := zap.NewNop()
+        svc := services.NewBackupService(cfg, logger)
 
-	// Verify check structure
-	for _, check := range checks {
-		if check.Name == "" {
-			t.Error("Health check name should not be empty")
-		}
-		if check.Status == "" {
-			t.Error("Health check status should not be empty")
-		}
-		if check.Message == "" {
-			t.Error("Health check message should not be empty")
-		}
-	}
-}
+        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer cancel()
 
-func TestListBackups(t *testing.T) {
-	cfg := config.DefaultConfig()
-	logger := zap.NewNop()
-	service := services.NewBackupService(cfg, logger)
-
-	// Should not error even if backup directory doesn't exist
-	backups, err := service.ListBackups()
-	if err != nil {
-		t.Errorf("ListBackups should not error when directory doesn't exist: %v", err)
-	}
-
-	if backups == nil {
-		t.Error("ListBackups should return empty slice, not nil")
-	}
+        path, err := svc.CreateBackup(ctx)
+        if err != nil {
+            t.Fatalf("CreateBackup(dry-run) error: %v", err)
+        }
+        if path != "dry-run-backup.tar.gz" {
+            t.Errorf("unexpected dry-run path = %q", path)
+        }
+    })
 }

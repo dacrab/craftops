@@ -42,6 +42,18 @@ type ModInfo struct {
 	ProjectName string `json:"project_name"`
 }
 
+// Minimal types for Modrinth API decoding
+type mrFile struct {
+	URL      string `json:"url"`
+	Filename string `json:"filename"`
+}
+
+type mrVersion struct {
+	ID            string   `json:"id"`
+	VersionNumber string   `json:"version_number"`
+	Files         []mrFile `json:"files"`
+}
+
 // HealthCheck represents a health check result
 type HealthCheck struct {
 	Name    string `json:"name"`
@@ -134,40 +146,40 @@ func (ms *ModService) checkModsDirectory() HealthCheck {
 	modsDir := ms.config.Paths.Mods
 	info, err := os.Stat(modsDir)
 	if err != nil || !info.IsDir() {
-		return HealthCheck{
-			Name:    "Mods directory",
-			Status:  "❌",
-			Message: "Directory not found or not accessible",
-		}
+        return HealthCheck{
+            Name:    "Mods directory",
+            Status:  "ERROR",
+            Message: "Directory not found or not accessible",
+        }
 	}
 
 	jarCount := 0
 	if files, err := filepath.Glob(filepath.Join(modsDir, "*.jar")); err == nil {
 		jarCount = len(files)
 	}
-	return HealthCheck{
-		Name:    "Mods directory",
-		Status:  "✅",
-		Message: fmt.Sprintf("OK (%d mods found)", jarCount),
-	}
+    return HealthCheck{
+        Name:    "Mods directory",
+        Status:  "OK",
+        Message: fmt.Sprintf("OK (%d mods found)", jarCount),
+    }
 }
 
 // checkModSources checks the mod sources configuration
 func (ms *ModService) checkModSources() HealthCheck {
 	totalSources := len(ms.config.Mods.ModrinthSources)
-	if totalSources == 0 {
-		return HealthCheck{
-			Name:    "Mod sources",
-			Status:  "⚠️",
-			Message: "No mod sources configured",
-		}
-	}
+    if totalSources == 0 {
+        return HealthCheck{
+            Name:    "Mod sources",
+            Status:  "WARN",
+            Message: "No mod sources configured",
+        }
+    }
 
-	return HealthCheck{
-		Name:    "Mod sources",
-		Status:  "✅",
-		Message: fmt.Sprintf("%d sources configured", totalSources),
-	}
+    return HealthCheck{
+        Name:    "Mod sources",
+        Status:  "OK",
+        Message: fmt.Sprintf("%d sources configured", totalSources),
+    }
 }
 
 // checkAPIConnectivity tests connectivity to the Modrinth API
@@ -176,36 +188,36 @@ func (ms *ModService) checkAPIConnectivity(ctx context.Context) HealthCheck {
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.modrinth.com/v2/", nil)
-	if err != nil {
-		return HealthCheck{
-			Name:    "Modrinth API",
-			Status:  "❌",
-			Message: fmt.Sprintf("Request creation failed: %v", err),
-		}
-	}
+    if err != nil {
+        return HealthCheck{
+            Name:    "Modrinth API",
+            Status:  "ERROR",
+            Message: fmt.Sprintf("Request creation failed: %v", err),
+        }
+    }
 	resp, err := ms.client.Do(req)
-	if err != nil {
-		return HealthCheck{
-			Name:    "Modrinth API",
-			Status:  "❌",
-			Message: fmt.Sprintf("Connection failed: %v", err),
-		}
-	}
+    if err != nil {
+        return HealthCheck{
+            Name:    "Modrinth API",
+            Status:  "ERROR",
+            Message: fmt.Sprintf("Connection failed: %v", err),
+        }
+    }
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
-		return HealthCheck{
-			Name:    "Modrinth API",
-			Status:  "⚠️",
-			Message: fmt.Sprintf("API returned status %d", resp.StatusCode),
-		}
-	}
+    if resp.StatusCode != 200 {
+        return HealthCheck{
+            Name:    "Modrinth API",
+            Status:  "WARN",
+            Message: fmt.Sprintf("API returned status %d", resp.StatusCode),
+        }
+    }
 
-	return HealthCheck{
-		Name:    "Modrinth API",
-		Status:  "✅",
-		Message: "API accessible",
-	}
+    return HealthCheck{
+        Name:    "Modrinth API",
+        Status:  "OK",
+        Message: "API accessible",
+    }
 }
 
 // processModsParallel processes mods concurrently
@@ -218,19 +230,31 @@ func (ms *ModService) processModsParallel(ctx context.Context, sources []string,
 		wg.Add(1)
 		go func(src string) {
 			defer wg.Done()
+            if ctx.Err() != nil {
+                return
+            }
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			if err := ms.updateModrinthMod(ctx, src, force); err != nil {
-				mu.Lock()
-				result.FailedMods[src] = err.Error()
-				mu.Unlock()
-				ms.logger.Error("Failed to update mod", zap.String("url", src), zap.Error(err))
-			} else {
-				mu.Lock()
-				result.UpdatedMods = append(result.UpdatedMods, src)
-				mu.Unlock()
+            updated, name, err := ms.updateModrinthMod(ctx, src, force)
+			display := name
+			if display == "" {
+				display = src
 			}
+			if err != nil {
+				mu.Lock()
+				result.FailedMods[display] = err.Error()
+				mu.Unlock()
+				ms.logger.Error("Failed to update mod", zap.String("mod", display), zap.Error(err))
+				return
+			}
+			mu.Lock()
+			if updated {
+				result.UpdatedMods = append(result.UpdatedMods, display)
+			} else {
+				result.SkippedMods = append(result.SkippedMods, display)
+			}
+			mu.Unlock()
 		}(source)
 	}
 
@@ -238,18 +262,18 @@ func (ms *ModService) processModsParallel(ctx context.Context, sources []string,
 }
 
 // updateModrinthMod updates a mod from Modrinth
-func (ms *ModService) updateModrinthMod(ctx context.Context, modURL string, _ bool) error {
+func (ms *ModService) updateModrinthMod(ctx context.Context, modURL string, force bool) (bool, string, error) {
 	projectID, err := ms.parseModrinthProjectID(modURL)
 	if err != nil {
-		return fmt.Errorf("failed to parse Modrinth project ID: %w", err)
+		return false, projectID, fmt.Errorf("failed to parse Modrinth project ID: %w", err)
 	}
 
 	versionInfo, err := ms.fetchModrinthLatestVersion(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("failed to fetch latest version: %w", err)
+		return false, projectID, fmt.Errorf("failed to fetch latest version: %w", err)
 	}
-
-	return ms.downloadMod(ctx, versionInfo.DownloadURL, versionInfo.Filename)
+	updated, err := ms.downloadMod(ctx, versionInfo.DownloadURL, versionInfo.Filename, force)
+	return updated, versionInfo.ProjectName, err
 }
 
 // parseModrinthProjectID parses project ID from Modrinth URL
@@ -273,86 +297,159 @@ func (ms *ModService) fetchModrinthLatestVersion(ctx context.Context, projectID 
 	url := fmt.Sprintf("https://api.modrinth.com/v2/project/%s/version?game_versions=[\"%s\"]&loaders=[\"%s\"]",
 		projectID, ms.config.Minecraft.Version, ms.config.Minecraft.Modloader)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
+	var versions []mrVersion
+	var lastErr error
+	for attempt := 0; attempt <= ms.config.Mods.MaxRetries; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("User-Agent", "craftops/"+time.Now().Format("20060102"))
 
-	resp, err := ms.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+		resp, err := ms.client.Do(req)
+		if err != nil {
+			lastErr = err
+		} else {
+			func() {
+				defer resp.Body.Close()
+				if resp.StatusCode == 200 {
+					body, err := io.ReadAll(resp.Body)
+					if err != nil {
+						lastErr = err
+						return
+					}
+					if err := json.Unmarshal(body, &versions); err != nil {
+						lastErr = err
+						return
+					}
+					lastErr = nil
+				} else if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+					lastErr = fmt.Errorf("API request failed with status %d", resp.StatusCode)
+				} else {
+					lastErr = fmt.Errorf("API request failed with status %d", resp.StatusCode)
+					// non-retriable
+					attempt = ms.config.Mods.MaxRetries
+				}
+			}()
+		}
 
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("API request failed with status %d", resp.StatusCode)
+		if lastErr == nil {
+			break
+		}
+		// backoff
+		delay := time.Duration(ms.config.Mods.RetryDelay * float64(time.Second))
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+		}
 	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var versions []map[string]interface{}
-	if err := json.Unmarshal(body, &versions); err != nil {
-		return nil, err
+	if lastErr != nil {
+		return nil, lastErr
 	}
 
 	if len(versions) == 0 {
 		return nil, fmt.Errorf("no compatible versions found")
 	}
 
-	version := versions[0]
-	files, ok := version["files"].([]interface{})
-	if !ok || len(files) == 0 {
+	v := versions[0]
+	if len(v.Files) == 0 {
 		return nil, fmt.Errorf("no files found in version")
 	}
-
-	file := files[0].(map[string]interface{})
+	f := v.Files[0]
 
 	return &ModInfo{
-		VersionID:   version["id"].(string),
-		Version:     version["version_number"].(string),
-		DownloadURL: file["url"].(string),
-		Filename:    file["filename"].(string),
+		VersionID:   v.ID,
+		Version:     v.VersionNumber,
+		DownloadURL: f.URL,
+		Filename:    f.Filename,
 		ProjectName: projectID,
 	}, nil
 }
 
 // downloadMod downloads a mod file
-func (ms *ModService) downloadMod(ctx context.Context, downloadURL, filename string) error {
+func (ms *ModService) downloadMod(ctx context.Context, downloadURL, filename string, force bool) (bool, error) {
 	modsDir := ms.config.Paths.Mods
 
 	if err := os.MkdirAll(modsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create mods directory: %w", err)
+		return false, fmt.Errorf("failed to create mods directory: %w", err)
 	}
 
-	filePath := filepath.Join(modsDir, filename)
-	file, err := os.Create(filePath)
+	finalPath := filepath.Join(modsDir, filename)
+	if !force {
+		if _, err := os.Stat(finalPath); err == nil {
+			// Already have this file; skip
+			ms.logger.Info("Mod already up-to-date, skipping", zap.String("filename", filename))
+			return false, nil
+		}
+	}
+	tmpFile, err := os.CreateTemp(modsDir, ".tmp-*")
 	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
+		return false, fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer file.Close()
+	tmpPath := tmpFile.Name()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
-	if err != nil {
-		return err
+	var lastErr error
+	for attempt := 0; attempt <= ms.config.Mods.MaxRetries; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
+		if err != nil {
+			tmpFile.Close()
+			os.Remove(tmpPath)
+			return false, err
+		}
+		req.Header.Set("User-Agent", "craftops/"+time.Now().Format("20060102"))
+
+		resp, err := ms.client.Do(req)
+		if err != nil {
+			lastErr = err
+		} else {
+			func() {
+				defer resp.Body.Close()
+				if resp.StatusCode == 200 {
+					if _, err = io.Copy(tmpFile, resp.Body); err != nil {
+						lastErr = fmt.Errorf("failed to write temp file: %w", err)
+						return
+					}
+					lastErr = nil
+				} else if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+					lastErr = fmt.Errorf("download failed with status %d", resp.StatusCode)
+				} else {
+					lastErr = fmt.Errorf("download failed with status %d", resp.StatusCode)
+					// non-retriable
+					attempt = ms.config.Mods.MaxRetries
+				}
+			}()
+		}
+
+		if lastErr == nil {
+			break
+		}
+		// backoff
+		delay := time.Duration(ms.config.Mods.RetryDelay * float64(time.Second))
+		select {
+		case <-ctx.Done():
+			tmpFile.Close()
+			os.Remove(tmpPath)
+			return false, ctx.Err()
+		case <-time.After(delay):
+		}
 	}
-
-	resp, err := ms.client.Do(req)
-	if err != nil {
-		return err
+	if lastErr != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		return false, lastErr
 	}
-	defer resp.Body.Close()
+	tmpFile.Close()
 
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("download failed with status %d", resp.StatusCode)
+	// Replace existing file atomically when possible
+	if _, err := os.Stat(finalPath); err == nil {
+		_ = os.Remove(finalPath)
 	}
-
-	if _, err = io.Copy(file, resp.Body); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+	if err := os.Rename(tmpPath, finalPath); err != nil {
+		os.Remove(tmpPath)
+		return false, fmt.Errorf("failed to move temp file into place: %w", err)
 	}
 
 	ms.logger.Info("Downloaded mod", zap.String("filename", filename))
-	return nil
+	return true, nil
 }
