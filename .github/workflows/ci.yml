@@ -40,8 +40,8 @@ jobs:
         env:
           GOFLAGS: ""
         with:
-          version: v1.61.0
-          install-mode: goinstall
+          version: latest
+          install-mode: binary
           args: --timeout=5m -c .github/.golangci.yml
 
       - name: Check coverage
