@@ -1,14 +1,16 @@
 package services_test
 
 import (
-	"context"
-	"testing"
-	"time"
+    "context"
+    "os"
+    "path/filepath"
+    "testing"
+    "time"
 
-	"go.uber.org/zap"
+    "go.uber.org/zap"
 
-	"craftops/internal/config"
-	"craftops/internal/services"
+    "craftops/internal/config"
+    "craftops/internal/services"
 )
 
 func TestNewServerService(t *testing.T) {
@@ -35,9 +37,13 @@ func TestNewServerService(t *testing.T) {
 }
 
 func TestServerServiceHealthCheck(t *testing.T) {
-	cfg := config.DefaultConfig()
-	logger := zap.NewNop()
-	service := services.NewServerService(cfg, logger)
+    cfg := config.DefaultConfig()
+    // Improve coverage: create a temp server dir and an empty server.jar to exercise OK branches
+    tmp := t.TempDir()
+    cfg.Paths.Server = tmp
+    if err := os.WriteFile(filepath.Join(tmp, "server.jar"), []byte("jar"), 0o644); err != nil { t.Fatal(err) }
+    logger := zap.NewNop()
+    service := services.NewServerService(cfg, logger)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

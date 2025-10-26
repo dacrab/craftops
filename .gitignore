@@ -128,3 +128,5 @@ test-config.toml
 # Environment files
 .env
 .env.local
+
+coverage.out

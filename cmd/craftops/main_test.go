@@ -26,3 +26,18 @@ func TestExecute_VersionAndHelp(t *testing.T) {
 		}
 	})
 }
+
+func TestMainEntrypoint(t *testing.T) {
+    t.Run("default help", func(t *testing.T) {
+        orig := os.Args
+        defer func() { os.Args = orig }()
+        os.Args = []string{"craftops"}
+        main()
+    })
+    t.Run("version flag", func(t *testing.T) {
+        orig := os.Args
+        defer func() { os.Args = orig }()
+        os.Args = []string{"craftops", "--version"}
+        main()
+    })
+}
