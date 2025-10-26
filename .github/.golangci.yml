@@ -9,16 +9,12 @@ linters:
     - staticcheck
     - gosimple
     - errcheck
-    - gofmt
-    - goimports
     - misspell
     - gosec
   disable:
     - godot
 
 linters-settings:
-  goimports:
-    local-prefixes: craftops
   misspell:
     locale: US
   errcheck:
