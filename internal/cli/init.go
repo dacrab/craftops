@@ -47,7 +47,7 @@ customize for your Minecraft server setup.`,
 		printStep(2, 4, "Creating directory structure...")
 		// Create directory if needed
 		dir := filepath.Dir(outputPath)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+        if err := os.MkdirAll(dir, 0o750); err != nil {
 			return fmt.Errorf("failed to create directory: %w", err)
 		}
 

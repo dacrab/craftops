@@ -167,11 +167,12 @@ func LoadConfig(configPath string) (*Config, error) {
 
 // SaveConfig saves the configuration to a TOML file
 func (c *Config) SaveConfig(configPath string) error {
-	file, err := os.Create(configPath)
+    // #nosec G304 -- config path is intentionally user-specified
+    file, err := os.Create(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)
 	}
-	defer file.Close()
+    defer func() { _ = file.Close() }()
 
 	encoder := toml.NewEncoder(file)
 	if err := encoder.Encode(c); err != nil {
