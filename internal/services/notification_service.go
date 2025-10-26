@@ -57,7 +57,7 @@ func (ns *NotificationService) SendSuccessNotification(ctx context.Context, mess
 	if !ns.config.Notifications.SuccessNotifications {
 		return nil
 	}
-    return ns.sendDiscordNotification(ctx, "Success", message, ColorGreen)
+	return ns.sendDiscordNotification(ctx, "Success", message, ColorGreen)
 }
 
 // SendErrorNotification sends an error notification
@@ -65,7 +65,7 @@ func (ns *NotificationService) SendErrorNotification(ctx context.Context, messag
 	if !ns.config.Notifications.ErrorNotifications {
 		return nil
 	}
-    return ns.sendDiscordNotification(ctx, "Error", message, ColorRed)
+	return ns.sendDiscordNotification(ctx, "Error", message, ColorRed)
 }
 
 // SendRestartWarnings sends restart warning notifications
@@ -82,7 +82,7 @@ func (ns *NotificationService) SendRestartWarnings(ctx context.Context) error {
 	for i, minutes := range intervals {
 		warningMsg := strings.ReplaceAll(ns.config.Notifications.WarningMessage, "{minutes}", fmt.Sprintf("%d", minutes))
 
-        if err := ns.sendDiscordNotification(ctx, "Server Restart Warning", warningMsg, ColorOrange); err != nil {
+		if err := ns.sendDiscordNotification(ctx, "Server Restart Warning", warningMsg, ColorOrange); err != nil {
 			ns.logger.Error("Failed to send restart warning", zap.Error(err))
 			return err
 		}
@@ -178,7 +178,7 @@ func (ns *NotificationService) checkDiscordWebhook() HealthCheck {
 	if ns.config.Notifications.DiscordWebhook == "" {
 		return HealthCheck{
 			Name:    "Discord webhook",
-            Status:  "WARN",
+			Status:  "WARN",
 			Message: "Not configured",
 		}
 	}
@@ -186,14 +186,14 @@ func (ns *NotificationService) checkDiscordWebhook() HealthCheck {
 	if !strings.HasPrefix(ns.config.Notifications.DiscordWebhook, "https://discord.com/api/webhooks/") {
 		return HealthCheck{
 			Name:    "Discord webhook",
-            Status:  "ERROR",
+			Status:  "ERROR",
 			Message: "Invalid webhook URL format",
 		}
 	}
 
 	return HealthCheck{
 		Name:    "Discord webhook",
-        Status:  "OK",
+		Status:  "OK",
 		Message: "Configured",
 	}
 }
@@ -202,14 +202,14 @@ func (ns *NotificationService) checkNotificationSettings() HealthCheck {
 	if !ns.config.Notifications.ErrorNotifications && !ns.config.Notifications.SuccessNotifications {
 		return HealthCheck{
 			Name:    "Notification settings",
-            Status:  "WARN",
+			Status:  "WARN",
 			Message: "All notifications disabled",
 		}
 	}
 
 	return HealthCheck{
 		Name:    "Notification settings",
-        Status:  "OK",
+		Status:  "OK",
 		Message: "Configured",
 	}
 }

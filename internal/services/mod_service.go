@@ -146,40 +146,40 @@ func (ms *ModService) checkModsDirectory() HealthCheck {
 	modsDir := ms.config.Paths.Mods
 	info, err := os.Stat(modsDir)
 	if err != nil || !info.IsDir() {
-        return HealthCheck{
-            Name:    "Mods directory",
-            Status:  "ERROR",
-            Message: "Directory not found or not accessible",
-        }
+		return HealthCheck{
+			Name:    "Mods directory",
+			Status:  "ERROR",
+			Message: "Directory not found or not accessible",
+		}
 	}
 
 	jarCount := 0
 	if files, err := filepath.Glob(filepath.Join(modsDir, "*.jar")); err == nil {
 		jarCount = len(files)
 	}
-    return HealthCheck{
-        Name:    "Mods directory",
-        Status:  "OK",
-        Message: fmt.Sprintf("OK (%d mods found)", jarCount),
-    }
+	return HealthCheck{
+		Name:    "Mods directory",
+		Status:  "OK",
+		Message: fmt.Sprintf("OK (%d mods found)", jarCount),
+	}
 }
 
 // checkModSources checks the mod sources configuration
 func (ms *ModService) checkModSources() HealthCheck {
 	totalSources := len(ms.config.Mods.ModrinthSources)
-    if totalSources == 0 {
-        return HealthCheck{
-            Name:    "Mod sources",
-            Status:  "WARN",
-            Message: "No mod sources configured",
-        }
-    }
+	if totalSources == 0 {
+		return HealthCheck{
+			Name:    "Mod sources",
+			Status:  "WARN",
+			Message: "No mod sources configured",
+		}
+	}
 
-    return HealthCheck{
-        Name:    "Mod sources",
-        Status:  "OK",
-        Message: fmt.Sprintf("%d sources configured", totalSources),
-    }
+	return HealthCheck{
+		Name:    "Mod sources",
+		Status:  "OK",
+		Message: fmt.Sprintf("%d sources configured", totalSources),
+	}
 }
 
 // checkAPIConnectivity tests connectivity to the Modrinth API
@@ -188,36 +188,36 @@ func (ms *ModService) checkAPIConnectivity(ctx context.Context) HealthCheck {
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.modrinth.com/v2/", nil)
-    if err != nil {
-        return HealthCheck{
-            Name:    "Modrinth API",
-            Status:  "ERROR",
-            Message: fmt.Sprintf("Request creation failed: %v", err),
-        }
-    }
+	if err != nil {
+		return HealthCheck{
+			Name:    "Modrinth API",
+			Status:  "ERROR",
+			Message: fmt.Sprintf("Request creation failed: %v", err),
+		}
+	}
 	resp, err := ms.client.Do(req)
-    if err != nil {
-        return HealthCheck{
-            Name:    "Modrinth API",
-            Status:  "ERROR",
-            Message: fmt.Sprintf("Connection failed: %v", err),
-        }
-    }
+	if err != nil {
+		return HealthCheck{
+			Name:    "Modrinth API",
+			Status:  "ERROR",
+			Message: fmt.Sprintf("Connection failed: %v", err),
+		}
+	}
 	defer resp.Body.Close()
 
-    if resp.StatusCode != 200 {
-        return HealthCheck{
-            Name:    "Modrinth API",
-            Status:  "WARN",
-            Message: fmt.Sprintf("API returned status %d", resp.StatusCode),
-        }
-    }
+	if resp.StatusCode != 200 {
+		return HealthCheck{
+			Name:    "Modrinth API",
+			Status:  "WARN",
+			Message: fmt.Sprintf("API returned status %d", resp.StatusCode),
+		}
+	}
 
-    return HealthCheck{
-        Name:    "Modrinth API",
-        Status:  "OK",
-        Message: "API accessible",
-    }
+	return HealthCheck{
+		Name:    "Modrinth API",
+		Status:  "OK",
+		Message: "API accessible",
+	}
 }
 
 // processModsParallel processes mods concurrently
@@ -230,13 +230,13 @@ func (ms *ModService) processModsParallel(ctx context.Context, sources []string,
 		wg.Add(1)
 		go func(src string) {
 			defer wg.Done()
-            if ctx.Err() != nil {
-                return
-            }
+			if ctx.Err() != nil {
+				return
+			}
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-            updated, name, err := ms.updateModrinthMod(ctx, src, force)
+			updated, name, err := ms.updateModrinthMod(ctx, src, force)
 			display := name
 			if display == "" {
 				display = src

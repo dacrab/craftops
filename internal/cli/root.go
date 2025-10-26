@@ -29,7 +29,7 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "craftops",
-    Short: "Modern Minecraft server operations and mod management",
+	Short: "Modern Minecraft server operations and mod management",
 	Long: `CraftOps is a comprehensive CLI tool for Minecraft server operations and mod management.
 
 Features:
@@ -189,7 +189,7 @@ func printBanner(title string) {
 	padding := (width - len(title) - 4) / 2
 
 	headerColor.Println(strings.Repeat("═", width))
-    headerColor.Printf("║%s %s %s║\n",
+	headerColor.Printf("║%s %s %s║\n",
 		strings.Repeat(" ", padding),
 		title,
 		strings.Repeat(" ", padding))
@@ -206,7 +206,7 @@ func printSection(title string) {
 // printSuccess prints a success message
 func printSuccess(message string) {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
-        successColor.Printf("%s\n", message)
+		successColor.Printf("%s\n", message)
 	} else {
 		fmt.Printf("SUCCESS: %s\n", message)
 	}
@@ -215,7 +215,7 @@ func printSuccess(message string) {
 // printError prints an error message
 func printError(message string) {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
-        errorColor.Printf("%s\n", message)
+		errorColor.Printf("%s\n", message)
 	} else {
 		fmt.Printf("ERROR: %s\n", message)
 	}
@@ -224,7 +224,7 @@ func printError(message string) {
 // printWarning prints a warning message
 func printWarning(message string) {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
-        warningColor.Printf("%s\n", message)
+		warningColor.Printf("%s\n", message)
 	} else {
 		fmt.Printf("WARNING: %s\n", message)
 	}
@@ -233,7 +233,7 @@ func printWarning(message string) {
 // printInfo prints an info message
 func printInfo(message string) {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
-        infoColor.Printf("%s\n", message)
+		infoColor.Printf("%s\n", message)
 	} else {
 		fmt.Printf("INFO: %s\n", message)
 	}
