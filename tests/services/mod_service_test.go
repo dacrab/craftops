@@ -72,11 +72,19 @@ func TestModServicePublicMethods(t *testing.T) {
 		t.Error("ListInstalledMods should return empty slice, not nil")
 	}
 
-	// Test UpdateAllMods with dry run (won't actually do anything)
+	// Test UpdateAllMods with dry run to avoid network and side effects
+	cfg.DryRun = true
+	cfg.Mods.ModrinthSources = []string{"https://modrinth.com/mod/example"}
+	service = services.NewModService(cfg, logger)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// This will fail gracefully if no mods are configured, which is expected
-	_, _ = service.UpdateAllMods(ctx, false)
-	// We don't check for error here as it's expected to fail without proper config
+	res, err := service.UpdateAllMods(ctx, false)
+	if err != nil {
+		t.Errorf("UpdateAllMods (dry run) should not error: %v", err)
+	}
+	if res == nil || len(res.UpdatedMods) == 0 {
+		t.Error("UpdateAllMods (dry run) should report a simulated update")
+	}
 }

@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 
-	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 
 	"craftops/internal/services"
@@ -27,13 +26,7 @@ exclude patterns. Backups are automatically cleaned up based on the retention po
 		backupService := services.NewBackupService(cfg, logger)
 
 		printInfo("Creating backup...")
-		bar := progressbar.NewOptions(-1,
-			progressbar.OptionSetDescription("Creating backup..."),
-			progressbar.OptionSpinnerType(14),
-		)
-
 		backupPath, err := backupService.CreateBackup(ctx)
-		_ = bar.Finish()
 
 		if err != nil {
 			printError(fmt.Sprintf("Backup failed: %v", err))

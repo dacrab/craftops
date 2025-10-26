@@ -83,3 +83,23 @@ func TestServerStatus(t *testing.T) {
 	// Status should have IsRunning field
 	_ = status.IsRunning // This will compile-fail if field doesn't exist
 }
+
+func TestServerServiceDryRunStartStop(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.DryRun = true
+	logger := zap.NewNop()
+	service := services.NewServerService(cfg, logger)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := service.Start(ctx); err != nil {
+		t.Fatalf("Start in dry-run should succeed: %v", err)
+	}
+	if err := service.Stop(ctx); err != nil {
+		t.Fatalf("Stop in dry-run should succeed: %v", err)
+	}
+	if err := service.Restart(ctx); err != nil {
+		t.Fatalf("Restart in dry-run should succeed: %v", err)
+	}
+}

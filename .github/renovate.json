@@ -2,63 +2,45 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":maintainLockFilesWeekly"
+    ":separateMajorReleases",
+    ":semanticCommits",
+    ":maintainLockFilesWeekly",
+    "schedule:weekly"
   ],
   "timezone": "UTC",
-  "schedule": ["before 6am on monday"],
-  "labels": ["dependencies", "renovate"],
-  
-  "git": {
-    "commitMessagePrefix": "deps: "
-  },
-  
-  "commitMessageTopic": "{{depName}}",
-  "commitMessageAction": "update",
-  "commitMessageExtra": "to {{#if isSingleVersion}}{{newVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigest}}}{{/if}}{{/if}}",
-  
-  "prTitle": "deps: update {{depName}} to {{#if isSingleVersion}}{{newVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigest}}}{{/if}}{{/if}}",
-  
-  "prBodyTemplate": "{{{header}}}{{{table}}}{{{warnings}}}{{{notes}}}{{{changelogs}}}",
-  
+  "labels": ["dependencies"],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Dependency Dashboard",
+  "rebaseWhen": "auto",
+  "platformAutomerge": false,
+  "prConcurrentLimit": 5,
+  "branchConcurrentLimit": 10,
   "packageRules": [
     {
-      "description": "Group all Go module updates together",
+      "description": "Group Go module updates",
       "matchManagers": ["gomod"],
       "groupName": "Go dependencies",
-      "prTitle": "deps: update Go dependencies",
-      "commitMessageTopic": "Go dependencies",
-      "addLabels": ["go", "dependencies"]
+      "addLabels": ["go", "dependencies"],
+      "postUpdateOptions": ["gomodTidy"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
     },
     {
-      "description": "Group GitHub Actions updates together",
+      "description": "Group GitHub Actions updates",
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
-      "prTitle": "deps: update GitHub Actions",
-      "commitMessageTopic": "GitHub Actions",
-      "addLabels": ["github-actions", "ci"]
-    },
-    {
-      "description": "Auto-merge minor and patch updates for Go dependencies",
-      "matchManagers": ["gomod"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "addLabels": ["auto-merge"]
-    },
-    {
-      "description": "Auto-merge patch updates for GitHub Actions",
-      "matchManagers": ["github-actions"],
+      "addLabels": ["ci"],
       "matchUpdateTypes": ["patch"],
-      "automerge": true,
-      "addLabels": ["auto-merge"]
+      "automerge": true
     },
     {
-      "description": "Require manual review for major updates",
+      "description": "Require review for major updates",
       "matchUpdateTypes": ["major"],
       "addLabels": ["needs-review", "major-update"],
       "prPriority": 10
     },
     {
-      "description": "Security updates get priority",
+      "description": "Prioritize security alerts",
       "matchDatasources": ["go"],
       "vulnerabilityAlerts": {
         "addLabels": ["security", "urgent"],
@@ -66,60 +48,6 @@
       }
     }
   ],
-  
-  "gomod": {
-    "enabled": true
-  },
-  
-  "github-actions": {
-    "enabled": true,
-    "pinDigests": false
-  },
-  
-  "docker": {
-    "enabled": false
-  },
-  
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": ["before 6am on monday"],
-    "commitMessageAction": "refresh",
-    "prTitle": "deps: refresh lock files"
-  },
-  
-  "vulnerabilityAlerts": {
-    "enabled": true,
-    "schedule": ["at any time"],
-    "prCreation": "immediate"
-  },
-  
-  "osvVulnerabilityAlerts": true,
-  
-  "dependencyDashboard": true,
-  "dependencyDashboardTitle": "📦 Dependency Dashboard",
-  
-  "assignees": [],
-  "reviewers": [],
-  
-  "prConcurrentLimit": 3,
-  "branchConcurrentLimit": 10,
-  
-  "rebaseWhen": "conflicted",
-  
-  "platformAutomerge": false,
-  
-  "ignoreTests": false,
-  
-  "respectLatest": false,
-  
-  "ignoreDeps": [],
-  
-  "ignorePaths": [
-    "**/node_modules/**",
-    "**/bower_components/**",
-    "**/vendor/**",
-    "**/examples/**",
-    "**/test/**",
-    "**/tests/**"
-  ]
+  "gomod": { "enabled": true },
+  "github-actions": { "enabled": true, "pinDigests": false }
 }

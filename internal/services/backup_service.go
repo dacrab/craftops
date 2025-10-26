@@ -17,6 +17,23 @@ import (
 	"craftops/internal/config"
 )
 
+const (
+    backupFileTimeFormat = "20060102_150405"
+    humanTimeFormat      = "2006-01-02 15:04:05"
+    backupFilePrefix     = "minecraft_backup_"
+    backupFileExt        = ".tar.gz"
+)
+
+func clampGzipLevel(level int) int {
+    if level < gzip.NoCompression {
+        return gzip.DefaultCompression
+    }
+    if level > gzip.BestCompression {
+        return gzip.BestCompression
+    }
+    return level
+}
+
 type BackupService struct {
 	config *config.Config
 	logger *zap.Logger
@@ -56,7 +73,7 @@ func (bs *BackupService) CreateBackup(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("failed to create backup directory: %w", err)
 	}
 
-	backupPath, err := bs.createBackupFile()
+	backupPath, err := bs.createBackupFile(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -65,7 +82,7 @@ func (bs *BackupService) CreateBackup(ctx context.Context) (string, error) {
 }
 
 func (bs *BackupService) ListBackups() ([]BackupInfo, error) {
-	files, err := filepath.Glob(filepath.Join(bs.config.Paths.Backups, "*.tar.gz"))
+    files, err := filepath.Glob(filepath.Join(bs.config.Paths.Backups, "*"+backupFileExt))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list backup files: %w", err)
 	}
@@ -79,32 +96,39 @@ func (bs *BackupService) ListBackups() ([]BackupInfo, error) {
 			continue
 		}
 
-		backups = append(backups, BackupInfo{
-			Name:      filepath.Base(file),
-			Path:      file,
-			CreatedAt: info.ModTime().Format("2006-01-02 15:04:05"),
-			Size:      fmt.Sprintf("%.1f MB", float64(info.Size())/(1024*1024)),
-			SizeBytes: info.Size(),
-		})
+        backups = append(backups, BackupInfo{
+            Name:      filepath.Base(file),
+            Path:      file,
+            CreatedAt: info.ModTime().Format(humanTimeFormat),
+            Size:      fmt.Sprintf("%.1f MB", float64(info.Size())/(1024*1024)),
+            SizeBytes: info.Size(),
+        })
 	}
 
 	return backups, nil
 }
 
 func (bs *BackupService) validateServerDirectory() error {
-	if _, err := os.Stat(bs.config.Paths.Server); os.IsNotExist(err) {
-		return fmt.Errorf("server directory not found: %s", bs.config.Paths.Server)
+	info, err := os.Stat(bs.config.Paths.Server)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("server directory not found: %s", bs.config.Paths.Server)
+		}
+		return fmt.Errorf("failed to stat server directory: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("server path is not a directory: %s", bs.config.Paths.Server)
 	}
 	return nil
 }
 
 func (bs *BackupService) ensureBackupDir() error {
-	return os.MkdirAll(bs.config.Paths.Backups, 0755)
+	return os.MkdirAll(bs.config.Paths.Backups, 0o755)
 }
 
-func (bs *BackupService) createBackupFile() (string, error) {
-	timestamp := time.Now().Format("20060102_150405")
-	backupName := fmt.Sprintf("minecraft_backup_%s.tar.gz", timestamp)
+func (bs *BackupService) createBackupFile(ctx context.Context) (string, error) {
+    timestamp := time.Now().Format(backupFileTimeFormat)
+    backupName := fmt.Sprintf("%s%s%s", backupFilePrefix, timestamp, backupFileExt)
 	backupPath := filepath.Join(bs.config.Paths.Backups, backupName)
 
 	bs.logger.Info("Creating backup", zap.String("backup_name", backupName))
@@ -115,7 +139,7 @@ func (bs *BackupService) createBackupFile() (string, error) {
 	}
 	defer backupFile.Close()
 
-	gzipWriter, err := gzip.NewWriterLevel(backupFile, bs.config.Backup.CompressionLevel)
+    gzipWriter, err := gzip.NewWriterLevel(backupFile, clampGzipLevel(bs.config.Backup.CompressionLevel))
 	if err != nil {
 		return "", fmt.Errorf("failed to create gzip writer: %w", err)
 	}
@@ -124,7 +148,7 @@ func (bs *BackupService) createBackupFile() (string, error) {
 	tarWriter := tar.NewWriter(gzipWriter)
 	defer tarWriter.Close()
 
-	if err := bs.addFilesToBackup(tarWriter); err != nil {
+	if err := bs.addFilesToBackup(ctx, tarWriter); err != nil {
 		os.Remove(backupPath)
 		return "", fmt.Errorf("failed to create backup: %w", err)
 	}
@@ -138,10 +162,13 @@ func (bs *BackupService) createBackupFile() (string, error) {
 	return backupPath, nil
 }
 
-func (bs *BackupService) addFilesToBackup(tarWriter *tar.Writer) error {
+func (bs *BackupService) addFilesToBackup(ctx context.Context, tarWriter *tar.Writer) error {
 	return filepath.Walk(bs.config.Paths.Server, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
 
 		relPath, err := filepath.Rel(bs.config.Paths.Server, path)
@@ -153,6 +180,10 @@ func (bs *BackupService) addFilesToBackup(tarWriter *tar.Writer) error {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
 			return nil
 		}
 
@@ -203,15 +234,25 @@ func (bs *BackupService) logBackupSuccess(backupName, backupPath string) {
 }
 
 func (bs *BackupService) shouldExclude(relPath string, _ os.FileInfo) bool {
-	if !bs.config.Backup.IncludeLogs && strings.Contains(relPath, "logs") {
-		return true
+	if !bs.config.Backup.IncludeLogs {
+		if strings.HasPrefix(relPath, "logs/") || relPath == "logs" {
+			return true
+		}
 	}
 
 	for _, pattern := range bs.config.Backup.ExcludePatterns {
-		if matched, _ := filepath.Match(pattern, filepath.Base(relPath)); matched {
+		p := pattern
+		if strings.HasSuffix(p, "/") {
+			p = strings.TrimSuffix(p, "/")
+			if relPath == p || strings.HasPrefix(relPath, p+"/") {
+				return true
+			}
+			continue
+		}
+		if matched, _ := filepath.Match(p, filepath.Base(relPath)); matched {
 			return true
 		}
-		if strings.Contains(relPath, strings.TrimSuffix(pattern, "/")) {
+		if matched, _ := filepath.Match(p, relPath); matched {
 			return true
 		}
 	}
@@ -230,7 +271,7 @@ func (bs *BackupService) sortBackupsByModTime(files []string) {
 }
 
 func (bs *BackupService) cleanupOldBackups() {
-	files, err := filepath.Glob(filepath.Join(bs.config.Paths.Backups, "*.tar.gz"))
+    files, err := filepath.Glob(filepath.Join(bs.config.Paths.Backups, "*"+backupFileExt))
 	if err != nil {
 		bs.logger.Error("Failed to list backup files for cleanup", zap.Error(err))
 		return
@@ -244,6 +285,7 @@ func (bs *BackupService) cleanupOldBackups() {
 		}
 		return infoI.ModTime().Before(infoJ.ModTime())
 	})
+
 	if len(files) > bs.config.Backup.MaxBackups {
 		for _, file := range files[:len(files)-bs.config.Backup.MaxBackups] {
 			if err := os.Remove(file); err != nil {
@@ -257,50 +299,46 @@ func (bs *BackupService) cleanupOldBackups() {
 	}
 }
 
-// HealthCheck performs health checks for the backup service
 func (bs *BackupService) HealthCheck(ctx context.Context) []HealthCheck {
-	checks := make([]HealthCheck, 0, 2)
-
-	// Check backup directory
-	checks = append(checks, bs.checkBackupDirectory())
-	// Check backup configuration
-	checks = append(checks, bs.checkBackupConfig())
-
-	return checks
+	return []HealthCheck{
+		bs.checkBackupDirectory(),
+		bs.checkBackupConfig(),
+	}
 }
 
 func (bs *BackupService) checkBackupDirectory() HealthCheck {
 	if !bs.config.Backup.Enabled {
 		return HealthCheck{
 			Name:    "Backup system",
-			Status:  "⚠️",
+            Status:  "WARN",
 			Message: "Disabled in configuration",
 		}
 	}
 
-	if info, err := os.Stat(bs.config.Paths.Backups); err == nil && info.IsDir() {
-		// Test write permissions
-		testFile := filepath.Join(bs.config.Paths.Backups, ".health_check_test")
-		if file, err := os.Create(testFile); err == nil {
-			file.Close()
-			os.Remove(testFile)
-			return HealthCheck{
-				Name:    "Backup directory",
-				Status:  "✅",
-				Message: "OK",
-			}
-		} else {
-			return HealthCheck{
-				Name:    "Backup directory",
-				Status:  "❌",
-				Message: "No write permission",
-			}
+	info, err := os.Stat(bs.config.Paths.Backups)
+	if err != nil || !info.IsDir() {
+		return HealthCheck{
+			Name:    "Backup directory",
+            Status:  "ERROR",
+			Message: "Directory not found",
 		}
 	}
+
+	testFile := filepath.Join(bs.config.Paths.Backups, ".health_check_test")
+	if file, err := os.Create(testFile); err == nil {
+		file.Close()
+		os.Remove(testFile)
+		return HealthCheck{
+			Name:    "Backup directory",
+            Status:  "OK",
+			Message: "OK",
+		}
+	}
+
 	return HealthCheck{
 		Name:    "Backup directory",
-		Status:  "❌",
-		Message: "Directory not found",
+        Status:  "ERROR",
+		Message: "No write permission",
 	}
 }
 
@@ -308,13 +346,13 @@ func (bs *BackupService) checkBackupConfig() HealthCheck {
 	if bs.config.Backup.MaxBackups <= 0 {
 		return HealthCheck{
 			Name:    "Backup retention",
-			Status:  "⚠️",
+            Status:  "WARN",
 			Message: "Invalid max_backups setting",
 		}
 	}
 	return HealthCheck{
 		Name:    "Backup retention",
-		Status:  "✅",
+        Status:  "OK",
 		Message: fmt.Sprintf("Keeping %d backups", bs.config.Backup.MaxBackups),
 	}
 }

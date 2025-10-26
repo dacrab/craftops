@@ -1,5 +1,5 @@
 # Multi-stage Docker build for CraftOps (Go)
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Set environment variables
 ENV CGO_ENABLED=0 \
@@ -21,20 +21,21 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Build arguments
+ARG VERSION=2.0.1
+
 # Build the application
-RUN go build -trimpath -ldflags "-X craftops/internal/cli.Version=2.0.1 -s -w" -o craftops ./cmd/craftops
+RUN go build -trimpath -ldflags "-X craftops/internal/cli.Version=${VERSION} -s -w" -o craftops ./cmd/craftops
 
 # Production stage
 FROM alpine:latest
 
-# Set environment variables
-ENV MINECRAFT_MOD_MANAGER_CONFIG_FILE="/config/config.toml"
+# No extra environment variables required
 
 # Install runtime dependencies
 RUN apk add --no-cache \
     screen \
     openjdk17-jre-headless \
-    curl \
     ca-certificates \
     tzdata \
     && addgroup -g 1000 minecraft \
@@ -47,8 +48,7 @@ COPY --from=builder /app/craftops /usr/local/bin/
 RUN mkdir -p /minecraft/server /minecraft/mods /minecraft/backups /config /logs \
     && chown -R minecraft:minecraft /minecraft /config /logs
 
-# Copy default config
-COPY config.toml /config/config.toml.example
+# No default config copied; generate via `craftops init-config`
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
@@ -71,4 +71,4 @@ LABEL org.opencontainers.image.title="CraftOps" \
       org.opencontainers.image.vendor="dacrab" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/dacrab/craftops" \
-      org.opencontainers.image.version="2.0.1"
+      org.opencontainers.image.version="${VERSION}"

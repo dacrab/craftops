@@ -1,40 +1,35 @@
 package config_test
 
 import (
-	"os"
-	"path/filepath"
-	"testing"
+    "os"
+    "path/filepath"
+    "testing"
 
-	"craftops/internal/config"
+    "craftops/internal/config"
 )
 
-func TestLoadConfig(t *testing.T) {
-	// Test loading default config
-	cfg := config.DefaultConfig()
-	if cfg == nil {
-		t.Fatal("DefaultConfig() returned nil")
-	}
+func TestLoadConfigVariants(t *testing.T) {
+    t.Run("defaults", func(t *testing.T) {
+        cfg := config.DefaultConfig()
+        if cfg == nil {
+            t.Fatal("DefaultConfig() returned nil")
+        }
+        if cfg.Server.JarName == "" {
+            t.Error("default server jar_name should not be empty")
+        }
+        if cfg.Paths.Server == "" {
+            t.Error("default server path should not be empty")
+        }
+        if cfg.Mods.ConcurrentDownloads <= 0 {
+            t.Error("default concurrent_downloads should be positive")
+        }
+    })
 
-	// Verify essential defaults
-	if cfg.Server.JarName == "" {
-		t.Error("Default server jar_name should not be empty")
-	}
+    t.Run("from file", func(t *testing.T) {
+        tmpDir := t.TempDir()
+        configPath := filepath.Join(tmpDir, "test_config.toml")
 
-	if cfg.Paths.Server == "" {
-		t.Error("Default server path should not be empty")
-	}
-
-	if cfg.Mods.ConcurrentDownloads <= 0 {
-		t.Error("Default concurrent_downloads should be positive")
-	}
-}
-
-func TestLoadConfigFromFile(t *testing.T) {
-	// Create temporary config file
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "test_config.toml")
-
-	testConfig := `
+        testConfig := `
 [server]
 jar_name = "test-server.jar"
 java_flags = ["-Xmx4G", "-Xms2G"]
@@ -46,34 +41,28 @@ mods = "/test/mods"
 [mods]
 concurrent_downloads = 5
 `
+        if err := os.WriteFile(configPath, []byte(testConfig), 0o644); err != nil {
+            t.Fatalf("write test config: %v", err)
+        }
 
-	if err := os.WriteFile(configPath, []byte(testConfig), 0644); err != nil {
-		t.Fatalf("Failed to create test config: %v", err)
-	}
+        cfg, err := config.LoadConfig(configPath)
+        if err != nil {
+            t.Fatalf("LoadConfig: %v", err)
+        }
+        if got, want := cfg.Server.JarName, "test-server.jar"; got != want {
+            t.Errorf("jar_name = %q, want %q", got, want)
+        }
+        if got, want := cfg.Mods.ConcurrentDownloads, 5; got != want {
+            t.Errorf("concurrent_downloads = %d, want %d", got, want)
+        }
+        if got, want := cfg.Paths.Server, "/test/server"; got != want {
+            t.Errorf("server path = %q, want %q", got, want)
+        }
+    })
 
-	// Load config from file
-	cfg, err := config.LoadConfig(configPath)
-	if err != nil {
-		t.Fatalf("LoadConfig failed: %v", err)
-	}
-
-	// Verify loaded values
-	if cfg.Server.JarName != "test-server.jar" {
-		t.Errorf("Expected jar_name 'test-server.jar', got '%s'", cfg.Server.JarName)
-	}
-
-	if cfg.Mods.ConcurrentDownloads != 5 {
-		t.Errorf("Expected concurrent_downloads 5, got %d", cfg.Mods.ConcurrentDownloads)
-	}
-
-	if cfg.Paths.Server != "/test/server" {
-		t.Errorf("Expected server path '/test/server', got '%s'", cfg.Paths.Server)
-	}
-}
-
-func TestLoadConfigNonExistent(t *testing.T) {
-	_, err := config.LoadConfig("/nonexistent/config.toml")
-	if err == nil {
-		t.Error("Expected error when loading non-existent config file")
-	}
+    t.Run("non-existent file", func(t *testing.T) {
+        if _, err := config.LoadConfig("/nonexistent/config.toml"); err == nil {
+            t.Error("expected error for non-existent config file")
+        }
+    })
 }

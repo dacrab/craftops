@@ -18,7 +18,7 @@ var (
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init-config",
-	Short: "📝 Initialize a new configuration file with defaults",
+    Short: "Initialize a new configuration file with defaults",
 	Long: `Initialize a new configuration file with default settings.
 
 This command creates a new configuration file with sensible defaults that you can
@@ -34,16 +34,20 @@ customize for your Minecraft server setup.`,
 		printStep(1, 4, fmt.Sprintf("Checking output path: %s", outputPath))
 
 		// Check if file exists and force flag
-		if _, err := os.Stat(outputPath); err == nil && !force {
+        if info, err := os.Stat(outputPath); err == nil && !force {
+            if info.IsDir() {
+                printWarning(fmt.Sprintf("Path is a directory: %s", outputPath))
+                return fmt.Errorf("output path is a directory: %s", outputPath)
+            }
 			printWarning(fmt.Sprintf("Configuration file already exists: %s", outputPath))
-			printInfo("💡 Use --force to overwrite the existing file")
+            printInfo("Use --force to overwrite the existing file")
 			return nil
 		}
 
 		printStep(2, 4, "Creating directory structure...")
 		// Create directory if needed
 		dir := filepath.Dir(outputPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+        if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("failed to create directory: %w", err)
 		}
 
@@ -57,19 +61,19 @@ customize for your Minecraft server setup.`,
 			return fmt.Errorf("failed to save configuration: %w", err)
 		}
 
-		printSection("Setup Complete!")
-		printSuccess(fmt.Sprintf("📝 Configuration file created: %s", outputPath))
+        printSection("Setup Complete!")
+        printSuccess(fmt.Sprintf("Configuration file created: %s", outputPath))
 
-		printSection("Next Steps")
-		printInfo("1. 📝 Edit the configuration file with your server details:")
+        printSection("Next Steps")
+        printInfo("1. Edit the configuration file with your server details:")
 		fmt.Printf("   %s\n", accentColor.Sprintf("nano %s", outputPath))
 		fmt.Println()
-		printInfo("2. 🎮 Add your Modrinth mod URLs to the [mods.sources] section")
+        printInfo("2. Add your Modrinth mod URLs to the [mods.modrinth_sources] list")
 		fmt.Println()
-		printInfo("3. 🏥 Run a health check to validate your setup:")
+        printInfo("3. Run a health check to validate your setup:")
 		fmt.Printf("   %s\n", accentColor.Sprintf("craftops health-check"))
 		fmt.Println()
-		printInfo("4. 🚀 Start managing your server:")
+        printInfo("4. Start managing your server:")
 		fmt.Printf("   %s\n", accentColor.Sprintf("craftops update-mods"))
 
 		return nil
