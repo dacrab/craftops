@@ -104,10 +104,9 @@ func TestNotificationDryRun(t *testing.T) {
 func TestNotificationWebhookCheckVariants(t *testing.T) {
     cfg := config.DefaultConfig()
     logger := zap.NewNop()
-    svc := services.NewNotificationService(cfg, logger)
     // Empty -> WARN exists already in other test via HealthCheck, add ERROR and OK
     cfg.Notifications.DiscordWebhook = "http://foo"
-    svc = services.NewNotificationService(cfg, logger)
+    svc := services.NewNotificationService(cfg, logger)
     found := false
     for _, c := range svc.HealthCheck(context.Background()) {
         if c.Name == "Discord webhook" {

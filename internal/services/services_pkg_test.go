@@ -56,9 +56,8 @@ func TestNotificationService_NoWebhook(t *testing.T) {
 func TestBackup_InternalHelpersAndRetention(t *testing.T) {
     // validateServerDirectory errors on nonexistent and non-directory
     cfg := config.DefaultConfig()
-    bs := NewBackupService(cfg, zap.NewNop())
     cfg.Paths.Server = filepath.Join(t.TempDir(), "nope")
-    bs = NewBackupService(cfg, zap.NewNop())
+    bs := NewBackupService(cfg, zap.NewNop())
     if err := bs.validateServerDirectory(); err == nil {
         t.Fatalf("expected error for missing server dir")
     }
