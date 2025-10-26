@@ -37,8 +37,10 @@ jobs:
 
       - name: Lint
         uses: golangci/golangci-lint-action@v6
+        env:
+          GOFLAGS: ""
         with:
-          version: latest
+          version: v1.61.0
           args: --timeout=5m -c .github/.golangci.yml
 
       - name: Check coverage
