@@ -326,11 +326,11 @@ func (bs *BackupService) checkBackupDirectory() HealthCheck {
 		}
 	}
 
-    testFile := filepath.Join(bs.config.Paths.Backups, ".health_check_test")
-    // #nosec G304 -- creating a sentinel file to verify write permissions in backups directory
-    if file, err := os.Create(testFile); err == nil {
-        _ = file.Close()
-        _ = os.Remove(testFile)
+	testFile := filepath.Join(bs.config.Paths.Backups, ".health_check_test")
+	// #nosec G304 -- creating a sentinel file to verify write permissions in backups directory
+	if file, err := os.Create(testFile); err == nil {
+		_ = file.Close()
+		_ = os.Remove(testFile)
 		return HealthCheck{
 			Name:    "Backup directory",
 			Status:  "OK",

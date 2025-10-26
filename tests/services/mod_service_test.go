@@ -1,14 +1,16 @@
 package services_test
 
 import (
-	"context"
-	"testing"
-	"time"
+    "context"
+    "os"
+    "path/filepath"
+    "testing"
+    "time"
 
-	"go.uber.org/zap"
+    "go.uber.org/zap"
 
-	"craftops/internal/config"
-	"craftops/internal/services"
+    "craftops/internal/config"
+    "craftops/internal/services"
 )
 
 func TestNewModService(t *testing.T) {
@@ -72,6 +74,21 @@ func TestModServicePublicMethods(t *testing.T) {
 		t.Error("ListInstalledMods should return empty slice, not nil")
 	}
 
+    // Improve coverage: count .jar files in a temp mods dir
+    tmp := t.TempDir()
+    if err := os.WriteFile(filepath.Join(tmp, "a.jar"), []byte("x"), 0o644); err != nil { t.Fatal(err) }
+    if err := os.WriteFile(filepath.Join(tmp, "b.jar"), []byte("y"), 0o644); err != nil { t.Fatal(err) }
+    if err := os.WriteFile(filepath.Join(tmp, "c.txt"), []byte("z"), 0o644); err != nil { t.Fatal(err) }
+    cfg.Paths.Mods = tmp
+    service = services.NewModService(cfg, logger)
+    mods, err = service.ListInstalledMods()
+    if err != nil {
+        t.Fatalf("ListInstalledMods(temp) error: %v", err)
+    }
+    if len(mods) != 2 {
+        t.Fatalf("ListInstalledMods expected 2 jars, got %d", len(mods))
+    }
+
 	// Test UpdateAllMods with dry run to avoid network and side effects
 	cfg.DryRun = true
 	cfg.Mods.ModrinthSources = []string{"https://modrinth.com/mod/example"}
@@ -87,4 +104,20 @@ func TestModServicePublicMethods(t *testing.T) {
 	if res == nil || len(res.UpdatedMods) == 0 {
 		t.Error("UpdateAllMods (dry run) should report a simulated update")
 	}
+
+    // Increase coverage: trigger invalid URL path through UpdateAllMods to exercise
+    // processModsParallel -> updateModrinthMod -> parseModrinthProjectID error branch
+    cfg = config.DefaultConfig()
+    cfg.DryRun = false
+    cfg.Mods.ModrinthSources = []string{"invalid-url"}
+    service = services.NewModService(cfg, logger)
+    ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
+    defer cancel2()
+    res, err = service.UpdateAllMods(ctx2, false)
+    if err != nil {
+        t.Errorf("UpdateAllMods (invalid url) returned unexpected error: %v", err)
+    }
+    if len(res.FailedMods) == 0 {
+        t.Errorf("expected failure recorded for invalid url source")
+    }
 }

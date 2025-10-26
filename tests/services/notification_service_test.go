@@ -1,14 +1,16 @@
 package services_test
 
 import (
-	"context"
-	"testing"
-	"time"
+    "context"
+    "net/http"
+    "net/http/httptest"
+    "testing"
+    "time"
 
-	"go.uber.org/zap"
+    "go.uber.org/zap"
 
-	"craftops/internal/config"
-	"craftops/internal/services"
+    "craftops/internal/config"
+    "craftops/internal/services"
 )
 
 func TestNewNotificationService(t *testing.T) {
@@ -61,6 +63,7 @@ func TestNotificationServiceHealthCheck(t *testing.T) {
 func TestNotificationDryRun(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.DryRun = true // Enable dry run mode
+    cfg.Notifications.WarningIntervals = []int{1}
 	logger := zap.NewNop()
 	service := services.NewNotificationService(cfg, logger)
 
@@ -77,4 +80,50 @@ func TestNotificationDryRun(t *testing.T) {
 	if err != nil {
 		t.Errorf("SendErrorNotification should not error in dry run: %v", err)
 	}
+
+    // Also exercise restart warnings path with a single short interval
+    if err := service.SendRestartWarnings(ctx); err != nil {
+        t.Errorf("SendRestartWarnings should not error in dry run: %v", err)
+    }
+
+    // Increase coverage: exercise non-dry-run webhook path with a local server
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(204)
+    }))
+    defer srv.Close()
+
+    cfg2 := config.DefaultConfig()
+    cfg2.DryRun = false
+    cfg2.Notifications.DiscordWebhook = srv.URL
+    service2 := services.NewNotificationService(cfg2, logger)
+    if err := service2.SendSuccessNotification(ctx, "ok"); err != nil {
+        t.Errorf("SendSuccessNotification (webhook) error: %v", err)
+    }
+}
+
+func TestNotificationWebhookCheckVariants(t *testing.T) {
+    cfg := config.DefaultConfig()
+    logger := zap.NewNop()
+    svc := services.NewNotificationService(cfg, logger)
+    // Empty -> WARN exists already in other test via HealthCheck, add ERROR and OK
+    cfg.Notifications.DiscordWebhook = "http://foo"
+    svc = services.NewNotificationService(cfg, logger)
+    found := false
+    for _, c := range svc.HealthCheck(context.Background()) {
+        if c.Name == "Discord webhook" {
+            found = true
+            if c.Status != "ERROR" {
+                t.Fatalf("expected ERROR, got %s", c.Status)
+            }
+        }
+    }
+    if !found { t.Fatalf("missing webhook check") }
+
+    cfg.Notifications.DiscordWebhook = "https://discord.com/api/webhooks/abc"
+    svc = services.NewNotificationService(cfg, logger)
+    ok := false
+    for _, c := range svc.HealthCheck(context.Background()) {
+        if c.Name == "Discord webhook" && c.Status == "OK" { ok = true }
+    }
+    if !ok { t.Fatalf("expected OK webhook status") }
 }

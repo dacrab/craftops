@@ -434,12 +434,12 @@ func (ms *ModService) downloadMod(ctx context.Context, downloadURL, filename str
 		case <-time.After(delay):
 		}
 	}
-    if lastErr != nil {
-        _ = tmpFile.Close()
-        _ = os.Remove(tmpPath)
-        return false, lastErr
-    }
-    _ = tmpFile.Close()
+	if lastErr != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return false, lastErr
+	}
+	_ = tmpFile.Close()
 
 	// Replace existing file atomically when possible
 	if _, err := os.Stat(finalPath); err == nil {

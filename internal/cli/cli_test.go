@@ -1,14 +1,18 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
-	"testing"
+    "os"
+    "path/filepath"
+    "testing"
+
+    "craftops/internal/config"
 )
 
 func TestInitConfigCreatesFile(t *testing.T) {
 	tmp := t.TempDir()
 	out := filepath.Join(tmp, "config.toml")
+    // Ensure global CLI state doesn't carry over between tests
+    cfgFile = ""
 	orig := os.Args
 	defer func() { os.Args = orig }()
 	os.Args = []string{"craftops", "init-config", "-o", out, "--force"}
@@ -29,6 +33,43 @@ func TestBackupListWithTempConfig(t *testing.T) {
 	if err := Execute(); err != nil {
 		t.Fatalf("Execute(backup list) error: %v", err)
 	}
+
+    // Also exercise backup create (dry-run) and update-mods (dry-run, no-backup)
+    os.Args = []string{"craftops", "--config", cfg, "--dry-run", "backup", "create"}
+    if err := Execute(); err != nil {
+        t.Fatalf("Execute(backup create dry-run) error: %v", err)
+    }
+    os.Args = []string{"craftops", "--config", cfg, "--dry-run", "update-mods", "--no-backup"}
+    if err := Execute(); err != nil {
+        t.Fatalf("Execute(update-mods dry-run) error: %v", err)
+    }
+
+    // Exercise health-check to cover checkPaths/displayHealthResults/printTable
+    os.Args = []string{"craftops", "--config", cfg, "health-check"}
+    if err := Execute(); err == nil {
+        // Expect error due to missing external deps (java/screen/server.jar)
+        t.Fatalf("expected health-check to return error when environment is missing deps")
+    }
+
+    // Also hit update-mods without --no-backup to exercise createBackupIfNeeded path
+    os.Args = []string{"craftops", "--config", cfg, "--dry-run", "update-mods"}
+    if err := Execute(); err != nil {
+        t.Fatalf("Execute(update-mods with backup, dry-run) error: %v", err)
+    }
+}
+
+func TestCheckPathsMixedStates(t *testing.T) {
+    // Directly exercise checkPaths on a crafted cfg with a file instead of dir
+    tmp := t.TempDir()
+    filePath := filepath.Join(tmp, "notadir")
+    if err := os.WriteFile(filePath, []byte("x"), 0o644); err != nil { t.Fatal(err) }
+    cfg = config.DefaultConfig()
+    cfg.Paths.Server = filePath
+    cfg.Paths.Mods = filepath.Join(tmp, "mods")
+    cfg.Paths.Backups = filepath.Join(tmp, "backups")
+    cfg.Paths.Logs = filepath.Join(tmp, "logs")
+    checks := checkPaths()
+    if len(checks) != 4 { t.Fatalf("want 4 checks, got %d", len(checks)) }
 }
 
 func TestServerStatusNoDeps(t *testing.T) {
@@ -97,7 +138,7 @@ error_notifications = false
 [logging]
 level = "INFO"
 format = "json"
-file_enabled = false
+file_enabled = true
 console_enabled = false
 `
 	path := filepath.Join(base, "config.toml")
