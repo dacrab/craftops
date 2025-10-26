@@ -49,9 +49,9 @@ func TestNotificationServiceHealthCheck(t *testing.T) {
 		if check.Name == "" {
 			t.Error("Health check name should not be empty")
 		}
-        if check.Status == "" {
-            t.Error("Health check status should not be empty")
-        }
+		if check.Status == "" {
+			t.Error("Health check status should not be empty")
+		}
 		if check.Message == "" {
 			t.Error("Health check message should not be empty")
 		}

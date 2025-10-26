@@ -16,7 +16,7 @@ var (
 
 var updateModsCmd = &cobra.Command{
 	Use:   "update-mods",
-    Short: "Update all configured mods to their latest versions",
+	Short: "Update all configured mods to their latest versions",
 	Long: `Update all configured mods to their latest compatible versions.
 
 This command will:
@@ -32,9 +32,9 @@ func runUpdateMods(cmd *cobra.Command, args []string) error {
 
 	printBanner("Mod Update Manager")
 
-    if cfg.DryRun {
-        printWarning("Dry run mode - no changes will be made")
-    }
+	if cfg.DryRun {
+		printWarning("Dry run mode - no changes will be made")
+	}
 
 	modService := services.NewModService(cfg, logger)
 
@@ -85,8 +85,8 @@ func displayUpdateResults(result *services.ModUpdateResult) {
 
 	totalMods := len(result.UpdatedMods) + len(result.FailedMods) + len(result.SkippedMods)
 	if totalMods == 0 {
-        printInfo("No mods configured for updates")
-        printInfo("Add Modrinth mod URLs to your configuration file")
+		printInfo("No mods configured for updates")
+		printInfo("Add Modrinth mod URLs to your configuration file")
 		return
 	}
 
@@ -101,9 +101,9 @@ func displayUpdatedMods(updatedMods []string) {
 		return
 	}
 
-    printSuccess(fmt.Sprintf("Successfully updated %d mods:", len(updatedMods)))
+	printSuccess(fmt.Sprintf("Successfully updated %d mods:", len(updatedMods)))
 	for _, mod := range updatedMods {
-        fmt.Printf("   %s\n", successColor.Sprint(mod))
+		fmt.Printf("   %s\n", successColor.Sprint(mod))
 	}
 	fmt.Println()
 }
@@ -113,9 +113,9 @@ func displayFailedMods(failedMods map[string]string) {
 		return
 	}
 
-    printError(fmt.Sprintf("Failed to update %d mods:", len(failedMods)))
+	printError(fmt.Sprintf("Failed to update %d mods:", len(failedMods)))
 	for mod, err := range failedMods {
-        fmt.Printf("   %s: %s\n", errorColor.Sprint(mod), dimColor.Sprint(err))
+		fmt.Printf("   %s: %s\n", errorColor.Sprint(mod), dimColor.Sprint(err))
 	}
 	fmt.Println()
 }
@@ -125,9 +125,9 @@ func displaySkippedMods(skippedMods []string) {
 		return
 	}
 
-    printWarning(fmt.Sprintf("Skipped %d mods:", len(skippedMods)))
+	printWarning(fmt.Sprintf("Skipped %d mods:", len(skippedMods)))
 	for _, mod := range skippedMods {
-        fmt.Printf("   %s\n", warningColor.Sprint(mod))
+		fmt.Printf("   %s\n", warningColor.Sprint(mod))
 	}
 	fmt.Println()
 }
@@ -137,23 +137,23 @@ func displaySummary(result *services.ModUpdateResult) {
 	hasFailures := len(result.FailedMods) > 0
 	hasSkipped := len(result.SkippedMods) > 0
 
-    if !hasUpdates && !hasFailures && !hasSkipped {
-        printSuccess("All mods are already up to date!")
-        printInfo("Your server is running the latest compatible versions")
+	if !hasUpdates && !hasFailures && !hasSkipped {
+		printSuccess("All mods are already up to date!")
+		printInfo("Your server is running the latest compatible versions")
 		return
 	}
 
 	if hasUpdates || hasFailures {
 		printSection("Summary")
-        if hasUpdates {
-            printSuccess(fmt.Sprintf("%d successful updates", len(result.UpdatedMods)))
-        }
-        if hasFailures {
-            printError(fmt.Sprintf("%d failed updates", len(result.FailedMods)))
-        }
-        if hasSkipped {
-            printWarning(fmt.Sprintf("%d skipped updates", len(result.SkippedMods)))
-        }
+		if hasUpdates {
+			printSuccess(fmt.Sprintf("%d successful updates", len(result.UpdatedMods)))
+		}
+		if hasFailures {
+			printError(fmt.Sprintf("%d failed updates", len(result.FailedMods)))
+		}
+		if hasSkipped {
+			printWarning(fmt.Sprintf("%d skipped updates", len(result.SkippedMods)))
+		}
 	}
 }
 func init() {

@@ -13,7 +13,7 @@ import (
 // healthCheckCmd represents the health-check command
 var healthCheckCmd = &cobra.Command{
 	Use:   "health-check",
-    Short: "Run comprehensive system health checks",
+	Short: "Run comprehensive system health checks",
 	Long: `Run comprehensive health checks to validate your configuration and system setup.
 
 This command checks:
@@ -62,44 +62,44 @@ This command checks:
 		displayHealthResults(allChecks)
 
 		// Summary and exit code
-        passed := 0
-        warnings := 0
-        failed := 0
+		passed := 0
+		warnings := 0
+		failed := 0
 
-        for _, check := range allChecks {
-            switch check.Status {
-            case "OK":
-                passed++
-            case "WARN":
-                warnings++
-            case "ERROR":
-                failed++
-            }
-        }
+		for _, check := range allChecks {
+			switch check.Status {
+			case "OK":
+				passed++
+			case "WARN":
+				warnings++
+			case "ERROR":
+				failed++
+			}
+		}
 
 		printSection("Health Check Summary")
-        if failed > 0 {
-            printError(fmt.Sprintf("%d checks failed", failed))
-            if warnings > 0 {
-                printWarning(fmt.Sprintf("%d warnings", warnings))
-            }
-            if passed > 0 {
-                printSuccess(fmt.Sprintf("%d checks passed", passed))
-            }
-            fmt.Println()
-            printError("System is not ready for production use!")
-            printInfo("Please fix the failed checks above and run again.")
+		if failed > 0 {
+			printError(fmt.Sprintf("%d checks failed", failed))
+			if warnings > 0 {
+				printWarning(fmt.Sprintf("%d warnings", warnings))
+			}
+			if passed > 0 {
+				printSuccess(fmt.Sprintf("%d checks passed", passed))
+			}
+			fmt.Println()
+			printError("System is not ready for production use!")
+			printInfo("Please fix the failed checks above and run again.")
 			return fmt.Errorf("health check failed: %d checks failed", failed)
 		} else if warnings > 0 {
-            printWarning(fmt.Sprintf("%d warnings found", warnings))
-            printSuccess(fmt.Sprintf("%d checks passed", passed))
+			printWarning(fmt.Sprintf("%d warnings found", warnings))
+			printSuccess(fmt.Sprintf("%d checks passed", passed))
 			fmt.Println()
-            printWarning("System is functional but has warnings.")
-            printInfo("Consider addressing the warnings for optimal performance.")
+			printWarning("System is functional but has warnings.")
+			printInfo("Consider addressing the warnings for optimal performance.")
 		} else {
-            printSuccess(fmt.Sprintf("All %d checks passed.", passed))
+			printSuccess(fmt.Sprintf("All %d checks passed.", passed))
 			fmt.Println()
-            printSuccess("System is ready for production use!")
+			printSuccess("System is ready for production use!")
 		}
 
 		return nil
@@ -129,31 +129,31 @@ func checkPaths() []services.HealthCheck {
 				if file, err := os.Create(testFile); err == nil {
 					file.Close()
 					os.Remove(testFile)
-                    checks = append(checks, services.HealthCheck{
-                        Name:    name,
-                        Status:  "OK",
-                        Message: "OK",
-                    })
+					checks = append(checks, services.HealthCheck{
+						Name:    name,
+						Status:  "OK",
+						Message: "OK",
+					})
 				} else {
-                    checks = append(checks, services.HealthCheck{
-                        Name:    name,
-                        Status:  "ERROR",
-                        Message: "No write permission",
-                    })
+					checks = append(checks, services.HealthCheck{
+						Name:    name,
+						Status:  "ERROR",
+						Message: "No write permission",
+					})
 				}
 			} else {
-                checks = append(checks, services.HealthCheck{
-                    Name:    name,
-                    Status:  "ERROR",
-                    Message: "Path exists but is not a directory",
-                })
+				checks = append(checks, services.HealthCheck{
+					Name:    name,
+					Status:  "ERROR",
+					Message: "Path exists but is not a directory",
+				})
 			}
 		} else {
-            checks = append(checks, services.HealthCheck{
-                Name:    name,
-                Status:  "WARN",
-                Message: "Directory does not exist",
-            })
+			checks = append(checks, services.HealthCheck{
+				Name:    name,
+				Status:  "WARN",
+				Message: "Directory does not exist",
+			})
 		}
 	}
 
@@ -169,16 +169,16 @@ func displayHealthResults(checks []services.HealthCheck) {
 	rows := make([][]string, len(checks))
 
 	for i, check := range checks {
-        status := check.Status
-        switch status {
-        case "OK":
-            status = successColor.Sprint(status)
-        case "WARN":
-            status = warningColor.Sprint(status)
-        case "ERROR":
-            status = errorColor.Sprint(status)
-        }
-        rows[i] = []string{check.Name, status, check.Message}
+		status := check.Status
+		switch status {
+		case "OK":
+			status = successColor.Sprint(status)
+		case "WARN":
+			status = warningColor.Sprint(status)
+		case "ERROR":
+			status = errorColor.Sprint(status)
+		}
+		rows[i] = []string{check.Name, status, check.Message}
 	}
 
 	printTable(headers, rows)
