@@ -137,9 +137,9 @@ func initLogger(cfg *config.Config) *zap.Logger {
 		// Ensure log directory exists
 		_ = os.MkdirAll(cfg.Paths.Logs, 0o750)
 
-        logFile := filepath.Join(cfg.Paths.Logs, "craftops.log")
-        // #nosec G304 -- log path is derived from configuration and created with safe perms
-        file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+		logFile := filepath.Join(cfg.Paths.Logs, "craftops.log")
+		// #nosec G304 -- log path is derived from configuration and created with safe perms
+		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err == nil {
 			var encoder zapcore.Encoder
 			if cfg.Logging.Format == "json" {
@@ -294,7 +294,7 @@ func printTable(headers []string, rows [][]string) {
 		for i, cell := range row {
 			if i < len(widths) {
 				fmt.Printf(" %-*s ", widths[i], cell)
-				accentColor.Print("│")
+				_, _ = accentColor.Print("│")
 			}
 		}
 		fmt.Println()
