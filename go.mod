@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/fatih/color v1.18.0
 	github.com/spf13/cobra v1.10.1
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.27.1
 	golang.org/x/term v0.36.0
 )
 
