@@ -3,16 +3,10 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"golang.org/x/term"
 
+	"craftops/internal/app"
 	"craftops/internal/config"
 )
 
@@ -20,292 +14,70 @@ var (
 	cfgFile string
 	debug   bool
 	dryRun  bool
-	cfg     *config.Config
-	logger  *zap.Logger
-	// Version can be set by ldflags during build
-	Version = "2.0.1"
+
+	// Version is set by ldflags during build
+	Version = "2.1.0"
+
+	// Global app instance (set during PersistentPreRunE)
+	application *app.App
 )
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "craftops",
 	Short: "Modern Minecraft server operations and mod management",
-	Long: `CraftOps is a comprehensive CLI tool for Minecraft server operations and mod management.
+	Long: `CraftOps is a CLI tool for Minecraft server operations and mod management.
 
 Features:
-• Server lifecycle management (start, stop, restart) - Linux/macOS only
-• Automated backups with retention policies
-• Discord notifications and player warnings
-• Health checks and configuration validation`,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Initialize configuration
-		var err error
-		cfg, err = config.LoadConfig(cfgFile)
-		if err != nil {
-			return fmt.Errorf("failed to load configuration: %w", err)
+  - Server lifecycle management (start, stop, restart)
+  - Automated mod updates from Modrinth
+  - Backups with retention policies
+  - Discord notifications
+  - Health checks`,
+	PersistentPreRunE: initApp,
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		if application != nil {
+			application.Close()
 		}
-
-		// Override config with CLI flags
-		if debug {
-			cfg.Debug = true
-			cfg.Logging.Level = "DEBUG"
-		}
-		if dryRun {
-			cfg.DryRun = true
-		}
-
-		// Initialize logger
-		logger = initLogger(cfg)
-
-		return nil
 	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
+// Execute runs the root command
 func Execute() error {
 	return rootCmd.Execute()
 }
 
 func init() {
-	// Global flags
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file path")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug mode")
-	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "show what would be done without making changes")
-	// Cobra native version support
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "show what would be done")
 	rootCmd.Version = Version
 	rootCmd.SetVersionTemplate("CraftOps v{{.Version}}\n")
 	rootCmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Help() }
 }
 
-// initLogger initializes the logger based on configuration
-func initLogger(cfg *config.Config) *zap.Logger {
-	// Parse log level
-	var level zapcore.Level
-	switch cfg.Logging.Level {
-	case "DEBUG":
-		level = zapcore.DebugLevel
-	case "INFO":
-		level = zapcore.InfoLevel
-	case "WARNING":
-		level = zapcore.WarnLevel
-	case "ERROR":
-		level = zapcore.ErrorLevel
-	case "CRITICAL":
-		level = zapcore.FatalLevel
-	default:
-		level = zapcore.InfoLevel
+func initApp(cmd *cobra.Command, args []string) error {
+	cfg, err := config.LoadConfig(cfgFile)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Create encoder config
-	var encoderConfig zapcore.EncoderConfig
-	isTTY := term.IsTerminal(int(os.Stderr.Fd()))
-	if cfg.Logging.Format == "json" {
-		encoderConfig = zap.NewProductionEncoderConfig()
-	} else {
-		encoderConfig = zap.NewDevelopmentEncoderConfig()
-		if isTTY {
-			encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		} else {
-			encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-		}
+	if debug {
+		cfg.Debug = true
+		cfg.Logging.Level = "DEBUG"
 	}
-	// Disable ANSI colors on non-TTY outputs
-	color.NoColor = !isTTY
-
-	// Create cores
-	var cores []zapcore.Core
-
-	// Console core
-	if cfg.Logging.ConsoleEnabled {
-		var encoder zapcore.Encoder
-		if cfg.Logging.Format == "json" {
-			encoder = zapcore.NewJSONEncoder(encoderConfig)
-		} else {
-			encoder = zapcore.NewConsoleEncoder(encoderConfig)
-		}
-
-		consoleCore := zapcore.NewCore(
-			encoder,
-			zapcore.AddSync(os.Stderr),
-			level,
-		)
-		cores = append(cores, consoleCore)
+	if dryRun {
+		cfg.DryRun = true
 	}
 
-	// File core
-	if cfg.Logging.FileEnabled {
-		// Ensure log directory exists
-		_ = os.MkdirAll(cfg.Paths.Logs, 0o750)
-
-		logFile := filepath.Join(cfg.Paths.Logs, "craftops.log")
-		// #nosec G304 -- log path is derived from configuration and created with safe perms
-		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
-		if err == nil {
-			var encoder zapcore.Encoder
-			if cfg.Logging.Format == "json" {
-				encoder = zapcore.NewJSONEncoder(encoderConfig)
-			} else {
-				encoder = zapcore.NewConsoleEncoder(encoderConfig)
-			}
-
-			fileCore := zapcore.NewCore(
-				encoder,
-				zapcore.AddSync(file),
-				level,
-			)
-			cores = append(cores, fileCore)
-		}
-	}
-
-	// Create logger
-	core := zapcore.NewTee(cores...)
-	newLogger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
-
-	return newLogger
+	application = app.New(cfg)
+	return nil
 }
 
-// getContext returns a context for operations
 func getContext() context.Context {
 	return context.Background()
 }
 
-// Color scheme
-var (
-	successColor = color.New(color.FgGreen, color.Bold)
-	errorColor   = color.New(color.FgRed, color.Bold)
-	warningColor = color.New(color.FgYellow, color.Bold)
-	infoColor    = color.New(color.FgCyan, color.Bold)
-	headerColor  = color.New(color.FgMagenta, color.Bold)
-	accentColor  = color.New(color.FgBlue, color.Bold)
-	dimColor     = color.New(color.FgHiBlack)
-)
-
-// printBanner prints a beautiful banner
-func printBanner(title string) {
-	if !term.IsTerminal(int(os.Stdout.Fd())) {
-		fmt.Printf("%s\n", title)
-		return
-	}
-	width := 60
-	padding := (width - len(title) - 4) / 2
-
-	_, _ = headerColor.Println(strings.Repeat("═", width))
-	_, _ = headerColor.Printf("║%s %s %s║\n",
-		strings.Repeat(" ", padding),
-		title,
-		strings.Repeat(" ", padding))
-	_, _ = headerColor.Println(strings.Repeat("═", width))
-	fmt.Println()
-}
-
-// printSection prints a section header
-func printSection(title string) {
-	_, _ = accentColor.Printf("\n▶ %s\n", title)
-	_, _ = dimColor.Println(strings.Repeat("─", len(title)+2))
-}
-
-// printSuccess prints a success message
-func printSuccess(message string) {
-	if term.IsTerminal(int(os.Stdout.Fd())) {
-		_, _ = successColor.Printf("%s\n", message)
-	} else {
-		fmt.Printf("SUCCESS: %s\n", message)
-	}
-}
-
-// printError prints an error message
-func printError(message string) {
-	if term.IsTerminal(int(os.Stdout.Fd())) {
-		_, _ = errorColor.Printf("%s\n", message)
-	} else {
-		fmt.Printf("ERROR: %s\n", message)
-	}
-}
-
-// printWarning prints a warning message
-func printWarning(message string) {
-	if term.IsTerminal(int(os.Stdout.Fd())) {
-		_, _ = warningColor.Printf("%s\n", message)
-	} else {
-		fmt.Printf("WARNING: %s\n", message)
-	}
-}
-
-// printInfo prints an info message
-func printInfo(message string) {
-	if term.IsTerminal(int(os.Stdout.Fd())) {
-		_, _ = infoColor.Printf("%s\n", message)
-	} else {
-		fmt.Printf("INFO: %s\n", message)
-	}
-}
-
-// printStep prints a step in a process
-func printStep(step int, total int, message string) {
-	_, _ = accentColor.Printf("[%d/%d] ", step, total)
-	fmt.Printf("%s\n", message)
-}
-
-// printTable prints a formatted table
-func printTable(headers []string, rows [][]string) {
-	// Calculate column widths
-	widths := make([]int, len(headers))
-	for i, header := range headers {
-		widths[i] = len(header)
-	}
-
-	for _, row := range rows {
-		for i, cell := range row {
-			if i < len(widths) && len(cell) > widths[i] {
-				widths[i] = len(cell)
-			}
-		}
-	}
-
-	// Print header
-	_, _ = accentColor.Print("┌")
-	for i, width := range widths {
-		_, _ = accentColor.Print(strings.Repeat("─", width+2))
-		if i < len(widths)-1 {
-			_, _ = accentColor.Print("┬")
-		}
-	}
-	_, _ = accentColor.Println("┐")
-
-	_, _ = accentColor.Print("│")
-	for i, header := range headers {
-		fmt.Printf(" %-*s ", widths[i], header)
-		_, _ = accentColor.Print("│")
-	}
-	fmt.Println()
-
-	_, _ = accentColor.Print("├")
-	for i, width := range widths {
-		_, _ = accentColor.Print(strings.Repeat("─", width+2))
-		if i < len(widths)-1 {
-			_, _ = accentColor.Print("┼")
-		}
-	}
-	_, _ = accentColor.Println("┤")
-
-	// Print rows
-	for _, row := range rows {
-		_, _ = accentColor.Print("│")
-		for i, cell := range row {
-			if i < len(widths) {
-				fmt.Printf(" %-*s ", widths[i], cell)
-				_, _ = accentColor.Print("│")
-			}
-		}
-		fmt.Println()
-	}
-
-	_, _ = accentColor.Print("└")
-	for i, width := range widths {
-		_, _ = accentColor.Print(strings.Repeat("─", width+2))
-		if i < len(widths)-1 {
-			_, _ = accentColor.Print("┴")
-		}
-	}
-	_, _ = accentColor.Println("┘")
+// App returns the global application instance
+func App() *app.App {
+	return application
 }

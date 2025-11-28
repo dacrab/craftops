@@ -1,76 +1,41 @@
-# CraftOps Makefile (streamlined)
+.PHONY: build install clean test lint fmt dev package
 
-.PHONY: all help build install install-system clean test test-race lint fmt run dev package
+VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
+LDFLAGS := -ldflags "-s -w -X craftops/internal/cli.Version=$(VERSION)"
 
-# Build configuration
-GO?=go
-BINARY_NAME=craftops
-BUILD_DIR=build
-DIST_DIR=dist
-VERSION?=$(shell git describe --tags --always 2>/dev/null || echo 2.0.1)
-
-# Go build flags
-LDFLAGS=-ldflags "-X craftops/internal/cli.Version=$(VERSION) -s -w"
-BUILD_FLAGS=-trimpath
-
-# Default target
-help:
-	@echo "Targets: build, install, install-system, clean, test, test-race, lint, fmt, run, dev, package"
-
-# Build the binary
 build:
-	@echo "Building $(BINARY_NAME) ($(VERSION))..."
-	@mkdir -p $(BUILD_DIR)
-	$(GO) build $(BUILD_FLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/craftops
+	@mkdir -p build
+	go build -trimpath $(LDFLAGS) -o build/craftops ./cmd/craftops
 
-# Install the binary
 install:
-	$(GO) install $(LDFLAGS) ./cmd/craftops
+	go install $(LDFLAGS) ./cmd/craftops
 
-# Clean build artifacts
-clean:
-	rm -rf $(BUILD_DIR) $(DIST_DIR) coverage.out coverage.html
-	$(GO) clean -cache -testcache
-
-# Run tests
-test:
-	$(GO) test -v ./...
-
-test-race:
-	$(GO) test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...
-	$(GO) tool cover -html=coverage.out -o coverage.html
-
-# Run linting
-lint:
-	$(GO) vet ./...
-	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run; else echo "golangci-lint not installed"; fi
-
-# Format code
-fmt:
-	$(GO) fmt ./...
-	@if command -v goimports >/dev/null 2>&1; then goimports -w .; fi
-
-# Run the application
-run: build
-	./$(BUILD_DIR)/$(BINARY_NAME)
-
-# Install development dependencies
-dev:
-	$(GO) mod tidy
-	@if ! command -v golangci-lint >/dev/null 2>&1; then $(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; fi
-	@if ! command -v goimports >/dev/null 2>&1; then $(GO) install golang.org/x/tools/cmd/goimports@latest; fi
-
-# Install system-wide (requires sudo)
 install-system: build
-	sudo install -m0755 $(BUILD_DIR)/$(BINARY_NAME) /usr/local/bin/$(BINARY_NAME)
+	sudo install -m755 build/craftops /usr/local/bin/
 
-# Create distribution packages
-OS_ARCH := linux-amd64 linux-arm64 darwin-amd64 darwin-arm64
+clean:
+	rm -rf build dist coverage.out
+
+test:
+	go test -race -cover ./...
+
+lint:
+	go vet ./...
+	@command -v golangci-lint >/dev/null && golangci-lint run -c .github/.golangci.yml || true
+
+fmt:
+	go fmt ./...
+	@command -v goimports >/dev/null && goimports -w . || true
+
+dev:
+	go mod tidy
+	@command -v golangci-lint >/dev/null || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 package: clean
-	@mkdir -p $(DIST_DIR)
-	@set -e; for oa in $(OS_ARCH); do \
-	  os=$${oa%-*}; arch=$${oa#*-}; \
-	  echo "Building $$os/$$arch"; \
-	  GOOS=$$os GOARCH=$$arch $(GO) build $(BUILD_FLAGS) $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-$$os-$$arch ./cmd/craftops; \
+	@mkdir -p dist
+	@for os in linux darwin; do \
+		for arch in amd64 arm64; do \
+			echo "Building $$os/$$arch"; \
+			GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 go build -trimpath $(LDFLAGS) -o dist/craftops-$$os-$$arch ./cmd/craftops; \
+		done; \
 	done

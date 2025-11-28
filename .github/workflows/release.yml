@@ -1,91 +1,33 @@
 name: Release
-
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Release tag (e.g., v1.0.0)'
-        required: true
-
-concurrency:
-  group: release
-  cancel-in-progress: false
-
-env:
-  GOFLAGS: "-mod=readonly"
 
 jobs:
   release:
-    name: Create Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
 
-      - name: Get version
-        id: version
+      - name: Build
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="${{ github.event.inputs.tag }}"
-          else
-            VERSION="${GITHUB_REF#refs/tags/}"
-          fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "clean_version=${VERSION#v}" >> $GITHUB_OUTPUT
-
-      - name: Build binaries
-        run: |
-          VERSION="${{ steps.version.outputs.clean_version }}"
+          VERSION="${GITHUB_REF#refs/tags/v}"
           mkdir -p dist
-          
-          for OS in linux darwin; do
-            for ARCH in amd64 arm64; do
-              echo "Building ${OS}/${ARCH}..."
-              GOOS=${OS} GOARCH=${ARCH} CGO_ENABLED=0 \
-                go build \
-                  -trimpath \
-                  -ldflags="-s -w -X craftops/internal/cli.Version=${VERSION}" \
-                  -o "dist/craftops-${OS}-${ARCH}" \
-                  ./cmd/craftops
+          for os in linux darwin; do
+            for arch in amd64 arm64; do
+              GOOS=$os GOARCH=$arch CGO_ENABLED=0 \
+              go build -trimpath -ldflags="-s -w -X craftops/internal/cli.Version=${VERSION}" \
+              -o "dist/craftops-${os}-${arch}" ./cmd/craftops
             done
           done
+          cd dist && sha256sum * > SHA256SUMS
 
-      - name: Generate checksums
-        run: |
-          cd dist
-          sha256sum * > SHA256SUMS
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          if git tag --list | tail -2 | head -1 > /dev/null 2>&1; then
-            PREVIOUS_TAG=$(git tag --list | tail -2 | head -1)
-            echo "## Changes" > CHANGELOG.md
-            git log --oneline ${PREVIOUS_TAG}..HEAD >> CHANGELOG.md
-          else
-            echo "## Initial Release" > CHANGELOG.md
-            echo "First release of CraftOps" >> CHANGELOG.md
-          fi
-
-      - name: Create release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: CraftOps ${{ steps.version.outputs.version }}
-          body_path: CHANGELOG.md
-          files: |
-            dist/*
-          draft: false
-          prerelease: false
+          files: dist/*
+          generate_release_notes: true

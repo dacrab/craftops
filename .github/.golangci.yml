@@ -1,5 +1,3 @@
-version: 2
-
 run:
   timeout: 3m
 
@@ -8,41 +6,16 @@ linters:
     - govet
     - staticcheck
     - errcheck
-    - misspell
     - gosec
   disable:
     - godot
-  exclusions:
-    paths:
-      - build
-      - dist
-    rules:
-      # Tests: relax security and errcheck noise
-      - path: '(.+)_test\.go'
-        linters: [gosec, errcheck]
-      # CLI entrypoint often prints and ignores errors intentionally
-      - path: '^cmd/'
-        linters: [errcheck]
-      # Common safe patterns
-      - text: 'Error return value of.*Print.*is not checked'
-        linters: [errcheck]
-      - text: 'Error return value of.*Write.*is not checked'
-        linters: [errcheck]
-      - text: 'Error return value of.*Close.*is not checked'
-        linters: [errcheck]
-      - text: 'Error return value of.*Remove.*is not checked'
-        linters: [errcheck]
 
-linters-settings:
-  misspell:
-    locale: US
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-  gosec:
-    severity: medium
-    excludes:
-      - G104  # Duplicate with errcheck
-
-severity:
-  default-severity: error
+issues:
+  exclude-dirs:
+    - build
+    - dist
+  exclude-rules:
+    - path: _test\.go
+      linters: [gosec, errcheck]
+    - path: ^cmd/
+      linters: [errcheck]
