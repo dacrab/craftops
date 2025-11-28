@@ -228,8 +228,13 @@ func (m *Mods) apiRequest(ctx context.Context, apiURL string, result interface{}
 			continue
 		}
 
-		body, err := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		if readErr != nil {
+			lastErr = readErr
+			m.backoff(ctx, attempt)
+			continue
+		}
 
 		if resp.StatusCode == 200 {
 			return json.Unmarshal(body, result)
