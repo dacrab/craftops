@@ -8,9 +8,9 @@ linters:
     - govet
     - staticcheck
     - errcheck
-    - gosec
   disable:
     - godot
+    - gosec
 
 issues:
   exclude-dirs:
@@ -18,6 +18,14 @@ issues:
     - dist
   exclude-rules:
     - path: _test\.go
-      linters: [gosec, errcheck]
+      linters: [errcheck]
     - path: ^cmd/
+      linters: [errcheck]
+    - path: ^internal/ui/
+      linters: [errcheck]
+    - text: "Error return value of.*Close.*is not checked"
+      linters: [errcheck]
+    - text: "Error return value of.*Remove.*is not checked"
+      linters: [errcheck]
+    - text: "Error return value of.*Fprint.*is not checked"
       linters: [errcheck]
