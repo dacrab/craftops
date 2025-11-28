@@ -1,41 +1,74 @@
 # CraftOps
 
-Modern CLI for Minecraft server ops and Modrinth‑based mod updates. Minimal, fast, and script‑friendly.
+Modern CLI for Minecraft server operations and Modrinth mod management.
+
+## Features
+
+- Server lifecycle management (start/stop/restart via GNU screen)
+- Automated mod updates from Modrinth
+- Compressed backups with retention policies
+- Discord notifications
+- Health checks
 
 ## Install
 
-- One‑liner: `curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | bash`
-- From source: `make install-system`
-- Docker: `docker pull ghcr.io/dacrab/craftops:latest`
-
-## Quick start
-
 ```bash
-craftops init-config                  # generate default config.toml
-craftops --config ./config.toml health-check
-craftops update-mods                  # update mods from Modrinth
-craftops server restart               # restart via screen with warnings
+# One-liner
+curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | bash
+
+# From source
+make install
+
+# Docker
+docker pull ghcr.io/dacrab/craftops:latest
 ```
 
-## Commands
+## Usage
 
-- `init-config` create config
-- `health-check` validate paths, Java, screen, API, notifications
-- `update-mods [--force] [--no-backup]` update mods
-- `server start|stop|restart|status` manage server
-- `backup create|list` backups with retention
+```bash
+craftops init-config                    # Create default config
+craftops health-check                   # Validate setup
+craftops update-mods                    # Update mods from Modrinth
+craftops server start|stop|restart      # Manage server
+craftops backup create|list             # Manage backups
+```
 
-Global flags: `--config, -c`, `--debug`, `--dry-run`.
+**Flags:** `--config`, `--debug`, `--dry-run`
 
-## Minimal config
+## Config
 
-See a short example and all options in docs/usage.md.
+Generate with `craftops init-config`, then edit `~/.config/craftops/config.toml`:
 
-## Docs
+```toml
+[minecraft]
+version = "1.20.1"
+modloader = "fabric"
 
-- Usage: docs/usage.md
-- Deployment: docs/deployment.md
+[paths]
+server = "/home/minecraft/server"
+mods = "/home/minecraft/server/mods"
+backups = "/home/minecraft/backups"
+
+[mods]
+modrinth_sources = [
+  "https://modrinth.com/mod/fabric-api",
+  "https://modrinth.com/mod/lithium"
+]
+
+[backup]
+enabled = true
+max_backups = 5
+
+[notifications]
+discord_webhook = ""  # Optional
+```
+
+## Requirements
+
+- Linux/macOS
+- GNU screen
+- Java 17+ (for Minecraft server)
 
 ## License
 
-MIT. See LICENSE.
+MIT

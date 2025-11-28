@@ -1,53 +1,25 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    ":separateMajorReleases",
-    ":semanticCommits",
-    ":maintainLockFilesWeekly",
-    "schedule:weekly"
-  ],
-  "timezone": "UTC",
+  "extends": ["config:recommended", ":semanticCommits", "schedule:weekly"],
   "labels": ["dependencies"],
-  "dependencyDashboard": true,
-  "dependencyDashboardTitle": "Dependency Dashboard",
-  "rebaseWhen": "auto",
-  "platformAutomerge": false,
   "prConcurrentLimit": 5,
-  "branchConcurrentLimit": 10,
   "packageRules": [
     {
-      "description": "Group Go module updates",
       "matchManagers": ["gomod"],
       "groupName": "Go dependencies",
-      "addLabels": ["go", "dependencies"],
       "postUpdateOptions": ["gomodTidy"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     },
     {
-      "description": "Group GitHub Actions updates",
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
-      "addLabels": ["ci"],
-      "matchUpdateTypes": ["patch"],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     },
     {
-      "description": "Require review for major updates",
       "matchUpdateTypes": ["major"],
-      "addLabels": ["needs-review", "major-update"],
-      "prPriority": 10
-    },
-    {
-      "description": "Prioritize security alerts",
-      "matchDatasources": ["go"],
-      "vulnerabilityAlerts": {
-        "addLabels": ["security", "urgent"],
-        "prPriority": 100
-      }
+      "addLabels": ["major-update"]
     }
-  ],
-  "gomod": { "enabled": true },
-  "github-actions": { "enabled": true, "pinDigests": false }
+  ]
 }

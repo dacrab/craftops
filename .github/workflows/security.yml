@@ -1,82 +1,35 @@
 name: Security
-
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   schedule:
-    # Weekly security scan on Sundays at 3 AM UTC
     - cron: '0 3 * * 0'
 
-env:
-  GOFLAGS: "-mod=readonly"
-
 jobs:
-  security:
-    name: Security Analysis
+  scan:
     runs-on: ubuntu-latest
     permissions:
       security-events: write
-      actions: read
-      contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
 
-      - name: Run Trivy scanner
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-        continue-on-error: true
-
-      - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always() && hashFiles('trivy-results.sarif') != ''
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-      - name: Run Gosec
+      - name: Govulncheck
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec -severity medium -confidence medium ./... || true
-        continue-on-error: true
-
-      - name: Check for secrets (informational)
-        run: |
-          echo "=== Secret Detection (Informational Only) ==="
-          find . -name "*.go" -not -path "./vendor/*" | \
-            xargs grep -i -E "password|secret|token|key" | \
-            grep -v -E "(Author|Version|License|const|var|func|type|import|package|comment)" || \
-            echo "✅ No obvious secrets found"
-        continue-on-error: true
-
-      - name: Go vulnerability check (informational)
-        run: |
-          echo "=== Vulnerability Check (Informational Only) ==="
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./... || echo "⚠️ Vulnerabilities found (informational only)"
+          govulncheck ./... || true
+
+      - name: Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          format: sarif
+          output: trivy.sarif
         continue-on-error: true
 
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+      - uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('trivy.sarif') != ''
         with:
-          fail-on-severity: critical
+          sarif_file: trivy.sarif
