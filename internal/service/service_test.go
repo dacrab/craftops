@@ -23,7 +23,7 @@ func setup(t *testing.T) (*config.Config, *zap.Logger, context.Context) {
 	cfg.Paths.Logs = filepath.Join(tmp, "logs")
 
 	for _, p := range []string{cfg.Paths.Server, cfg.Paths.Mods, cfg.Paths.Backups, cfg.Paths.Logs} {
-		_ = os.MkdirAll(p, 0o755)
+		_ = os.MkdirAll(p, 0o750) //nolint:gosec // test directory permissions
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -73,7 +73,7 @@ func TestMods(t *testing.T) {
 	svc := service.NewMods(cfg, logger)
 
 	t.Run("ListInstalled", func(t *testing.T) {
-		_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "test.jar"), []byte("jar"), 0o644)
+		_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "test.jar"), []byte("jar"), 0o600) //nolint:gosec // test file permissions
 		mods, err := svc.ListInstalled()
 		if err != nil || len(mods) != 1 {
 			t.Errorf("ListInstalled failed: %v", err)
@@ -99,7 +99,7 @@ func TestBackup(t *testing.T) {
 	svc := service.NewBackup(cfg, logger)
 
 	t.Run("Create", func(t *testing.T) {
-		_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "data.txt"), []byte("data"), 0o644)
+		_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "data.txt"), []byte("data"), 0o600) //nolint:gosec // test file permissions
 		path, err := svc.Create(ctx)
 		if err != nil || path == "" {
 			t.Fatalf("Create failed: %v", err)

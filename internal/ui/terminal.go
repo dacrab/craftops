@@ -1,3 +1,4 @@
+// Package ui provides terminal output formatting and styling
 package ui
 
 import (
@@ -54,63 +55,79 @@ func NewTerminalWithWriter(out, errOut io.Writer, isTTY bool) *Terminal {
 	}
 }
 
+// IsTTY returns whether the terminal is a TTY
 func (t *Terminal) IsTTY() bool { return t.isTTY }
 
 // Banner prints a prominent centered header with double-line borders
 func (t *Terminal) Banner(title string) {
 	if !t.isTTY {
-		fmt.Fprintf(t.out, "%s\n", title)
+		_, _ = fmt.Fprintf(t.out, "%s\n", title) //nolint:errcheck // stdout errors are extremely rare
 		return
 	}
 
 	width := 60
 	padding := (width - len(title) - 4) / 2
 
-	headerColor.Fprintln(t.out, strings.Repeat("═", width))
-	headerColor.Fprintf(t.out, "║%s %s %s║\n",
+	_, _ = headerColor.Fprintln(t.out, strings.Repeat("═", width)) //nolint:errcheck
+	_, _ = headerColor.Fprintf(t.out, "║%s %s %s║\n", //nolint:errcheck
 		strings.Repeat(" ", padding),
 		title,
 		strings.Repeat(" ", padding))
-	headerColor.Fprintln(t.out, strings.Repeat("═", width))
-	fmt.Fprintln(t.out)
+	_, _ = headerColor.Fprintln(t.out, strings.Repeat("═", width)) //nolint:errcheck
+	_, _ = fmt.Fprintln(t.out) //nolint:errcheck
 }
 
 // Section prints a secondary header with an arrow indicator
 func (t *Terminal) Section(title string) {
 	if t.isTTY {
-		accentColor.Fprintf(t.out, "\n▶ %s\n", title)
-		dimColor.Fprintln(t.out, strings.Repeat("─", len(title)+2))
+		_, _ = accentColor.Fprintf(t.out, "\n▶ %s\n", title) //nolint:errcheck
+		_, _ = dimColor.Fprintln(t.out, strings.Repeat("─", len(title)+2)) //nolint:errcheck
 	} else {
-		fmt.Fprintf(t.out, "\n== %s ==\n", title)
+		_, _ = fmt.Fprintf(t.out, "\n== %s ==\n", title) //nolint:errcheck
 	}
 }
 
+// Success prints a success message
 func (t *Terminal) Success(message string) { t.printMsg(successColor, "SUCCESS", message) }
-func (t *Terminal) Error(message string)   { t.printMsg(errorColor, "ERROR", message) }
+
+// Error prints an error message
+func (t *Terminal) Error(message string) { t.printMsg(errorColor, "ERROR", message) }
+
+// Warning prints a warning message
 func (t *Terminal) Warning(message string) { t.printMsg(warningColor, "WARNING", message) }
-func (t *Terminal) Info(message string)    { t.printMsg(infoColor, "INFO", message) }
+
+// Info prints an info message
+func (t *Terminal) Info(message string) { t.printMsg(infoColor, "INFO", message) }
 
 func (t *Terminal) printMsg(c *color.Color, label, msg string) {
 	if t.isTTY {
-		c.Fprintln(t.out, msg)
+		_, _ = c.Fprintln(t.out, msg) //nolint:errcheck
 	} else {
-		fmt.Fprintf(t.out, "%s: %s\n", label, msg)
+		_, _ = fmt.Fprintf(t.out, "%s: %s\n", label, msg) //nolint:errcheck
 	}
 }
 
 // Step prints a progress indicator like [1/5]
 func (t *Terminal) Step(current, total int, message string) {
 	if t.isTTY {
-		accentColor.Fprintf(t.out, "[%d/%d] ", current, total)
+		_, _ = accentColor.Fprintf(t.out, "[%d/%d] ", current, total) //nolint:errcheck
 	} else {
-		fmt.Fprintf(t.out, "[%d/%d] ", current, total)
+		_, _ = fmt.Fprintf(t.out, "[%d/%d] ", current, total) //nolint:errcheck
 	}
-	fmt.Fprintln(t.out, message)
+	_, _ = fmt.Fprintln(t.out, message) //nolint:errcheck
 }
 
-func (t *Terminal) Printf(format string, args ...interface{}) { fmt.Fprintf(t.out, format, args...) }
-func (t *Terminal) Println(args ...interface{})               { fmt.Fprintln(t.out, args...) }
+// Printf formats and prints to the terminal output
+func (t *Terminal) Printf(format string, args ...interface{}) {
+	_, _ = fmt.Fprintf(t.out, format, args...) //nolint:errcheck
+}
 
+// Println prints arguments to the terminal output
+func (t *Terminal) Println(args ...interface{}) {
+	_, _ = fmt.Fprintln(t.out, args...) //nolint:errcheck
+}
+
+// AccentSprintf formats a string with accent color
 func (t *Terminal) AccentSprintf(format string, args ...interface{}) string {
 	if t.isTTY {
 		return accentColor.Sprintf(format, args...)
@@ -118,6 +135,7 @@ func (t *Terminal) AccentSprintf(format string, args ...interface{}) string {
 	return fmt.Sprintf(format, args...)
 }
 
+// SuccessSprint returns text formatted with success color
 func (t *Terminal) SuccessSprint(text string) string {
 	if t.isTTY {
 		return successColor.Sprint(text)
@@ -125,6 +143,7 @@ func (t *Terminal) SuccessSprint(text string) string {
 	return text
 }
 
+// ErrorSprint returns text formatted with error color
 func (t *Terminal) ErrorSprint(text string) string {
 	if t.isTTY {
 		return errorColor.Sprint(text)
@@ -132,6 +151,7 @@ func (t *Terminal) ErrorSprint(text string) string {
 	return text
 }
 
+// WarningSprint returns text formatted with warning color
 func (t *Terminal) WarningSprint(text string) string {
 	if t.isTTY {
 		return warningColor.Sprint(text)
@@ -139,6 +159,7 @@ func (t *Terminal) WarningSprint(text string) string {
 	return text
 }
 
+// DimSprint returns text formatted with dim color
 func (t *Terminal) DimSprint(text string) string {
 	if t.isTTY {
 		return dimColor.Sprint(text)
@@ -171,84 +192,84 @@ func (t *Terminal) Table(headers []string, rows [][]string) {
 func (t *Terminal) printTableTTY(headers []string, rows [][]string, widths []int) {
 	line := func(left, mid, right, fill string) {
 		if t.isTTY {
-			accentColor.Fprint(t.out, left)
+			_, _ = accentColor.Fprint(t.out, left) //nolint:errcheck
 		} else {
-			fmt.Fprint(t.out, left)
+			_, _ = fmt.Fprint(t.out, left) //nolint:errcheck
 		}
 		for i, w := range widths {
-			fmt.Fprint(t.out, strings.Repeat(fill, w+2))
+			_, _ = fmt.Fprint(t.out, strings.Repeat(fill, w+2)) //nolint:errcheck
 			if i < len(widths)-1 {
 				if t.isTTY {
-					accentColor.Fprint(t.out, mid)
+					_, _ = accentColor.Fprint(t.out, mid) //nolint:errcheck
 				} else {
-					fmt.Fprint(t.out, mid)
+					_, _ = fmt.Fprint(t.out, mid) //nolint:errcheck
 				}
 			}
 		}
 		if t.isTTY {
-			accentColor.Fprintln(t.out, right)
+			_, _ = accentColor.Fprintln(t.out, right) //nolint:errcheck
 		} else {
-			fmt.Fprintln(t.out, right)
+			_, _ = fmt.Fprintln(t.out, right) //nolint:errcheck
 		}
 	}
 
 	line("┌", "┬", "┐", "─")
 	if t.isTTY {
-		accentColor.Fprint(t.out, "│")
+		_, _ = accentColor.Fprint(t.out, "│") //nolint:errcheck
 	} else {
-		fmt.Fprint(t.out, "│")
+		_, _ = fmt.Fprint(t.out, "│") //nolint:errcheck
 	}
 	for i, h := range headers {
-		fmt.Fprintf(t.out, " %-*s ", widths[i], h)
+		_, _ = fmt.Fprintf(t.out, " %-*s ", widths[i], h) //nolint:errcheck
 		if t.isTTY {
-			accentColor.Fprint(t.out, "│")
+			_, _ = accentColor.Fprint(t.out, "│") //nolint:errcheck
 		} else {
-			fmt.Fprint(t.out, "│")
+			_, _ = fmt.Fprint(t.out, "│") //nolint:errcheck
 		}
 	}
-	fmt.Fprintln(t.out)
+	_, _ = fmt.Fprintln(t.out) //nolint:errcheck
 	line("├", "┼", "┤", "─")
 
 	for _, row := range rows {
 		if t.isTTY {
-			accentColor.Fprint(t.out, "│")
+			_, _ = accentColor.Fprint(t.out, "│") //nolint:errcheck
 		} else {
-			fmt.Fprint(t.out, "│")
+			_, _ = fmt.Fprint(t.out, "│") //nolint:errcheck
 		}
 		for i, c := range row {
 			if i < len(widths) {
-				fmt.Fprintf(t.out, " %-*s ", widths[i], c)
+				_, _ = fmt.Fprintf(t.out, " %-*s ", widths[i], c) //nolint:errcheck
 				if t.isTTY {
-					accentColor.Fprint(t.out, "│")
+					_, _ = accentColor.Fprint(t.out, "│") //nolint:errcheck
 				} else {
-					fmt.Fprint(t.out, "│")
+					_, _ = fmt.Fprint(t.out, "│") //nolint:errcheck
 				}
 			}
 		}
-		fmt.Fprintln(t.out)
+		_, _ = fmt.Fprintln(t.out) //nolint:errcheck
 	}
 	line("└", "┴", "┘", "─")
 }
 
 func (t *Terminal) printTablePlain(headers []string, rows [][]string, widths []int) {
 	for i, h := range headers {
-		fmt.Fprintf(t.out, "%-*s  ", widths[i], h)
+		_, _ = fmt.Fprintf(t.out, "%-*s  ", widths[i], h) //nolint:errcheck
 	}
-	fmt.Fprintln(t.out)
+	_, _ = fmt.Fprintln(t.out) //nolint:errcheck
 	for i, w := range widths {
-		fmt.Fprint(t.out, strings.Repeat("-", w))
+		_, _ = fmt.Fprint(t.out, strings.Repeat("-", w)) //nolint:errcheck
 		if i < len(widths)-1 {
-			fmt.Fprint(t.out, "  ")
+			_, _ = fmt.Fprint(t.out, "  ") //nolint:errcheck
 		}
 	}
-	fmt.Fprintln(t.out)
+	_, _ = fmt.Fprintln(t.out) //nolint:errcheck
 	for _, row := range rows {
 		for i, cell := range row {
 			if i < len(widths) {
-				fmt.Fprintf(t.out, "%-*s  ", widths[i], cell)
+				_, _ = fmt.Fprintf(t.out, "%-*s  ", widths[i], cell) //nolint:errcheck
 			}
 		}
-		fmt.Fprintln(t.out)
+		_, _ = fmt.Fprintln(t.out) //nolint:errcheck
 	}
 }
 

@@ -151,7 +151,11 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			n.logger.Warn("Failed to close response body", zap.Error(closeErr))
+		}
+	}()
 
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		return &domain.APIError{

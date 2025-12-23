@@ -44,7 +44,7 @@ func TestCommandsDryRun(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(_ *testing.T) {
 			cfgFile = ""
 			orig := os.Args
 			defer func() { os.Args = orig }()
@@ -68,7 +68,7 @@ func minimalConfig(t *testing.T, base string) string {
 	logs := filepath.Join(base, "logs")
 
 	for _, p := range []string{server, mods, backups, logs} {
-		if err := os.MkdirAll(p, 0o755); err != nil {
+		if err := os.MkdirAll(p, 0o750); err != nil { //nolint:gosec // test directory permissions
 			t.Fatalf("mkdir %s: %v", p, err)
 		}
 	}
@@ -120,7 +120,7 @@ file_enabled = false
 console_enabled = false
 `
 	path := filepath.Join(base, "config.toml")
-	if err := os.WriteFile(path, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(cfg), 0o600); err != nil { //nolint:gosec // test file permissions
 		t.Fatalf("write config: %v", err)
 	}
 	return path

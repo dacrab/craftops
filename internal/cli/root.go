@@ -34,7 +34,7 @@ Features:
   - Discord notifications
   - Health checks`,
 	PersistentPreRunE: initApp,
-	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
 		if a, ok := cmd.Context().Value(AppKey{}).(*AppContainer); ok {
 			a.Close()
 		}
@@ -52,11 +52,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "show what would be done")
 	rootCmd.Version = Version
 	rootCmd.SetVersionTemplate("CraftOps v{{.Version}}\n")
-	rootCmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Help() }
+	rootCmd.Run = func(cmd *cobra.Command, _ []string) { _ = cmd.Help() }
 }
 
 // initApp handles configuration loading and dependency injection for all commands
-func initApp(cmd *cobra.Command, args []string) error {
+func initApp(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.LoadConfig(cfgFile)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)

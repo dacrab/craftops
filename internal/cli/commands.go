@@ -1,3 +1,4 @@
+// Package cli provides the command-line interface for craftops
 package cli
 
 import (
@@ -33,7 +34,7 @@ var serverCmd = &cobra.Command{
 var serverStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the Minecraft server",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		a := App(cmd)
 		a.Terminal.Info("Starting server...")
 		if err := a.Server.Start(context.Background()); err != nil {
@@ -49,7 +50,7 @@ var serverStartCmd = &cobra.Command{
 var serverStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the Minecraft server",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		a := App(cmd)
 		a.Terminal.Info("Stopping server...")
 		if err := a.Server.Stop(context.Background()); err != nil {
@@ -65,7 +66,7 @@ var serverStopCmd = &cobra.Command{
 var serverRestartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restart the Minecraft server",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx, a := context.Background(), App(cmd)
 		if len(a.Config.Notifications.WarningIntervals) > 0 {
 			a.Terminal.Info("Sending restart warnings...")
@@ -89,7 +90,7 @@ var serverRestartCmd = &cobra.Command{
 var serverStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check server status",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		a := App(cmd)
 		status, err := a.Server.Status(context.Background())
 		if err != nil {
@@ -111,7 +112,7 @@ var serverStatusCmd = &cobra.Command{
 var updateModsCmd = &cobra.Command{
 	Use:   "update-mods",
 	Short: "Update all configured mods",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx, a := context.Background(), App(cmd)
 		a.Terminal.Banner("Mod Update Manager")
 		if !noBackup && a.Config.Backup.Enabled {
@@ -176,7 +177,7 @@ var backupCmd = &cobra.Command{
 var backupCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a backup",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		a := App(cmd)
 		a.Terminal.Info("Creating backup...")
 		path, err := a.Backup.Create(context.Background())
@@ -198,7 +199,7 @@ var backupCreateCmd = &cobra.Command{
 var backupListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available backups",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		a := App(cmd)
 		backups, err := a.Backup.List()
 		if err != nil {
@@ -229,7 +230,7 @@ var backupListCmd = &cobra.Command{
 var healthCheckCmd = &cobra.Command{
 	Use:   "health-check",
 	Short: "Run system health checks",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := context.Background()
 		a := App(cmd)
 		a.Terminal.Banner("System Health Check")
@@ -295,10 +296,10 @@ func displayHealthSummary(a *AppContainer, checks []domain.HealthCheck) error {
 var initCmd = &cobra.Command{
 	Use:   "init-config",
 	Short: "Initialize a new configuration file",
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		return nil // Skip app initialization - config may not exist yet
 	},
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if outputPath == "" {
 			outputPath = "config.toml"
 		}

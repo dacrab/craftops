@@ -12,8 +12,11 @@ import (
 type HealthStatus string
 
 const (
-	StatusOK    HealthStatus = "OK"
-	StatusWarn  HealthStatus = "WARN"
+	// StatusOK indicates a component is healthy
+	StatusOK HealthStatus = "OK"
+	// StatusWarn indicates a component has warnings
+	StatusWarn HealthStatus = "WARN"
+	// StatusError indicates a component has errors
 	StatusError HealthStatus = "ERROR"
 )
 
