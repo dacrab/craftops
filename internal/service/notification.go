@@ -14,6 +14,7 @@ import (
 
 	"craftops/internal/config"
 	"craftops/internal/domain"
+	"craftops/internal/util"
 )
 
 const (
@@ -26,7 +27,7 @@ const (
 type Notification struct {
 	cfg    *config.Config
 	logger *zap.Logger
-	client *http.Client
+	client *util.HTTPClient
 }
 
 var _ Notifier = (*Notification)(nil)
@@ -36,7 +37,7 @@ func NewNotification(cfg *config.Config, logger *zap.Logger) *Notification {
 	return &Notification{
 		cfg:    cfg,
 		logger: logger,
-		client: &http.Client{Timeout: 30 * time.Second},
+		client: util.NewHTTPClient(30*time.Second, logger),
 	}
 }
 
@@ -147,15 +148,11 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := n.client.Do(req)
+	resp, err := n.client.Do(req) //nolint:bodyclose // handled by CloseResponseBody
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			n.logger.Warn("Failed to close response body", zap.Error(closeErr))
-		}
-	}()
+	defer n.client.CloseResponseBody(resp.Body)
 
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		return &domain.APIError{

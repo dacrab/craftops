@@ -13,6 +13,7 @@ import (
 
 	"craftops/internal/config"
 	"craftops/internal/domain"
+	"craftops/internal/util"
 )
 
 // Server manages the lifecycle and health of the Minecraft server process
@@ -132,12 +133,7 @@ func (s *Server) HealthCheck(ctx context.Context) []domain.HealthCheck {
 }
 
 func (s *Server) checkBinary(ctx context.Context, binary, name string) domain.HealthCheck {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if err := exec.CommandContext(ctx, binary, "-version").Run(); err == nil {
-		return domain.HealthCheck{Name: name, Status: domain.StatusOK, Message: "Available"}
-	}
-	return domain.HealthCheck{Name: name, Status: domain.StatusError, Message: binary + " not found"}
+	return util.CheckBinary(ctx, binary, name)
 }
 
 func (s *Server) checkServerJAR() domain.HealthCheck {

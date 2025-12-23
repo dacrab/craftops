@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/dustin/go-humanize"
 )
 
 // HealthStatus represents the possible states of a system component.
@@ -66,13 +68,13 @@ type BackupInfo struct {
 	Size      int64     `json:"size_bytes"`
 }
 
-// SizeFormatted returns a human-readable representation of the file size.
+// SizeFormatted returns a human-readable representation of the file size using go-humanize
 func (b BackupInfo) SizeFormatted() string {
-	mb := float64(b.Size) / (1024 * 1024)
-	if mb >= 1024 {
-		return fmt.Sprintf("%.1f GB", mb/1024)
+	if b.Size < 0 {
+		return "0 B"
 	}
-	return fmt.Sprintf("%.1f MB", mb)
+	//nolint:gosec // Size is checked for negative values above
+	return humanize.Bytes(uint64(b.Size))
 }
 
 // CheckPath verifies if a path exists and is a directory, returning a HealthCheck.

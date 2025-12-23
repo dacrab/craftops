@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"go.uber.org/zap"
 
 	"craftops/internal/config"
@@ -228,20 +229,13 @@ func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 	})
 }
 
-// shouldExclude checks if a file/dir should be skipped based on config patterns
+// shouldExclude checks if a file/dir should be skipped based on config patterns using doublestar for glob support
 func (b *Backup) shouldExclude(relPath string, _ os.FileInfo) bool {
-	if !b.cfg.Backup.IncludeLogs && (strings.HasPrefix(relPath, "logs/") || relPath == "logs") {
+	if !b.cfg.Backup.IncludeLogs && (relPath == "logs" || strings.HasPrefix(relPath, "logs/")) {
 		return true
 	}
-	for _, p := range b.cfg.Backup.ExcludePatterns {
-		pat := strings.TrimSuffix(p, "/")
-		if relPath == pat || strings.HasPrefix(relPath, pat+"/") {
-			return true
-		}
-		if m, _ := filepath.Match(p, filepath.Base(relPath)); m {
-			return true
-		}
-		if m, _ := filepath.Match(p, relPath); m {
+	for _, pattern := range b.cfg.Backup.ExcludePatterns {
+		if matched, _ := doublestar.Match(pattern, relPath); matched {
 			return true
 		}
 	}
