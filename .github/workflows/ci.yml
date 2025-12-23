@@ -23,7 +23,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: latest
+          version: v1.62.2
           args: -c .github/.golangci.yml
 
   build-check:
