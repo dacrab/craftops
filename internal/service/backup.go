@@ -168,28 +168,46 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 // addFiles walks the server directory and adds eligible files to the archive
 func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 	return filepath.Walk(b.cfg.Paths.Server, func(path string, info os.FileInfo, err error) error {
-		if err != nil { return err }
-		if ctx.Err() != nil { return ctx.Err() }
+		if err != nil {
+			return err
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 
 		relPath, err := filepath.Rel(b.cfg.Paths.Server, path)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 
 		if b.shouldExclude(relPath, info) {
-			if info.IsDir() { return filepath.SkipDir }
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
-		if info.Mode()&os.ModeSymlink != 0 { return nil }
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
 
 		header, err := tar.FileInfoHeader(info, "")
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		header.Name = relPath
 
-		if err := tw.WriteHeader(header); err != nil { return err }
-		if !info.Mode().IsRegular() { return nil }
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
 
 		f, err := os.Open(path)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		defer f.Close()
 		_, err = io.Copy(tw, f)
 		return err
@@ -198,12 +216,20 @@ func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 
 // shouldExclude checks if a file/dir should be skipped based on config patterns
 func (b *Backup) shouldExclude(relPath string, _ os.FileInfo) bool {
-	if !b.cfg.Backup.IncludeLogs && (strings.HasPrefix(relPath, "logs/") || relPath == "logs") { return true }
+	if !b.cfg.Backup.IncludeLogs && (strings.HasPrefix(relPath, "logs/") || relPath == "logs") {
+		return true
+	}
 	for _, p := range b.cfg.Backup.ExcludePatterns {
 		pat := strings.TrimSuffix(p, "/")
-		if relPath == pat || strings.HasPrefix(relPath, pat+"/") { return true }
-		if m, _ := filepath.Match(p, filepath.Base(relPath)); m { return true }
-		if m, _ := filepath.Match(p, relPath); m { return true }
+		if relPath == pat || strings.HasPrefix(relPath, pat+"/") {
+			return true
+		}
+		if m, _ := filepath.Match(p, filepath.Base(relPath)); m {
+			return true
+		}
+		if m, _ := filepath.Match(p, relPath); m {
+			return true
+		}
 	}
 	return false
 }
@@ -211,7 +237,9 @@ func (b *Backup) shouldExclude(relPath string, _ os.FileInfo) bool {
 // cleanup enforces the max_backups retention policy
 func (b *Backup) cleanup() {
 	backups, err := b.List()
-	if err != nil || len(backups) <= b.cfg.Backup.MaxBackups { return }
+	if err != nil || len(backups) <= b.cfg.Backup.MaxBackups {
+		return
+	}
 
 	// List is sorted newest first, so we delete from index max_backups onwards
 	for _, old := range backups[b.cfg.Backup.MaxBackups:] {

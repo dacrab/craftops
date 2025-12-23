@@ -96,7 +96,11 @@ var serverStatusCmd = &cobra.Command{
 			a.Terminal.Error(fmt.Sprintf("Failed to get status: %v", err))
 			return err
 		}
-		if status.IsRunning { a.Terminal.Success("Server is running") } else { a.Terminal.Error("Server is not running") }
+		if status.IsRunning {
+			a.Terminal.Success("Server is running")
+		} else {
+			a.Terminal.Error("Server is not running")
+		}
 		return nil
 	},
 }
@@ -118,7 +122,9 @@ var updateModsCmd = &cobra.Command{
 		}
 		a.Terminal.Info("Updating mods...")
 		result, err := a.Mods.UpdateAll(ctx, forceUpdate)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		displayModResults(a, result)
 		return nil
 	},
@@ -133,9 +139,13 @@ func displayModResults(a *AppContainer, result *domain.ModUpdateResult) {
 	}
 
 	printList := func(title string, mods []string, sprint func(string) string) {
-		if len(mods) == 0 { return }
+		if len(mods) == 0 {
+			return
+		}
 		a.Terminal.Println(title)
-		for _, m := range mods { a.Terminal.Printf("   %s\n", sprint(m)) }
+		for _, m := range mods {
+			a.Terminal.Printf("   %s\n", sprint(m))
+		}
 		a.Terminal.Println()
 	}
 
@@ -143,7 +153,9 @@ func displayModResults(a *AppContainer, result *domain.ModUpdateResult) {
 
 	if len(result.FailedMods) > 0 {
 		a.Terminal.Error(fmt.Sprintf("Failed %d mods:", len(result.FailedMods)))
-		for m, e := range result.FailedMods { a.Terminal.Printf("   %s: %s\n", a.Terminal.ErrorSprint(m), a.Terminal.DimSprint(e)) }
+		for m, e := range result.FailedMods {
+			a.Terminal.Printf("   %s: %s\n", a.Terminal.ErrorSprint(m), a.Terminal.DimSprint(e))
+		}
 		a.Terminal.Println()
 	}
 
@@ -175,7 +187,9 @@ var backupCreateCmd = &cobra.Command{
 			}
 			return err
 		}
-		if path != "" { a.Terminal.Success("Backup created: " + path) }
+		if path != "" {
+			a.Terminal.Success("Backup created: " + path)
+		}
 		return nil
 	},
 }
@@ -250,9 +264,12 @@ func displayHealthSummary(a *AppContainer, checks []domain.HealthCheck) error {
 	var p, w, f int
 	for _, c := range checks {
 		switch c.Status {
-		case domain.StatusOK: p++
-		case domain.StatusWarn: w++
-		case domain.StatusError: f++
+		case domain.StatusOK:
+			p++
+		case domain.StatusWarn:
+			w++
+		case domain.StatusError:
+			f++
 		}
 	}
 

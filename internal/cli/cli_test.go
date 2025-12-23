@@ -50,7 +50,7 @@ func TestCommandsDryRun(t *testing.T) {
 			application = nil
 			orig := os.Args
 			defer func() { os.Args = orig }()
-			
+
 			os.Args = append([]string{"craftops", "--config", cfgPath}, tt.args...)
 			if tt.name == "version" {
 				os.Args = []string{"craftops", "--version"}

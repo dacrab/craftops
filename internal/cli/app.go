@@ -58,7 +58,7 @@ func initLogger(cfg *config.Config) *zap.Logger {
 	}
 
 	config.Level = zap.NewAtomicLevelAt(parseLogLevel(cfg.Logging.Level))
-	
+
 	if cfg.Logging.Format == "text" {
 		config.Encoding = "console"
 		if term.IsTerminal(int(os.Stderr.Fd())) {

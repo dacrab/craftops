@@ -112,27 +112,37 @@ func (t *Terminal) Printf(format string, args ...interface{}) { fmt.Fprintf(t.ou
 func (t *Terminal) Println(args ...interface{})               { fmt.Fprintln(t.out, args...) }
 
 func (t *Terminal) AccentSprintf(format string, args ...interface{}) string {
-	if t.isTTY { return accentColor.Sprintf(format, args...) }
+	if t.isTTY {
+		return accentColor.Sprintf(format, args...)
+	}
 	return fmt.Sprintf(format, args...)
 }
 
 func (t *Terminal) SuccessSprint(text string) string {
-	if t.isTTY { return successColor.Sprint(text) }
+	if t.isTTY {
+		return successColor.Sprint(text)
+	}
 	return text
 }
 
 func (t *Terminal) ErrorSprint(text string) string {
-	if t.isTTY { return errorColor.Sprint(text) }
+	if t.isTTY {
+		return errorColor.Sprint(text)
+	}
 	return text
 }
 
 func (t *Terminal) WarningSprint(text string) string {
-	if t.isTTY { return warningColor.Sprint(text) }
+	if t.isTTY {
+		return warningColor.Sprint(text)
+	}
 	return text
 }
 
 func (t *Terminal) DimSprint(text string) string {
-	if t.isTTY { return dimColor.Sprint(text) }
+	if t.isTTY {
+		return dimColor.Sprint(text)
+	}
 	return text
 }
 
@@ -160,29 +170,59 @@ func (t *Terminal) Table(headers []string, rows [][]string) {
 
 func (t *Terminal) printTableTTY(headers []string, rows [][]string, widths []int) {
 	line := func(left, mid, right, fill string) {
-		if t.isTTY { accentColor.Fprint(t.out, left) } else { fmt.Fprint(t.out, left) }
+		if t.isTTY {
+			accentColor.Fprint(t.out, left)
+		} else {
+			fmt.Fprint(t.out, left)
+		}
 		for i, w := range widths {
 			fmt.Fprint(t.out, strings.Repeat(fill, w+2))
-			if i < len(widths)-1 { if t.isTTY { accentColor.Fprint(t.out, mid) } else { fmt.Fprint(t.out, mid) } }
+			if i < len(widths)-1 {
+				if t.isTTY {
+					accentColor.Fprint(t.out, mid)
+				} else {
+					fmt.Fprint(t.out, mid)
+				}
+			}
 		}
-		if t.isTTY { accentColor.Fprintln(t.out, right) } else { fmt.Fprintln(t.out, right) }
+		if t.isTTY {
+			accentColor.Fprintln(t.out, right)
+		} else {
+			fmt.Fprintln(t.out, right)
+		}
 	}
 
 	line("┌", "┬", "┐", "─")
-	if t.isTTY { accentColor.Fprint(t.out, "│") } else { fmt.Fprint(t.out, "│") }
-	for i, h := range headers { 
+	if t.isTTY {
+		accentColor.Fprint(t.out, "│")
+	} else {
+		fmt.Fprint(t.out, "│")
+	}
+	for i, h := range headers {
 		fmt.Fprintf(t.out, " %-*s ", widths[i], h)
-		if t.isTTY { accentColor.Fprint(t.out, "│") } else { fmt.Fprint(t.out, "│") }
+		if t.isTTY {
+			accentColor.Fprint(t.out, "│")
+		} else {
+			fmt.Fprint(t.out, "│")
+		}
 	}
 	fmt.Fprintln(t.out)
 	line("├", "┼", "┤", "─")
 
 	for _, row := range rows {
-		if t.isTTY { accentColor.Fprint(t.out, "│") } else { fmt.Fprint(t.out, "│") }
-		for i, c := range row { 
-			if i < len(widths) { 
-				fmt.Fprintf(t.out, " %-*s ", widths[i], c) 
-				if t.isTTY { accentColor.Fprint(t.out, "│") } else { fmt.Fprint(t.out, "│") }
+		if t.isTTY {
+			accentColor.Fprint(t.out, "│")
+		} else {
+			fmt.Fprint(t.out, "│")
+		}
+		for i, c := range row {
+			if i < len(widths) {
+				fmt.Fprintf(t.out, " %-*s ", widths[i], c)
+				if t.isTTY {
+					accentColor.Fprint(t.out, "│")
+				} else {
+					fmt.Fprint(t.out, "│")
+				}
 			}
 		}
 		fmt.Fprintln(t.out)
@@ -191,11 +231,15 @@ func (t *Terminal) printTableTTY(headers []string, rows [][]string, widths []int
 }
 
 func (t *Terminal) printTablePlain(headers []string, rows [][]string, widths []int) {
-	for i, h := range headers { fmt.Fprintf(t.out, "%-*s  ", widths[i], h) }
+	for i, h := range headers {
+		fmt.Fprintf(t.out, "%-*s  ", widths[i], h)
+	}
 	fmt.Fprintln(t.out)
-	for i, w := range widths { 
+	for i, w := range widths {
 		fmt.Fprint(t.out, strings.Repeat("-", w))
-		if i < len(widths)-1 { fmt.Fprint(t.out, "  ") }
+		if i < len(widths)-1 {
+			fmt.Fprint(t.out, "  ")
+		}
 	}
 	fmt.Fprintln(t.out)
 	for _, row := range rows {
@@ -216,9 +260,12 @@ func (t *Terminal) HealthCheckTable(checks []domain.HealthCheck) {
 	for i, check := range checks {
 		status := string(check.Status)
 		switch check.Status {
-		case domain.StatusOK: status = t.SuccessSprint(status)
-		case domain.StatusWarn: status = t.WarningSprint(status)
-		case domain.StatusError: status = t.ErrorSprint(status)
+		case domain.StatusOK:
+			status = t.SuccessSprint(status)
+		case domain.StatusWarn:
+			status = t.WarningSprint(status)
+		case domain.StatusError:
+			status = t.ErrorSprint(status)
 		}
 		rows[i] = []string{check.Name, status, check.Message}
 	}
