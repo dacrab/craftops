@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -14,11 +15,11 @@ var (
 	dryRun  bool
 
 	// Version is set by ldflags during build
-	Version = "2.1.0"
-
-	// Global app instance (set during PersistentPreRunE)
-	application *AppContainer
+	Version = "dev"
 )
+
+// AppKey is the context key for the AppContainer
+type AppKey struct{}
 
 // rootCmd defines the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -34,8 +35,8 @@ Features:
   - Health checks`,
 	PersistentPreRunE: initApp,
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		if application != nil {
-			application.Close()
+		if a, ok := cmd.Context().Value(AppKey{}).(*AppContainer); ok {
+			a.Close()
 		}
 	},
 }
@@ -69,11 +70,17 @@ func initApp(cmd *cobra.Command, args []string) error {
 		cfg.DryRun = true
 	}
 
-	application = NewApp(cfg)
+	application := NewApp(cfg)
+	// Inject the application container into the command context to avoid global state "lock-in"
+	ctx := context.WithValue(cmd.Context(), AppKey{}, application)
+	cmd.SetContext(ctx)
 	return nil
 }
 
-// App returns the global application instance, initialized via PersistentPreRunE
-func App() *AppContainer {
-	return application
+// App extracts the AppContainer from the command context
+func App(cmd *cobra.Command) *AppContainer {
+	if a, ok := cmd.Context().Value(AppKey{}).(*AppContainer); ok {
+		return a
+	}
+	return nil
 }

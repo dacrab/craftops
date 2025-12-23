@@ -1,18 +1,30 @@
 name: Bug Report
-description: Report a bug
+description: Report a bug to help improve CraftOps
 labels: [bug]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please provide as much detail as possible.
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: What happened? What did you expect?
+      description: A clear and concise description of what the bug is.
     validations:
       required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction Steps
+      description: How can we reproduce this?
+      placeholder: |
+        1. Run 'craftops ...'
+        2. See error...
   - type: input
     id: version
     attributes:
-      label: Version
+      label: CraftOps Version
       placeholder: craftops --version
     validations:
       required: true
@@ -20,4 +32,5 @@ body:
     id: logs
     attributes:
       label: Logs
+      description: Relevant output from the command (use --debug if possible)
       render: text

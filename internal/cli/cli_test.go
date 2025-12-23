@@ -12,7 +12,6 @@ func TestInitConfigCreatesFile(t *testing.T) {
 
 	// Reset global state
 	cfgFile = ""
-	application = nil
 
 	orig := os.Args
 	defer func() { os.Args = orig }()
@@ -47,7 +46,6 @@ func TestCommandsDryRun(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfgFile = ""
-			application = nil
 			orig := os.Args
 			defer func() { os.Args = orig }()
 
