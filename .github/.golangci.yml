@@ -1,11 +1,9 @@
 run:
-  # version is required for golangci-lint >= v1.61.0
-  version: "1"
+  version: 1
   timeout: 5m
   modules-download-mode: readonly
 
 linters:
-  # enable-all: false is the modern way to disable all linters before enabling specific ones
   enable-all: false
   enable:
     - errcheck
@@ -22,7 +20,6 @@ linters:
     - goconst
 
 issues:
-  # Setting this to false ensures we see all issues, including those usually ignored by default
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
