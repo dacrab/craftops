@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 	"golang.org/x/term"
 
 	"craftops/internal/domain"
@@ -137,140 +139,71 @@ func (t *Terminal) AccentSprintf(format string, args ...interface{}) string {
 
 // SuccessSprint returns text formatted with success color
 func (t *Terminal) SuccessSprint(text string) string {
-	if t.isTTY {
-		return successColor.Sprint(text)
-	}
-	return text
+	return t.sprintWithColor(text, successColor)
 }
 
 // ErrorSprint returns text formatted with error color
 func (t *Terminal) ErrorSprint(text string) string {
-	if t.isTTY {
-		return errorColor.Sprint(text)
-	}
-	return text
+	return t.sprintWithColor(text, errorColor)
 }
 
 // WarningSprint returns text formatted with warning color
 func (t *Terminal) WarningSprint(text string) string {
-	if t.isTTY {
-		return warningColor.Sprint(text)
-	}
-	return text
+	return t.sprintWithColor(text, warningColor)
 }
 
 // DimSprint returns text formatted with dim color
 func (t *Terminal) DimSprint(text string) string {
+	return t.sprintWithColor(text, dimColor)
+}
+
+// sprintWithColor applies color formatting if TTY is enabled
+func (t *Terminal) sprintWithColor(text string, c *color.Color) string {
 	if t.isTTY {
-		return dimColor.Sprint(text)
+		return c.Sprint(text)
 	}
 	return text
 }
 
-// Table prints a dynamically-sized table based on terminal capabilities
+// Table prints a dynamically-sized table using github.com/olekukonko/tablewriter
 func (t *Terminal) Table(headers []string, rows [][]string) {
-	widths := make([]int, len(headers))
-	for i, header := range headers {
-		widths[i] = len(header)
-	}
-
-	for _, row := range rows {
-		for i, cell := range row {
-			if i < len(widths) && len(cell) > widths[i] {
-				widths[i] = len(cell)
-			}
+	var opts []tablewriter.Option
+	if t.isTTY {
+		opts = []tablewriter.Option{
+			tablewriter.WithRendition(tw.Rendition{
+				Borders: tw.Border{Left: tw.On, Top: tw.On, Right: tw.On, Bottom: tw.On},
+			}),
+			tablewriter.WithHeaderAlignment(tw.AlignCenter),
+			tablewriter.WithHeaderAutoFormat(tw.On),
+		}
+	} else {
+		opts = []tablewriter.Option{
+			tablewriter.WithRendition(tw.Rendition{
+				Borders: tw.Border{Left: tw.Off, Top: tw.Off, Right: tw.Off, Bottom: tw.Off},
+			}),
 		}
 	}
 
-	if t.isTTY {
-		t.printTableTTY(headers, rows, widths)
-	} else {
-		t.printTablePlain(headers, rows, widths)
+	table := tablewriter.NewTable(t.out, opts...)
+	table.Header(convertToInterfaceSlice(headers)...)
+	for _, row := range rows {
+		if err := table.Append(convertToInterfaceSlice(row)...); err != nil {
+			// Log error but continue - best effort rendering
+			_, _ = fmt.Fprintf(t.errOut, "Table append error: %v\n", err) //nolint:errcheck
+		}
+	}
+	if err := table.Render(); err != nil {
+		_, _ = fmt.Fprintf(t.errOut, "Table render error: %v\n", err) //nolint:errcheck
 	}
 }
 
-func (t *Terminal) printTableTTY(headers []string, rows [][]string, widths []int) {
-	line := func(left, mid, right, fill string) {
-		if t.isTTY {
-			_, _ = accentColor.Fprint(t.out, left) //nolint:errcheck
-		} else {
-			_, _ = fmt.Fprint(t.out, left) //nolint:errcheck
-		}
-		for i, w := range widths {
-			_, _ = fmt.Fprint(t.out, strings.Repeat(fill, w+2)) //nolint:errcheck
-			if i < len(widths)-1 {
-				if t.isTTY {
-					_, _ = accentColor.Fprint(t.out, mid) //nolint:errcheck
-				} else {
-					_, _ = fmt.Fprint(t.out, mid) //nolint:errcheck
-				}
-			}
-		}
-		if t.isTTY {
-			_, _ = accentColor.Fprintln(t.out, right) //nolint:errcheck
-		} else {
-			_, _ = fmt.Fprintln(t.out, right) //nolint:errcheck
-		}
+// convertToInterfaceSlice converts []string to []interface{} for tablewriter
+func convertToInterfaceSlice(strs []string) []interface{} {
+	result := make([]interface{}, len(strs))
+	for i := range strs {
+		result[i] = strs[i]
 	}
-
-	line("┌", "┬", "┐", "─")
-	if t.isTTY {
-		_, _ = accentColor.Fprint(t.out, "│") //nolint:errcheck
-	} else {
-		_, _ = fmt.Fprint(t.out, "│") //nolint:errcheck
-	}
-	for i, h := range headers {
-		_, _ = fmt.Fprintf(t.out, " %-*s ", widths[i], h) //nolint:errcheck
-		if t.isTTY {
-			_, _ = accentColor.Fprint(t.out, "│") //nolint:errcheck
-		} else {
-			_, _ = fmt.Fprint(t.out, "│") //nolint:errcheck
-		}
-	}
-	_, _ = fmt.Fprintln(t.out) //nolint:errcheck
-	line("├", "┼", "┤", "─")
-
-	for _, row := range rows {
-		if t.isTTY {
-			_, _ = accentColor.Fprint(t.out, "│") //nolint:errcheck
-		} else {
-			_, _ = fmt.Fprint(t.out, "│") //nolint:errcheck
-		}
-		for i, c := range row {
-			if i < len(widths) {
-				_, _ = fmt.Fprintf(t.out, " %-*s ", widths[i], c) //nolint:errcheck
-				if t.isTTY {
-					_, _ = accentColor.Fprint(t.out, "│") //nolint:errcheck
-				} else {
-					_, _ = fmt.Fprint(t.out, "│") //nolint:errcheck
-				}
-			}
-		}
-		_, _ = fmt.Fprintln(t.out) //nolint:errcheck
-	}
-	line("└", "┴", "┘", "─")
-}
-
-func (t *Terminal) printTablePlain(headers []string, rows [][]string, widths []int) {
-	for i, h := range headers {
-		_, _ = fmt.Fprintf(t.out, "%-*s  ", widths[i], h) //nolint:errcheck
-	}
-	_, _ = fmt.Fprintln(t.out) //nolint:errcheck
-	for i, w := range widths {
-		_, _ = fmt.Fprint(t.out, strings.Repeat("-", w)) //nolint:errcheck
-		if i < len(widths)-1 {
-			_, _ = fmt.Fprint(t.out, "  ") //nolint:errcheck
-		}
-	}
-	_, _ = fmt.Fprintln(t.out) //nolint:errcheck
-	for _, row := range rows {
-		for i, cell := range row {
-			if i < len(widths) {
-				_, _ = fmt.Fprintf(t.out, "%-*s  ", widths[i], cell) //nolint:errcheck
-			}
-		}
-		_, _ = fmt.Fprintln(t.out) //nolint:errcheck
-	}
+	return result
 }
 
 // HealthCheckTable outputs a specialized table for diagnostic results

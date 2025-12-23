@@ -6,24 +6,25 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 
 	"craftops/internal/config"
 	"craftops/internal/domain"
+	"craftops/internal/util"
 )
 
 // Mods handles automated mod updates from Modrinth API
 type Mods struct {
 	cfg    *config.Config
 	logger *zap.Logger
-	client *http.Client
+	client *util.HTTPClient
 }
 
 var _ ModManager = (*Mods)(nil)
@@ -33,7 +34,7 @@ func NewMods(cfg *config.Config, logger *zap.Logger) *Mods {
 	return &Mods{
 		cfg:    cfg,
 		logger: logger,
-		client: &http.Client{Timeout: time.Duration(cfg.Mods.Timeout) * time.Second},
+		client: util.NewHTTPClient(time.Duration(cfg.Mods.Timeout)*time.Second, logger),
 	}
 }
 
@@ -47,29 +48,20 @@ func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResu
 		return res, nil
 	}
 
-	// Use semaphore to limit concurrent downloads
-	sem := make(chan struct{}, m.cfg.Mods.ConcurrentDownloads)
-	var wg sync.WaitGroup
-	var mu sync.Mutex
+	sem := semaphore.NewWeighted(int64(m.cfg.Mods.ConcurrentDownloads))
+	g, gctx := errgroup.WithContext(ctx)
 
 	for _, src := range sources {
-		wg.Add(1)
-		go func(s string) {
-			defer wg.Done()
-			select {
-			case sem <- struct{}{}:
-				defer func() { <-sem }()
-			case <-ctx.Done():
-				return
-			}
-
-			updated, name, err := m.updateMod(ctx, s, force)
+		src := src // capture loop variable
+		if err := sem.Acquire(gctx, 1); err != nil {
+			continue
+		}
+		g.Go(func() error {
+			defer sem.Release(1)
+			updated, name, err := m.updateMod(gctx, src, force)
 			if name == "" {
-				name = s
+				name = src
 			}
-
-			mu.Lock()
-			defer mu.Unlock()
 			if err != nil {
 				res.FailedMods[name] = err.Error()
 			} else if updated {
@@ -77,9 +69,10 @@ func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResu
 			} else {
 				res.SkippedMods = append(res.SkippedMods, name)
 			}
-		}(src)
+			return nil
+		})
 	}
-	wg.Wait()
+	_ = g.Wait() // Ignore errors as they're captured in res.FailedMods
 	return res, nil
 }
 
@@ -120,21 +113,10 @@ func (m *Mods) HealthCheck(ctx context.Context) []domain.HealthCheck {
 
 // withRetry wraps an operation with a backoff-based retry loop
 func (m *Mods) withRetry(ctx context.Context, op func() error) error {
-	var lastErr error
-	for attempt := 0; attempt <= m.cfg.Mods.MaxRetries; attempt++ {
-		err := op()
-		if err == nil {
-			return nil
-		}
-		lastErr = err
-		if apiErr, ok := err.(*domain.APIError); ok && !apiErr.IsRetryable() {
-			break
-		}
-		if attempt < m.cfg.Mods.MaxRetries {
-			m.backoff(ctx, attempt)
-		}
-	}
-	return lastErr
+	return util.WithRetry(ctx, util.RetryConfig{
+		MaxRetries: m.cfg.Mods.MaxRetries,
+		RetryDelay: m.cfg.Mods.RetryDelay,
+	}, op)
 }
 
 // apiRequest performs a JSON GET request with retries
@@ -146,15 +128,11 @@ func (m *Mods) apiRequest(ctx context.Context, apiURL string, result interface{}
 		}
 		req.Header.Set("User-Agent", "craftops/2.0")
 
-		resp, err := m.client.Do(req)
+		resp, err := m.client.Do(req) //nolint:bodyclose // handled by CloseResponseBody
 		if err != nil {
 			return err
 		}
-		defer func() {
-			if closeErr := resp.Body.Close(); closeErr != nil {
-				m.logger.Warn("Failed to close response body", zap.Error(closeErr))
-			}
-		}()
+		defer m.client.CloseResponseBody(resp.Body)
 
 		if resp.StatusCode != 200 {
 			return &domain.APIError{URL: apiURL, StatusCode: resp.StatusCode, Message: "request failed"}
@@ -194,31 +172,27 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 	}()
 
 	err = m.withRetry(ctx, func() error {
+		if _, err := tmpFile.Seek(0, 0); err != nil {
+			return err
+		}
+		if err := tmpFile.Truncate(0); err != nil {
+			return err
+		}
+
 		req, err := http.NewRequestWithContext(ctx, "GET", info.DownloadURL, nil)
 		if err != nil {
 			return err
 		}
 		req.Header.Set("User-Agent", "craftops/2.0")
 
-		resp, err := m.client.Do(req)
+		resp, err := m.client.Do(req) //nolint:bodyclose // handled by CloseResponseBody
 		if err != nil {
 			return err
 		}
-		defer func() {
-			if closeErr := resp.Body.Close(); closeErr != nil {
-				m.logger.Warn("Failed to close response body", zap.Error(closeErr))
-			}
-		}()
+		defer m.client.CloseResponseBody(resp.Body)
 
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("download failed: status %d", resp.StatusCode)
-		}
-
-		if _, err := tmpFile.Seek(0, 0); err != nil {
-			return err
-		}
-		if err := tmpFile.Truncate(0); err != nil {
-			return err
 		}
 
 		_, err = io.Copy(tmpFile, resp.Body)
@@ -257,16 +231,20 @@ func (m *Mods) updateMod(ctx context.Context, modURL string, force bool) (bool, 
 	return updated, info.ProjectName, err
 }
 
-// parseProjectID extracts the Modrinth slug from a full URL
+// parseProjectID extracts the Modrinth slug from a full URL or slug
 func (m *Mods) parseProjectID(modURL string) (string, error) {
-	u, err := url.Parse(modURL)
-	if err != nil {
-		return "", err
+	// Handle direct slug
+	if !strings.Contains(modURL, "/") {
+		return modURL, nil
 	}
-	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
-	for i, p := range parts {
-		if p == "mod" && i+1 < len(parts) {
-			return parts[i+1], nil
+	// Extract from URL path (e.g., https://modrinth.com/mod/fabric-api -> fabric-api)
+	if idx := strings.LastIndex(modURL, "/mod/"); idx != -1 {
+		slug := strings.TrimPrefix(modURL[idx+5:], "/")
+		if idx := strings.Index(slug, "/"); idx != -1 {
+			slug = slug[:idx]
+		}
+		if slug != "" {
+			return slug, nil
 		}
 	}
 	return "", fmt.Errorf("invalid Modrinth URL: %s", modURL)
@@ -310,14 +288,6 @@ func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domai
 	}, nil
 }
 
-func (m *Mods) backoff(ctx context.Context, attempt int) {
-	delay := time.Duration(m.cfg.Mods.RetryDelay*float64(attempt+1)) * time.Second
-	select {
-	case <-ctx.Done():
-	case <-time.After(delay):
-	}
-}
-
 func (m *Mods) checkModSources() domain.HealthCheck {
 	total := len(m.cfg.Mods.ModrinthSources)
 	if total == 0 {
@@ -331,13 +301,11 @@ func (m *Mods) checkAPI(ctx context.Context) domain.HealthCheck {
 	defer cancel()
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", "https://api.modrinth.com/v2/", nil)
-	resp, err := m.client.Do(req)
+	resp, err := m.client.Do(req) //nolint:bodyclose // handled by CloseResponseBodySilent
 	if err != nil {
 		return domain.HealthCheck{Name: "Modrinth API", Status: domain.StatusError, Message: "Connection failed"}
 	}
-	defer func() {
-		_ = resp.Body.Close() // Close errors are non-critical for health checks
-	}()
+	defer util.CloseResponseBodySilent(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return domain.HealthCheck{Name: "Modrinth API", Status: domain.StatusWarn, Message: fmt.Sprintf("Status %d", resp.StatusCode)}
