@@ -1,12 +1,10 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
-	"craftops/internal/app"
 	"craftops/internal/config"
 )
 
@@ -19,9 +17,10 @@ var (
 	Version = "2.1.0"
 
 	// Global app instance (set during PersistentPreRunE)
-	application *app.App
+	application *AppContainer
 )
 
+// rootCmd defines the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "craftops",
 	Short: "Modern Minecraft server operations and mod management",
@@ -41,7 +40,7 @@ Features:
 	},
 }
 
-// Execute runs the root command
+// Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() error {
 	return rootCmd.Execute()
 }
@@ -55,6 +54,7 @@ func init() {
 	rootCmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Help() }
 }
 
+// initApp handles configuration loading and dependency injection for all commands
 func initApp(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadConfig(cfgFile)
 	if err != nil {
@@ -69,15 +69,11 @@ func initApp(cmd *cobra.Command, args []string) error {
 		cfg.DryRun = true
 	}
 
-	application = app.New(cfg)
+	application = NewApp(cfg)
 	return nil
 }
 
-func getContext() context.Context {
-	return context.Background()
-}
-
-// App returns the global application instance
-func App() *app.App {
+// App returns the global application instance, initialized via PersistentPreRunE
+func App() *AppContainer {
 	return application
 }

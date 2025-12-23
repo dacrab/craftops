@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -70,27 +71,23 @@ func (b BackupInfo) SizeFormatted() string {
 	return fmt.Sprintf("%.1f MB", mb)
 }
 
+// CheckPath verifies if a path exists and is a directory
+func CheckPath(name, path string) HealthCheck {
+	info, err := os.Stat(path)
+	if err != nil {
+		return HealthCheck{Name: name, Status: StatusWarn, Message: "Does not exist"}
+	}
+	if !info.IsDir() {
+		return HealthCheck{Name: name, Status: StatusError, Message: "Not a directory"}
+	}
+	return HealthCheck{Name: name, Status: StatusOK, Message: "OK"}
+}
+
 // Sentinel errors
 var (
-	ErrServerNotRunning  = errors.New("server is not running")
-	ErrServerRunning     = errors.New("server is already running")
 	ErrServerJarNotFound = errors.New("server JAR file not found")
-	ErrJavaNotFound      = errors.New("java runtime not found")
-	ErrScreenNotFound    = errors.New("screen not found")
 	ErrBackupsDisabled   = errors.New("backups are disabled")
-	ErrNoModSources      = errors.New("no mod sources configured")
-	ErrInvalidConfig     = errors.New("invalid configuration")
 )
-
-// ConfigError represents a configuration error
-type ConfigError struct {
-	Field   string
-	Message string
-}
-
-func (e *ConfigError) Error() string {
-	return fmt.Sprintf("config error [%s]: %s", e.Field, e.Message)
-}
 
 // ServiceError represents a service-level error with context
 type ServiceError struct {

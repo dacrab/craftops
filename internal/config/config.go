@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 )
 
-// Config represents the complete application configuration
+// Config is the main configuration object
 type Config struct {
 	Debug  bool `toml:"debug"`
 	DryRun bool `toml:"dry_run"`
@@ -23,13 +24,13 @@ type Config struct {
 	Logging       LoggingConfig      `toml:"logging"`
 }
 
-// MinecraftConfig holds Minecraft-specific settings
+// MinecraftConfig contains settings for the Minecraft version and loader
 type MinecraftConfig struct {
 	Version   string `toml:"version"`
 	Modloader string `toml:"modloader"`
 }
 
-// PathsConfig holds all path configurations
+// PathsConfig defines core directory locations
 type PathsConfig struct {
 	Server  string `toml:"server"`
 	Mods    string `toml:"mods"`
@@ -37,7 +38,7 @@ type PathsConfig struct {
 	Logs    string `toml:"logs"`
 }
 
-// ServerConfig holds server management settings
+// ServerConfig contains JVM and lifecycle settings
 type ServerConfig struct {
 	JarName        string   `toml:"jar_name"`
 	JavaFlags      []string `toml:"java_flags"`
@@ -47,7 +48,7 @@ type ServerConfig struct {
 	SessionName    string   `toml:"session_name"`
 }
 
-// ModsConfig holds mod management settings
+// ModsConfig contains mod update settings
 type ModsConfig struct {
 	ConcurrentDownloads int      `toml:"concurrent_downloads"`
 	MaxRetries          int      `toml:"max_retries"`
@@ -56,7 +57,7 @@ type ModsConfig struct {
 	ModrinthSources     []string `toml:"modrinth_sources"`
 }
 
-// BackupConfig holds backup settings
+// BackupConfig contains backup and retention settings
 type BackupConfig struct {
 	Enabled          bool     `toml:"enabled"`
 	MaxBackups       int      `toml:"max_backups"`
@@ -65,7 +66,7 @@ type BackupConfig struct {
 	ExcludePatterns  []string `toml:"exclude_patterns"`
 }
 
-// NotificationConfig holds notification settings
+// NotificationConfig contains webhook and alert settings
 type NotificationConfig struct {
 	DiscordWebhook       string `toml:"discord_webhook"`
 	WarningIntervals     []int  `toml:"warning_intervals"`
@@ -74,7 +75,7 @@ type NotificationConfig struct {
 	ErrorNotifications   bool   `toml:"error_notifications"`
 }
 
-// LoggingConfig holds logging settings
+// LoggingConfig defines log output levels and formats
 type LoggingConfig struct {
 	Level          string `toml:"level"`
 	Format         string `toml:"format"`
@@ -82,7 +83,7 @@ type LoggingConfig struct {
 	ConsoleEnabled bool   `toml:"console_enabled"`
 }
 
-// DefaultConfig returns a configuration with sensible defaults
+// DefaultConfig returns a configuration with production-ready defaults
 func DefaultConfig() *Config {
 	homeDir, _ := os.UserHomeDir()
 	serverPath := filepath.Join(homeDir, "minecraft", "server")
@@ -145,7 +146,7 @@ func DefaultConfig() *Config {
 	}
 }
 
-// LoadConfig loads configuration from a TOML file
+// LoadConfig loads configuration from a file or fallback paths
 func LoadConfig(configPath string) (*Config, error) {
 	config := DefaultConfig()
 
@@ -165,96 +166,63 @@ func LoadConfig(configPath string) (*Config, error) {
 	return config, nil
 }
 
-// SaveConfig saves the configuration to a TOML file
+// SaveConfig writes the configuration to a TOML file
 func (c *Config) SaveConfig(configPath string) error {
-	// #nosec G304 -- config path is intentionally user-specified
 	file, err := os.Create(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)
 	}
-	defer func() { _ = file.Close() }()
+	defer file.Close()
 
-	encoder := toml.NewEncoder(file)
-	if err := encoder.Encode(c); err != nil {
-		return fmt.Errorf("failed to encode config: %w", err)
-	}
-
-	return nil
+	return toml.NewEncoder(file).Encode(c)
 }
 
-// Validate validates the configuration
+// Validate ensures settings are within supported bounds
 func (c *Config) Validate() error {
 	if err := c.validateModloader(); err != nil {
 		return err
 	}
-	if err := c.validateLogging(); err != nil {
-		return err
-	}
-	return nil
+	return c.validateLogging()
 }
 
-// findDefaultConfig searches for config file in default locations
 func findDefaultConfig() string {
-	defaultPaths := []string{
+	paths := []string{
 		"config.toml",
 		filepath.Join(os.Getenv("HOME"), ".config", "craftops", "config.toml"),
 		"/etc/craftops/config.toml",
 	}
 
-	for _, path := range defaultPaths {
-		if _, err := os.Stat(path); err == nil {
-			return path
+	for _, p := range paths {
+		if _, err := os.Stat(p); err == nil {
+			return p
 		}
 	}
 	return ""
 }
 
-// validateModloader validates the modloader configuration
 func (c *Config) validateModloader() error {
-	validModloaders := []string{"fabric", "forge", "quilt", "neoforge"}
+	valid := []string{"fabric", "forge", "quilt", "neoforge"}
 	modloader := strings.ToLower(c.Minecraft.Modloader)
-
-	for _, v := range validModloaders {
-		if modloader == v {
-			c.Minecraft.Modloader = modloader
-			return nil
-		}
+	if !slices.Contains(valid, modloader) {
+		return fmt.Errorf("unsupported modloader: %s. Must be one of %v", c.Minecraft.Modloader, valid)
 	}
-
-	return fmt.Errorf("unsupported modloader: %s. Must be one of %v", c.Minecraft.Modloader, validModloaders)
+	c.Minecraft.Modloader = modloader
+	return nil
 }
 
-// validateLogging validates the logging configuration
 func (c *Config) validateLogging() error {
 	validLevels := []string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 	level := strings.ToUpper(c.Logging.Level)
-
-	levelValid := false
-	for _, v := range validLevels {
-		if level == v {
-			levelValid = true
-			break
-		}
-	}
-	if !levelValid {
+	if !slices.Contains(validLevels, level) {
 		return fmt.Errorf("invalid log level: %s. Must be one of %v", c.Logging.Level, validLevels)
 	}
 	c.Logging.Level = level
 
 	validFormats := []string{"json", "text"}
 	format := strings.ToLower(c.Logging.Format)
-
-	formatValid := false
-	for _, v := range validFormats {
-		if format == v {
-			formatValid = true
-			break
-		}
-	}
-	if !formatValid {
+	if !slices.Contains(validFormats, format) {
 		return fmt.Errorf("invalid log format: %s. Must be one of %v", c.Logging.Format, validFormats)
 	}
 	c.Logging.Format = format
-
 	return nil
 }
