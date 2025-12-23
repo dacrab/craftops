@@ -34,7 +34,7 @@ var serverStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the Minecraft server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := App()
+		a := App(cmd)
 		a.Terminal.Info("Starting server...")
 		if err := a.Server.Start(context.Background()); err != nil {
 			a.Terminal.Error(fmt.Sprintf("Failed to start server: %v", err))
@@ -50,7 +50,7 @@ var serverStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the Minecraft server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := App()
+		a := App(cmd)
 		a.Terminal.Info("Stopping server...")
 		if err := a.Server.Stop(context.Background()); err != nil {
 			a.Terminal.Error(fmt.Sprintf("Failed to stop server: %v", err))
@@ -66,7 +66,7 @@ var serverRestartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restart the Minecraft server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, a := context.Background(), App()
+		ctx, a := context.Background(), App(cmd)
 		if len(a.Config.Notifications.WarningIntervals) > 0 {
 			a.Terminal.Info("Sending restart warnings...")
 			if err := a.Notification.SendRestartWarnings(ctx); err != nil {
@@ -90,7 +90,7 @@ var serverStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check server status",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := App()
+		a := App(cmd)
 		status, err := a.Server.Status(context.Background())
 		if err != nil {
 			a.Terminal.Error(fmt.Sprintf("Failed to get status: %v", err))
@@ -112,7 +112,7 @@ var updateModsCmd = &cobra.Command{
 	Use:   "update-mods",
 	Short: "Update all configured mods",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, a := context.Background(), App()
+		ctx, a := context.Background(), App(cmd)
 		a.Terminal.Banner("Mod Update Manager")
 		if !noBackup && a.Config.Backup.Enabled {
 			a.Terminal.Info("Creating backup...")
@@ -177,7 +177,7 @@ var backupCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a backup",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := App()
+		a := App(cmd)
 		a.Terminal.Info("Creating backup...")
 		path, err := a.Backup.Create(context.Background())
 		if err != nil {
@@ -199,7 +199,7 @@ var backupListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available backups",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := App()
+		a := App(cmd)
 		backups, err := a.Backup.List()
 		if err != nil {
 			a.Terminal.Error(fmt.Sprintf("Failed to list backups: %v", err))
@@ -231,7 +231,7 @@ var healthCheckCmd = &cobra.Command{
 	Short: "Run system health checks",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		a := App()
+		a := App(cmd)
 		a.Terminal.Banner("System Health Check")
 		var allChecks []domain.HealthCheck
 		a.Terminal.Step(1, 5, "Checking paths and permissions...")

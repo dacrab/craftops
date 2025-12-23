@@ -1,17 +1,32 @@
-version: "2"
+# .golangci.yml configuration
+# Documentation: https://golangci-lint.run/usage/configuration/
 
 run:
-  timeout: 3m
+  # version is required by some schema validators
+  version: "1"
+  timeout: 5m
+  modules-download-mode: readonly
 
 linters:
+  # enable-all: false is preferred by some validators over disable-all: true
+  enable-all: false
   enable:
-    - govet
-    - staticcheck
-  disable:
     - errcheck
-    - godot
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
     - gosec
+    - misspell
+    - revive
+    - bodyclose
+    - unconvert
+    - goconst
 
-formatters:
-  enable:
-    - gofmt
+issues:
+  # exclude-use-default was replaced by exclude-rules in some schemas, 
+  # but here we keep it explicit and compliant.
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0

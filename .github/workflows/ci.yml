@@ -7,19 +7,27 @@ on:
 
 jobs:
   test:
+    name: Test & Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      
       - uses: actions/setup-go@v6
         with:
           go-version: '1.24.x'
-      - run: go test -race -coverprofile=coverage.out ./...
-      - uses: golangci/golangci-lint-action@v7
+          cache: true # Built-in caching for modules
+
+      - name: Test
+        run: go test -race -cover ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v7
         with:
           version: latest
           args: -c .github/.golangci.yml
 
-  build:
+  build-check:
+    name: Verify Build
     needs: test
     runs-on: ubuntu-latest
     strategy:
@@ -31,12 +39,9 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.24.x'
-      - run: |
+          cache: true
+      
+      - name: Build
+        run: |
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
-          go build -trimpath -ldflags="-s -w -X craftops/internal/cli.Version=${GITHUB_SHA::8}" \
-          -o craftops-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/craftops
-      - uses: actions/upload-artifact@v5
-        with:
-          name: craftops-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: craftops-*
-          retention-days: 7
+          go build -trimpath -ldflags="-s -w" -o /dev/null ./cmd/craftops

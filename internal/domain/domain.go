@@ -1,3 +1,4 @@
+// Package domain contains shared data structures and core validation logic.
 package domain
 
 import (
@@ -7,7 +8,7 @@ import (
 	"time"
 )
 
-// HealthStatus represents the status of a health check
+// HealthStatus represents the possible states of a system component.
 type HealthStatus string
 
 const (
@@ -16,21 +17,21 @@ const (
 	StatusError HealthStatus = "ERROR"
 )
 
-// HealthCheck represents a single health check result
+// HealthCheck captures the result of a diagnostic operation.
 type HealthCheck struct {
 	Name    string       `json:"name"`
 	Status  HealthStatus `json:"status"`
 	Message string       `json:"message"`
 }
 
-// ServerStatus represents the current state of a Minecraft server
+// ServerStatus describes the current operational state of the Minecraft server.
 type ServerStatus struct {
 	IsRunning   bool      `json:"is_running"`
 	SessionName string    `json:"session_name,omitempty"`
 	CheckedAt   time.Time `json:"checked_at"`
 }
 
-// ModInfo represents information about a mod
+// ModInfo contains metadata for a specific mod version.
 type ModInfo struct {
 	VersionID   string `json:"version_id"`
 	Version     string `json:"version_number"`
@@ -39,14 +40,14 @@ type ModInfo struct {
 	ProjectName string `json:"project_name"`
 }
 
-// ModUpdateResult represents the result of a mod update operation
+// ModUpdateResult aggregates the outcomes of a bulk mod update.
 type ModUpdateResult struct {
 	UpdatedMods []string          `json:"updated_mods"`
 	FailedMods  map[string]string `json:"failed_mods"`
 	SkippedMods []string          `json:"skipped_mods"`
 }
 
-// InstalledMod represents an installed mod file
+// InstalledMod represents a jar file found in the mods directory.
 type InstalledMod struct {
 	Name     string    `json:"name"`
 	Filename string    `json:"filename"`
@@ -54,7 +55,7 @@ type InstalledMod struct {
 	Modified time.Time `json:"modified"`
 }
 
-// BackupInfo represents information about a backup file
+// BackupInfo contains metadata for a specific backup archive.
 type BackupInfo struct {
 	Name      string    `json:"name"`
 	Path      string    `json:"path"`
@@ -62,7 +63,7 @@ type BackupInfo struct {
 	Size      int64     `json:"size_bytes"`
 }
 
-// SizeFormatted returns human-readable size
+// SizeFormatted returns a human-readable representation of the file size.
 func (b BackupInfo) SizeFormatted() string {
 	mb := float64(b.Size) / (1024 * 1024)
 	if mb >= 1024 {
@@ -71,7 +72,7 @@ func (b BackupInfo) SizeFormatted() string {
 	return fmt.Sprintf("%.1f MB", mb)
 }
 
-// CheckPath verifies if a path exists and is a directory
+// CheckPath verifies if a path exists and is a directory, returning a HealthCheck.
 func CheckPath(name, path string) HealthCheck {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -83,13 +84,13 @@ func CheckPath(name, path string) HealthCheck {
 	return HealthCheck{Name: name, Status: StatusOK, Message: "OK"}
 }
 
-// Sentinel errors
+// Sentinel errors for standard failure modes.
 var (
 	ErrServerJarNotFound = errors.New("server JAR file not found")
 	ErrBackupsDisabled   = errors.New("backups are disabled")
 )
 
-// ServiceError represents a service-level error with context
+// ServiceError wraps an error with service-specific context.
 type ServiceError struct {
 	Service string
 	Op      string
@@ -107,12 +108,12 @@ func (e *ServiceError) Unwrap() error {
 	return e.Err
 }
 
-// NewServiceError creates a new service error
+// NewServiceError creates a new contextual service error.
 func NewServiceError(service, op string, err error) error {
 	return &ServiceError{Service: service, Op: op, Err: err}
 }
 
-// APIError represents an API call error
+// APIError captures details from failed external service calls.
 type APIError struct {
 	URL        string
 	StatusCode int
@@ -126,7 +127,7 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("API error: %s (url: %s)", e.Message, e.URL)
 }
 
-// IsRetryable returns true if the error is retryable
+// IsRetryable returns true if the error code suggests a transient failure.
 func (e *APIError) IsRetryable() bool {
 	return e.StatusCode >= 500 || e.StatusCode == 429
 }
