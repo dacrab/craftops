@@ -1,3 +1,4 @@
+// Package config provides configuration management for craftops
 package config
 
 import (
@@ -168,11 +169,13 @@ func LoadConfig(configPath string) (*Config, error) {
 
 // SaveConfig writes the configuration to a TOML file
 func (c *Config) SaveConfig(configPath string) error {
-	file, err := os.Create(configPath)
+	file, err := os.Create(configPath) //nolint:gosec // config path is user-controlled
 	if err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close() // Close errors are non-critical after successful encoding
+	}()
 
 	return toml.NewEncoder(file).Encode(c)
 }

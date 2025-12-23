@@ -35,7 +35,7 @@ func TestConfig(t *testing.T) {
 			mutate  func(*Config)
 			wantErr bool
 		}{
-			{"valid", func(c *Config) {}, false},
+			{"valid", func(_ *Config) {}, false},
 			{"invalid-modloader", func(c *Config) { c.Minecraft.Modloader = "invalid" }, true},
 			{"invalid-level", func(c *Config) { c.Logging.Level = "INVALID" }, true},
 			{"invalid-format", func(c *Config) { c.Logging.Format = "xml" }, true},

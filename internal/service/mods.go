@@ -122,13 +122,13 @@ func (m *Mods) HealthCheck(ctx context.Context) []domain.HealthCheck {
 func (m *Mods) withRetry(ctx context.Context, op func() error) error {
 	var lastErr error
 	for attempt := 0; attempt <= m.cfg.Mods.MaxRetries; attempt++ {
-		if err := op(); err == nil {
+		err := op()
+		if err == nil {
 			return nil
-		} else {
-			lastErr = err
-			if apiErr, ok := err.(*domain.APIError); ok && !apiErr.IsRetryable() {
-				break
-			}
+		}
+		lastErr = err
+		if apiErr, ok := err.(*domain.APIError); ok && !apiErr.IsRetryable() {
+			break
 		}
 		if attempt < m.cfg.Mods.MaxRetries {
 			m.backoff(ctx, attempt)
@@ -150,7 +150,11 @@ func (m *Mods) apiRequest(ctx context.Context, apiURL string, result interface{}
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				m.logger.Warn("Failed to close response body", zap.Error(closeErr))
+			}
+		}()
 
 		if resp.StatusCode != 200 {
 			return &domain.APIError{URL: apiURL, StatusCode: resp.StatusCode, Message: "request failed"}
@@ -183,7 +187,11 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 		return false, err
 	}
 	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
+	defer func() {
+		if removeErr := os.Remove(tmpPath); removeErr != nil {
+			m.logger.Warn("Failed to remove temporary file", zap.String("path", tmpPath), zap.Error(removeErr))
+		}
+	}()
 
 	err = m.withRetry(ctx, func() error {
 		req, err := http.NewRequestWithContext(ctx, "GET", info.DownloadURL, nil)
@@ -196,7 +204,11 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				m.logger.Warn("Failed to close response body", zap.Error(closeErr))
+			}
+		}()
 
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("download failed: status %d", resp.StatusCode)
@@ -213,12 +225,14 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 		return err
 	})
 
-	tmpFile.Close()
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		m.logger.Warn("Failed to close temporary file", zap.Error(closeErr))
+	}
 	if err != nil {
 		return false, err
 	}
 
-	os.Remove(finalPath)
+	_ = os.Remove(finalPath)
 	if err := os.Rename(tmpPath, finalPath); err != nil {
 		return false, err
 	}
@@ -321,7 +335,9 @@ func (m *Mods) checkAPI(ctx context.Context) domain.HealthCheck {
 	if err != nil {
 		return domain.HealthCheck{Name: "Modrinth API", Status: domain.StatusError, Message: "Connection failed"}
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() // Close errors are non-critical for health checks
+	}()
 
 	if resp.StatusCode != 200 {
 		return domain.HealthCheck{Name: "Modrinth API", Status: domain.StatusWarn, Message: fmt.Sprintf("Status %d", resp.StatusCode)}

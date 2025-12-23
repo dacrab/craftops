@@ -70,7 +70,7 @@ func (s *Server) Start(ctx context.Context) error {
 	javaArgs := append(s.cfg.Server.JavaFlags, "-jar", s.cfg.Server.JarName, "nogui")
 	cmdArgs := append([]string{"-dmS", s.sessionName(), "java"}, javaArgs...)
 
-	cmd := exec.CommandContext(ctx, "screen", cmdArgs...)
+	cmd := exec.CommandContext(ctx, "screen", cmdArgs...) //nolint:gosec // screen command is intentionally user-controlled
 	cmd.Dir = s.cfg.Paths.Server
 	if err := cmd.Start(); err != nil {
 		return domain.NewServiceError("server", "start", err)
@@ -96,7 +96,7 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 
 	stopCmd := fmt.Sprintf("%s\n", s.cfg.Server.StopCommand)
-	cmd := exec.CommandContext(ctx, "screen", "-S", s.sessionName(), "-X", "stuff", stopCmd)
+	cmd := exec.CommandContext(ctx, "screen", "-S", s.sessionName(), "-X", "stuff", stopCmd) //nolint:gosec // screen command is intentionally user-controlled
 	if err := cmd.Run(); err != nil {
 		return domain.NewServiceError("server", "stop", err)
 	}

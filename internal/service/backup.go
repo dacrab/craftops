@@ -128,11 +128,15 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 
 	b.logger.Info("Creating backup", zap.String("name", backupName))
 
-	file, err := os.Create(backupPath)
+	file, err := os.Create(backupPath) //nolint:gosec // backup path is from config
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			b.logger.Warn("Failed to close backup file", zap.Error(closeErr))
+		}
+	}()
 
 	// Ensure compression level is within valid gzip range
 	gzLevel := b.cfg.Backup.CompressionLevel
@@ -144,20 +148,28 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer gzWriter.Close()
+	defer func() {
+		if closeErr := gzWriter.Close(); closeErr != nil {
+			b.logger.Warn("Failed to close gzip writer", zap.Error(closeErr))
+		}
+	}()
 
 	tarWriter := tar.NewWriter(gzWriter)
-	defer tarWriter.Close()
+	defer func() {
+		if closeErr := tarWriter.Close(); closeErr != nil {
+			b.logger.Warn("Failed to close tar writer", zap.Error(closeErr))
+		}
+	}()
 
 	if err := b.addFiles(ctx, tarWriter); err != nil {
-		os.Remove(backupPath)
+		_ = os.Remove(backupPath)
 		return "", err
 	}
 
 	// Verify file was created and isn't empty
 	info, err := os.Stat(backupPath)
 	if err != nil || info.Size() == 0 {
-		os.Remove(backupPath)
+		_ = os.Remove(backupPath)
 		return "", fmt.Errorf("backup file empty or not created")
 	}
 
@@ -204,11 +216,13 @@ func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 			return nil
 		}
 
-		f, err := os.Open(path)
+		f, err := os.Open(path) //nolint:gosec // path is from server directory walk
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close() // Close errors are non-critical after successful read
+		}()
 		_, err = io.Copy(tw, f)
 		return err
 	})
