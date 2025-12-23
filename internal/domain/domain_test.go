@@ -59,21 +59,13 @@ func TestBackupInfoSizeFormatted(t *testing.T) {
 
 func TestSentinelErrors(t *testing.T) {
 	errs := []error{
-		ErrServerNotRunning, ErrServerRunning, ErrServerJarNotFound,
-		ErrJavaNotFound, ErrScreenNotFound, ErrBackupsDisabled,
-		ErrNoModSources, ErrInvalidConfig,
+		ErrServerJarNotFound,
+		ErrBackupsDisabled,
 	}
 	for _, err := range errs {
 		if err == nil || err.Error() == "" {
 			t.Error("sentinel error should have message")
 		}
-	}
-}
-
-func TestConfigError(t *testing.T) {
-	err := &ConfigError{Field: "test", Message: "invalid"}
-	if err.Error() == "" || err.Field != "test" {
-		t.Error("ConfigError mismatch")
 	}
 }
 

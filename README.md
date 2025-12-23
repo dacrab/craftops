@@ -4,40 +4,44 @@ Modern CLI for Minecraft server operations and Modrinth mod management.
 
 ## Features
 
-- Server lifecycle management (start/stop/restart via GNU screen)
-- Automated mod updates from Modrinth
-- Compressed backups with retention policies
-- Discord notifications
-- Health checks
+- **Lifecycle:** Start, stop, and restart via GNU screen.
+- **Mods:** Automated updates and dependency resolution from Modrinth.
+- **Backups:** Compressed archives with smart retention policies.
+- **Alerts:** Discord webhook integration for status and errors.
+- **Health:** Integrated diagnostic suite for paths and dependencies.
 
 ## Install
 
+### One-liner
 ```bash
-# One-liner
 curl -sSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | bash
+```
 
-# From source
+### From source
+```bash
 make install
+```
 
-# Docker
+### Docker
+```bash
 docker pull ghcr.io/dacrab/craftops:latest
 ```
 
 ## Usage
 
 ```bash
-craftops init-config                    # Create default config
-craftops health-check                   # Validate setup
-craftops update-mods                    # Update mods from Modrinth
-craftops server start|stop|restart      # Manage server
-craftops backup create|list             # Manage backups
+craftops init-config                    # Initialize default config
+craftops health-check                   # Run system diagnostics
+craftops update-mods                    # Check and install mod updates
+craftops server start|stop|restart      # Control server process
+craftops backup create|list             # Manage server archives
 ```
 
-**Flags:** `--config`, `--debug`, `--dry-run`
+**Global Flags:** `--config`, `--debug`, `--dry-run`
 
-## Config
+## Configuration
 
-Generate with `craftops init-config`, then edit `~/.config/craftops/config.toml`:
+Generate a default config with `craftops init-config`, then edit `~/.config/craftops/config.toml`:
 
 ```toml
 [minecraft]
@@ -60,14 +64,14 @@ enabled = true
 max_backups = 5
 
 [notifications]
-discord_webhook = ""  # Optional
+discord_webhook = ""  # Optional Discord integration
 ```
 
 ## Requirements
 
-- Linux/macOS
+- Linux or macOS
 - GNU screen
-- Java 17+ (for Minecraft server)
+- Java 17+ (installed on the host for non-Docker use)
 
 ## License
 
