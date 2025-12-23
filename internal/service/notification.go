@@ -42,20 +42,26 @@ func NewNotification(cfg *config.Config, logger *zap.Logger) *Notification {
 
 // SendSuccess dispatches a success-level alert if enabled in config
 func (n *Notification) SendSuccess(ctx context.Context, message string) error {
-	if !n.cfg.Notifications.SuccessNotifications { return nil }
+	if !n.cfg.Notifications.SuccessNotifications {
+		return nil
+	}
 	return n.sendDiscord(ctx, "Success", message, colorGreen)
 }
 
 // SendError dispatches an error-level alert if enabled in config
 func (n *Notification) SendError(ctx context.Context, message string) error {
-	if !n.cfg.Notifications.ErrorNotifications { return nil }
+	if !n.cfg.Notifications.ErrorNotifications {
+		return nil
+	}
 	return n.sendDiscord(ctx, "Error", message, colorRed)
 }
 
 // SendRestartWarnings sends a sequence of alerts based on configured intervals
 func (n *Notification) SendRestartWarnings(ctx context.Context) error {
 	intervals := append([]int(nil), n.cfg.Notifications.WarningIntervals...)
-	if len(intervals) == 0 { return nil }
+	if len(intervals) == 0 {
+		return nil
+	}
 
 	// Ensure warnings are sent from longest to shortest interval
 	sort.Slice(intervals, func(i, j int) bool { return intervals[i] > intervals[j] })
@@ -64,7 +70,9 @@ func (n *Notification) SendRestartWarnings(ctx context.Context) error {
 
 	for i, minutes := range intervals {
 		msg := strings.ReplaceAll(n.cfg.Notifications.WarningMessage, "{minutes}", fmt.Sprintf("%d", minutes))
-		if err := n.sendDiscord(ctx, "Server Restart Warning", msg, colorOrange); err != nil { return err }
+		if err := n.sendDiscord(ctx, "Server Restart Warning", msg, colorOrange); err != nil {
+			return err
+		}
 
 		if i < len(intervals)-1 {
 			next := intervals[i+1]
@@ -72,7 +80,8 @@ func (n *Notification) SendRestartWarnings(ctx context.Context) error {
 			n.logger.Info("Waiting before next warning", zap.Duration("wait", wait))
 
 			select {
-			case <-ctx.Done(): return ctx.Err()
+			case <-ctx.Done():
+				return ctx.Err()
 			case <-time.After(wait):
 			}
 		}
@@ -113,7 +122,9 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 	}
 
 	// Discord has a 2000 character limit for descriptions
-	if len(message) > 2000 { message = message[:1997] + "..." }
+	if len(message) > 2000 {
+		message = message[:1997] + "..."
+	}
 
 	payload := discordPayload{
 		Embeds: []discordEmbed{{
@@ -126,14 +137,20 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 	}
 
 	var body bytes.Buffer
-	if err := json.NewEncoder(&body).Encode(payload); err != nil { return err }
+	if err := json.NewEncoder(&body).Encode(payload); err != nil {
+		return err
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", n.cfg.Notifications.DiscordWebhook, &body)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := n.client.Do(req)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
@@ -150,7 +167,9 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 
 func (n *Notification) checkWebhook() domain.HealthCheck {
 	webhook := n.cfg.Notifications.DiscordWebhook
-	if webhook == "" { return domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusWarn, Message: "Not configured"} }
+	if webhook == "" {
+		return domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusWarn, Message: "Not configured"}
+	}
 	if !strings.HasPrefix(webhook, "https://discord.com/api/webhooks/") {
 		return domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusError, Message: "Invalid URL format"}
 	}

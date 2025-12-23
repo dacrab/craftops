@@ -41,9 +41,11 @@ func NewMods(cfg *config.Config, logger *zap.Logger) *Mods {
 func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResult, error) {
 	m.logger.Info("Starting mod update", zap.Bool("force", force))
 	res := &domain.ModUpdateResult{UpdatedMods: []string{}, FailedMods: make(map[string]string), SkippedMods: []string{}}
-	
+
 	sources := m.cfg.Mods.ModrinthSources
-	if len(sources) == 0 { return res, nil }
+	if len(sources) == 0 {
+		return res, nil
+	}
 
 	// Use semaphore to limit concurrent downloads
 	sem := make(chan struct{}, m.cfg.Mods.ConcurrentDownloads)
@@ -55,21 +57,25 @@ func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResu
 		go func(s string) {
 			defer wg.Done()
 			select {
-			case sem <- struct{}{}: defer func() { <-sem }()
-			case <-ctx.Done(): return
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return
 			}
 
 			updated, name, err := m.updateMod(ctx, s, force)
-			if name == "" { name = s }
+			if name == "" {
+				name = s
+			}
 
 			mu.Lock()
 			defer mu.Unlock()
-			if err != nil { 
+			if err != nil {
 				res.FailedMods[name] = err.Error()
-			} else if updated { 
-				res.UpdatedMods = append(res.UpdatedMods, name) 
-			} else { 
-				res.SkippedMods = append(res.SkippedMods, name) 
+			} else if updated {
+				res.UpdatedMods = append(res.UpdatedMods, name)
+			} else {
+				res.SkippedMods = append(res.SkippedMods, name)
 			}
 		}(src)
 	}
@@ -87,7 +93,9 @@ func (m *Mods) ListInstalled() ([]domain.InstalledMod, error) {
 	mods := make([]domain.InstalledMod, 0, len(files))
 	for _, file := range files {
 		info, err := os.Stat(file)
-		if err != nil { continue }
+		if err != nil {
+			continue
+		}
 
 		filename := filepath.Base(file)
 		mods = append(mods, domain.InstalledMod{
@@ -133,11 +141,15 @@ func (m *Mods) withRetry(ctx context.Context, op func() error) error {
 func (m *Mods) apiRequest(ctx context.Context, apiURL string, result interface{}) error {
 	return m.withRetry(ctx, func() error {
 		req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		req.Header.Set("User-Agent", "craftops/2.0")
 
 		resp, err := m.client.Do(req)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
@@ -167,33 +179,49 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 	}
 
 	tmpFile, err := os.CreateTemp(m.cfg.Paths.Mods, ".tmp-*")
-	if err != nil { return false, err }
+	if err != nil {
+		return false, err
+	}
 	tmpPath := tmpFile.Name()
 	defer os.Remove(tmpPath)
 
 	err = m.withRetry(ctx, func() error {
 		req, err := http.NewRequestWithContext(ctx, "GET", info.DownloadURL, nil)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		req.Header.Set("User-Agent", "craftops/2.0")
 
 		resp, err := m.client.Do(req)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode != 200 { return fmt.Errorf("download failed: status %d", resp.StatusCode) }
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("download failed: status %d", resp.StatusCode)
+		}
 
-		if _, err := tmpFile.Seek(0, 0); err != nil { return err }
-		if err := tmpFile.Truncate(0); err != nil { return err }
+		if _, err := tmpFile.Seek(0, 0); err != nil {
+			return err
+		}
+		if err := tmpFile.Truncate(0); err != nil {
+			return err
+		}
 
 		_, err = io.Copy(tmpFile, resp.Body)
 		return err
 	})
 
 	tmpFile.Close()
-	if err != nil { return false, err }
+	if err != nil {
+		return false, err
+	}
 
 	os.Remove(finalPath)
-	if err := os.Rename(tmpPath, finalPath); err != nil { return false, err }
+	if err := os.Rename(tmpPath, finalPath); err != nil {
+		return false, err
+	}
 
 	m.logger.Info("Downloaded mod", zap.String("filename", info.Filename))
 	return true, nil
@@ -202,10 +230,14 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 // updateMod performs high-level mod update flow for a single URL
 func (m *Mods) updateMod(ctx context.Context, modURL string, force bool) (bool, string, error) {
 	projectID, err := m.parseProjectID(modURL)
-	if err != nil { return false, projectID, err }
+	if err != nil {
+		return false, projectID, err
+	}
 
 	info, err := m.fetchLatestVersion(ctx, projectID)
-	if err != nil { return false, projectID, err }
+	if err != nil {
+		return false, projectID, err
+	}
 
 	updated, err := m.downloadMod(ctx, info, force)
 	return updated, info.ProjectName, err
@@ -214,10 +246,14 @@ func (m *Mods) updateMod(ctx context.Context, modURL string, force bool) (bool, 
 // parseProjectID extracts the Modrinth slug from a full URL
 func (m *Mods) parseProjectID(modURL string) (string, error) {
 	u, err := url.Parse(modURL)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
 	for i, p := range parts {
-		if p == "mod" && i+1 < len(parts) { return parts[i+1], nil }
+		if p == "mod" && i+1 < len(parts) {
+			return parts[i+1], nil
+		}
 	}
 	return "", fmt.Errorf("invalid Modrinth URL: %s", modURL)
 }
@@ -239,11 +275,17 @@ func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domai
 		projectID, m.cfg.Minecraft.Version, m.cfg.Minecraft.Modloader)
 
 	var versions []modrinthVersion
-	if err := m.apiRequest(ctx, apiURL, &versions); err != nil { return nil, err }
-	if len(versions) == 0 { return nil, fmt.Errorf("no compatible versions found") }
+	if err := m.apiRequest(ctx, apiURL, &versions); err != nil {
+		return nil, err
+	}
+	if len(versions) == 0 {
+		return nil, fmt.Errorf("no compatible versions found")
+	}
 
 	v := versions[0]
-	if len(v.Files) == 0 { return nil, fmt.Errorf("no files in version") }
+	if len(v.Files) == 0 {
+		return nil, fmt.Errorf("no files in version")
+	}
 
 	return &domain.ModInfo{
 		VersionID:   v.ID,

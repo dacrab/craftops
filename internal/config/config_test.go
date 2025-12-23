@@ -16,7 +16,7 @@ func TestConfig(t *testing.T) {
 	t.Run("LoadAndSave", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "config.toml")
-		
+
 		cfg := DefaultConfig()
 		cfg.Server.JarName = "test.jar"
 		if err := cfg.SaveConfig(path); err != nil {
