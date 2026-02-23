@@ -189,13 +189,14 @@ func (c *Config) Validate() error {
 }
 
 func findDefaultConfig() string {
-	paths := []string{
-		"config.toml",
-		filepath.Join(os.Getenv("HOME"), ".config", "craftops", "config.toml"),
-		"/etc/craftops/config.toml",
-	}
+	candidates := []string{"config.toml"}
 
-	for _, p := range paths {
+	if cfgDir, err := os.UserConfigDir(); err == nil {
+		candidates = append(candidates, filepath.Join(cfgDir, "craftops", "config.toml"))
+	}
+	candidates = append(candidates, "/etc/craftops/config.toml")
+
+	for _, p := range candidates {
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}

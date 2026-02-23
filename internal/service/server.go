@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,7 +14,6 @@ import (
 
 	"craftops/internal/config"
 	"craftops/internal/domain"
-	"craftops/internal/util"
 )
 
 // Server manages the lifecycle and health of the Minecraft server process
@@ -64,11 +64,13 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	serverJar := filepath.Join(s.cfg.Paths.Server, s.cfg.Server.JarName)
-	if _, err := os.Stat(serverJar); os.IsNotExist(err) {
+	if _, err := os.Stat(serverJar); errors.Is(err, os.ErrNotExist) {
 		return domain.ErrServerJarNotFound
 	}
 
-	javaArgs := append(s.cfg.Server.JavaFlags, "-jar", s.cfg.Server.JarName, "nogui")
+	javaArgs := make([]string, len(s.cfg.Server.JavaFlags), len(s.cfg.Server.JavaFlags)+3)
+	copy(javaArgs, s.cfg.Server.JavaFlags)
+	javaArgs = append(javaArgs, "-jar", s.cfg.Server.JarName, "nogui")
 	cmdArgs := append([]string{"-dmS", s.sessionName(), "java"}, javaArgs...)
 
 	cmd := exec.CommandContext(ctx, "screen", cmdArgs...) //nolint:gosec // screen command is intentionally user-controlled
@@ -96,7 +98,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	stopCmd := fmt.Sprintf("%s\n", s.cfg.Server.StopCommand)
+	stopCmd := s.cfg.Server.StopCommand + "\n"
 	cmd := exec.CommandContext(ctx, "screen", "-S", s.sessionName(), "-X", "stuff", stopCmd) //nolint:gosec // screen command is intentionally user-controlled
 	if err := cmd.Run(); err != nil {
 		return domain.NewServiceError("server", "stop", err)
@@ -123,17 +125,20 @@ func (s *Server) Restart(ctx context.Context) error {
 }
 
 // HealthCheck verifies all server dependencies (Java, Screen, paths)
-func (s *Server) HealthCheck(ctx context.Context) []domain.HealthCheck {
+func (s *Server) HealthCheck(_ context.Context) []domain.HealthCheck {
 	return []domain.HealthCheck{
 		domain.CheckPath("Server directory", s.cfg.Paths.Server),
 		s.checkServerJAR(),
-		s.checkBinary(ctx, "java", "Java Runtime"),
-		s.checkBinary(ctx, "screen", "GNU screen"),
+		s.checkBinary("java", "Java Runtime"),
+		s.checkBinary("screen", "GNU screen"),
 	}
 }
 
-func (s *Server) checkBinary(ctx context.Context, binary, name string) domain.HealthCheck {
-	return util.CheckBinary(ctx, binary, name)
+func (s *Server) checkBinary(binary, name string) domain.HealthCheck {
+	if _, err := exec.LookPath(binary); err == nil {
+		return domain.HealthCheck{Name: name, Status: domain.StatusOK, Message: "Available"}
+	}
+	return domain.HealthCheck{Name: name, Status: domain.StatusError, Message: binary + " not found in PATH"}
 }
 
 func (s *Server) checkServerJAR() domain.HealthCheck {
@@ -175,7 +180,7 @@ func (s *Server) waitForStatus(ctx context.Context, target bool, timeout int, la
 				return err
 			}
 			if status.IsRunning == target {
-				s.logger.Info(fmt.Sprintf("Server %s", label), zap.Duration("duration", time.Since(start)))
+				s.logger.Info("Server "+label, zap.Duration("duration", time.Since(start)))
 				return nil
 			}
 			if time.Since(start) > time.Duration(timeout)*time.Second {

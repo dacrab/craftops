@@ -37,3 +37,11 @@ type Notifier interface {
 	SendRestartWarnings(ctx context.Context) error
 	HealthCheck(ctx context.Context) []domain.HealthCheck
 }
+
+// Ensure compile-time interface satisfaction.
+var (
+	_ ServerManager = (*Server)(nil)
+	_ ModManager    = (*Mods)(nil)
+	_ BackupManager = (*Backup)(nil)
+	_ Notifier      = (*Notification)(nil)
+)

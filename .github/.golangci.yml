@@ -3,6 +3,7 @@ version: "2"
 run:
   timeout: 5m
   modules-download-mode: readonly
+  go: '1.25.7'
 
 linters:
   enable-all: false
@@ -10,14 +11,31 @@ linters:
     - errcheck
     - govet
     - ineffassign
-    - staticcheck
-    - unused
+    - staticcheck   # covers gosimple + unused in golangci-lint v2
     - gosec
     - misspell
     - revive
     - bodyclose
     - unconvert
     - goconst
+    - gocritic
+    - perfsprint    # detect fmt.Sprintf replaceable with faster alternatives
+    - intrange      # Go 1.22+: range over integer
+    - copyloopvar   # Go 1.22+: loop variable capture (safe since 1.22 but good to flag)
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - shadow
+  gosec:
+    excludes:
+      - G104  # Unhandled errors (covered by errcheck)
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+      - style
 
 issues:
   exclude-use-default: false

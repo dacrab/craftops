@@ -36,7 +36,7 @@ var (
 
 // NewTerminal initializes a terminal linked to standard output
 func NewTerminal() *Terminal {
-	isTTY := term.IsTerminal(int(os.Stdout.Fd()))
+	isTTY := term.IsTerminal(int(os.Stdout.Fd())) //nolint:gosec // uintptr→int safe: file descriptors fit in int on all supported platforms
 	color.NoColor = !isTTY
 
 	return &Terminal{
