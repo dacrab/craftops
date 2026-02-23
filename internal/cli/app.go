@@ -2,15 +2,15 @@ package cli
 
 import (
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"craftops/internal/config"
 	"craftops/internal/service"
 	"craftops/internal/ui"
-	"craftops/internal/util"
 )
 
-// AppContainer is the central dependency injection container for the application
-type AppContainer struct {
+// appContainer is the central dependency injection container for the application
+type appContainer struct {
 	Config       *config.Config
 	Logger       *zap.Logger
 	Terminal     *ui.Terminal
@@ -20,12 +20,34 @@ type AppContainer struct {
 	Notification service.Notifier
 }
 
-// NewApp wires up all services and dependencies based on the provided config
-func NewApp(cfg *config.Config) *AppContainer {
-	logger := util.NewLogger(cfg)
+// newLogger builds a zap logger configured from the app config.
+// cfg.Logging.Level is normalised to uppercase by config.Validate().
+func newLogger(cfg *config.Config) *zap.Logger {
+	level := zap.InfoLevel
+	if cfg.Logging.Level == "DEBUG" {
+		level = zap.DebugLevel
+	}
+	zapCfg := zap.NewProductionConfig()
+	zapCfg.Level = zap.NewAtomicLevelAt(level)
+	if cfg.Logging.Format == "text" {
+		zapCfg.Encoding = "console"
+		zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	}
+	logger, err := zapCfg.Build()
+	if err != nil {
+		// Fall back to a no-op logger rather than panicking on misconfiguration.
+		return zap.NewNop()
+	}
+	return logger
+}
+
+// newApp wires up all services and dependencies based on the provided config
+func newApp(cfg *config.Config) *appContainer {
+	logger := newLogger(cfg)
 	terminal := ui.NewTerminal()
 
-	return &AppContainer{
+	return &appContainer{
 		Config:       cfg,
 		Logger:       logger,
 		Terminal:     terminal,
@@ -37,7 +59,7 @@ func NewApp(cfg *config.Config) *AppContainer {
 }
 
 // Close ensures all resources (like log buffers) are properly flushed
-func (a *AppContainer) Close() {
+func (a *appContainer) Close() {
 	if a.Logger != nil {
 		_ = a.Logger.Sync()
 	}

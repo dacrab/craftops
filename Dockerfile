@@ -1,12 +1,15 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25.7-alpine AS builder
 WORKDIR /src
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download -x
 COPY . .
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X craftops/internal/cli.Version=${VERSION}" -o /craftops ./cmd/craftops
+# Go 1.25.7 optimizations: -buildvcs=auto, improved build flags
+RUN CGO_ENABLED=0 go build -trimpath -buildvcs=auto \
+    -ldflags "-s -w -X craftops/internal/cli.Version=${VERSION}" \
+    -o /craftops ./cmd/craftops
 
 FROM alpine:3.20
 # Install runtime dependencies and setup user in one layer

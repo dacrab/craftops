@@ -18,7 +18,18 @@ jobs:
           cache: true # Built-in caching for modules
 
       - name: Test
-        run: go test -race -cover ./...
+        run: make test
+
+      - name: Coverage Summary
+        run: |
+          go tool cover -func=coverage.out | tail -1
+
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+          retention-days: 7
 
       - name: Lint
         uses: golangci/golangci-lint-action@v7
@@ -44,4 +55,4 @@ jobs:
       - name: Build
         run: |
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
-          go build -trimpath -ldflags="-s -w" -o /dev/null ./cmd/craftops
+          go build -trimpath -buildvcs=auto -ldflags="-s -w" -o /dev/null ./cmd/craftops

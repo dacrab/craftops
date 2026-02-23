@@ -4,11 +4,13 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -71,7 +73,7 @@ func (b *Backup) Create(ctx context.Context) (string, error) {
 func (b *Backup) List() ([]domain.BackupInfo, error) {
 	files, err := os.ReadDir(b.cfg.Paths.Backups)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to list backups: %w", err)
@@ -95,8 +97,8 @@ func (b *Backup) List() ([]domain.BackupInfo, error) {
 	}
 
 	// Sort backups by creation time (newest first)
-	sort.Slice(backups, func(i, j int) bool {
-		return backups[i].CreatedAt.After(backups[j].CreatedAt)
+	slices.SortFunc(backups, func(a, b domain.BackupInfo) int {
+		return b.CreatedAt.Compare(a.CreatedAt)
 	})
 
 	return backups, nil
@@ -133,11 +135,6 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			b.logger.Warn("Failed to close backup file", zap.Error(closeErr))
-		}
-	}()
 
 	// Ensure compression level is within valid gzip range
 	gzLevel := b.cfg.Backup.CompressionLevel
@@ -149,29 +146,40 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if closeErr := gzWriter.Close(); closeErr != nil {
-			b.logger.Warn("Failed to close gzip writer", zap.Error(closeErr))
-		}
-	}()
-
 	tarWriter := tar.NewWriter(gzWriter)
-	defer func() {
-		if closeErr := tarWriter.Close(); closeErr != nil {
-			b.logger.Warn("Failed to close tar writer", zap.Error(closeErr))
-		}
-	}()
 
+	// Walk and archive — if anything fails, remove the partial file.
 	if err := b.addFiles(ctx, tarWriter); err != nil {
+		_ = tarWriter.Close()
+		_ = gzWriter.Close()
+		_ = file.Close()
 		_ = os.Remove(backupPath)
 		return "", err
+	}
+
+	// Close in reverse order: tar → gzip → file so each layer flushes correctly.
+	// All close errors are propagated — a failed close means a corrupt archive.
+	if err := tarWriter.Close(); err != nil {
+		_ = gzWriter.Close()
+		_ = file.Close()
+		_ = os.Remove(backupPath)
+		return "", fmt.Errorf("finalizing tar: %w", err)
+	}
+	if err := gzWriter.Close(); err != nil {
+		_ = file.Close()
+		_ = os.Remove(backupPath)
+		return "", fmt.Errorf("finalizing gzip: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return "", fmt.Errorf("closing backup file: %w", err)
 	}
 
 	// Verify file was created and isn't empty
 	info, err := os.Stat(backupPath)
 	if err != nil || info.Size() == 0 {
 		_ = os.Remove(backupPath)
-		return "", fmt.Errorf("backup file empty or not created")
+		return "", errors.New("backup file empty or not created")
 	}
 
 	b.logger.Info("Backup created", zap.String("name", backupName), zap.Int64("size", info.Size()))
@@ -180,7 +188,7 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 
 // addFiles walks the server directory and adds eligible files to the archive
 func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
-	return filepath.Walk(b.cfg.Paths.Server, func(path string, info os.FileInfo, err error) error {
+	return filepath.WalkDir(b.cfg.Paths.Server, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -193,14 +201,20 @@ func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 			return err
 		}
 
-		if b.shouldExclude(relPath, info) {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
+		// Skip symlinks
+		if d.Type()&fs.ModeSymlink != 0 {
 			return nil
 		}
 
-		if info.Mode()&os.ModeSymlink != 0 {
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		if b.shouldExclude(relPath, d.IsDir()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -221,20 +235,26 @@ func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 		if err != nil {
 			return err
 		}
-		defer func() {
-			_ = f.Close() // Close errors are non-critical after successful read
-		}()
+		defer func() { _ = f.Close() }()
 		_, err = io.Copy(tw, f)
 		return err
 	})
 }
 
 // shouldExclude checks if a file/dir should be skipped based on config patterns using doublestar for glob support
-func (b *Backup) shouldExclude(relPath string, _ os.FileInfo) bool {
+func (b *Backup) shouldExclude(relPath string, isDir bool) bool {
 	if !b.cfg.Backup.IncludeLogs && (relPath == "logs" || strings.HasPrefix(relPath, "logs/")) {
 		return true
 	}
+	// Append trailing slash for directories so patterns like "cache/" match correctly
+	matchPath := relPath
+	if isDir && !strings.HasSuffix(matchPath, "/") {
+		matchPath += "/"
+	}
 	for _, pattern := range b.cfg.Backup.ExcludePatterns {
+		if matched, _ := doublestar.Match(pattern, matchPath); matched {
+			return true
+		}
 		if matched, _ := doublestar.Match(pattern, relPath); matched {
 			return true
 		}
@@ -245,13 +265,18 @@ func (b *Backup) shouldExclude(relPath string, _ os.FileInfo) bool {
 // cleanup enforces the max_backups retention policy
 func (b *Backup) cleanup() {
 	backups, err := b.List()
-	if err != nil || len(backups) <= b.cfg.Backup.MaxBackups {
+	if err != nil {
+		b.logger.Warn("Failed to list backups for cleanup", zap.Error(err))
 		return
 	}
-
-	// List is sorted newest first, so we delete from index max_backups onwards
+	if len(backups) <= b.cfg.Backup.MaxBackups {
+		return
+	}
+	// List is sorted newest first, so delete from index max_backups onwards
 	for _, old := range backups[b.cfg.Backup.MaxBackups:] {
-		if err := os.Remove(old.Path); err == nil {
+		if err := os.Remove(old.Path); err != nil {
+			b.logger.Warn("Failed to remove old backup", zap.String("name", old.Name), zap.Error(err))
+		} else {
 			b.logger.Info("Removed old backup", zap.String("name", old.Name))
 		}
 	}

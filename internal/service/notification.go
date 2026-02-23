@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"sort"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +14,6 @@ import (
 
 	"craftops/internal/config"
 	"craftops/internal/domain"
-	"craftops/internal/util"
 )
 
 const (
@@ -27,7 +26,7 @@ const (
 type Notification struct {
 	cfg    *config.Config
 	logger *zap.Logger
-	client *util.HTTPClient
+	client *http.Client
 }
 
 var _ Notifier = (*Notification)(nil)
@@ -37,7 +36,7 @@ func NewNotification(cfg *config.Config, logger *zap.Logger) *Notification {
 	return &Notification{
 		cfg:    cfg,
 		logger: logger,
-		client: util.NewHTTPClient(30*time.Second, logger),
+		client: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -59,18 +58,18 @@ func (n *Notification) SendError(ctx context.Context, message string) error {
 
 // SendRestartWarnings sends a sequence of alerts based on configured intervals
 func (n *Notification) SendRestartWarnings(ctx context.Context) error {
-	intervals := append([]int(nil), n.cfg.Notifications.WarningIntervals...)
-	if len(intervals) == 0 {
+	if len(n.cfg.Notifications.WarningIntervals) == 0 {
 		return nil
 	}
 
-	// Ensure warnings are sent from longest to shortest interval
-	sort.Slice(intervals, func(i, j int) bool { return intervals[i] > intervals[j] })
+	// Copy and sort from longest to shortest so warnings fire in the right order
+	intervals := slices.Clone(n.cfg.Notifications.WarningIntervals)
+	slices.SortFunc(intervals, func(a, b int) int { return b - a })
 
 	n.logger.Info("Sending restart warnings", zap.Ints("intervals", intervals))
 
 	for i, minutes := range intervals {
-		msg := strings.ReplaceAll(n.cfg.Notifications.WarningMessage, "{minutes}", fmt.Sprintf("%d", minutes))
+		msg := strings.ReplaceAll(n.cfg.Notifications.WarningMessage, "{minutes}", strconv.Itoa(minutes))
 		if err := n.sendDiscord(ctx, "Server Restart Warning", msg, colorOrange); err != nil {
 			return err
 		}
@@ -142,19 +141,19 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", n.cfg.Notifications.DiscordWebhook, &body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, n.cfg.Notifications.DiscordWebhook, &body)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := n.client.Do(req) //nolint:bodyclose // handled by CloseResponseBody
+	resp, err := n.client.Do(req) //nolint:gosec // webhook URL is user-configured, not attacker-controlled
 	if err != nil {
 		return err
 	}
-	defer n.client.CloseResponseBody(resp.Body)
+	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != 200 && resp.StatusCode != 204 {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return &domain.APIError{
 			URL:        n.cfg.Notifications.DiscordWebhook,
 			StatusCode: resp.StatusCode,

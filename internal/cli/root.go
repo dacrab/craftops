@@ -18,8 +18,8 @@ var (
 	Version = "dev"
 )
 
-// AppKey is the context key for the AppContainer
-type AppKey struct{}
+// appKey is the context key for the appContainer
+type appKey struct{}
 
 // rootCmd defines the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -35,15 +35,17 @@ Features:
   - Health checks`,
 	PersistentPreRunE: initApp,
 	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
-		if a, ok := cmd.Context().Value(AppKey{}).(*AppContainer); ok {
+		if a, ok := cmd.Context().Value(appKey{}).(*appContainer); ok {
 			a.Close()
 		}
 	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-func Execute() error {
-	return rootCmd.Execute()
+// Execute runs the root command with the provided context.
+// The context should carry OS signal cancellation so long-running operations
+// respect SIGINT/SIGTERM.
+func Execute(ctx context.Context) error {
+	return rootCmd.ExecuteContext(ctx)
 }
 
 func init() {
@@ -70,16 +72,16 @@ func initApp(cmd *cobra.Command, _ []string) error {
 		cfg.DryRun = true
 	}
 
-	application := NewApp(cfg)
+	application := newApp(cfg)
 	// Inject the application container into the command context to avoid global state "lock-in"
-	ctx := context.WithValue(cmd.Context(), AppKey{}, application)
+	ctx := context.WithValue(cmd.Context(), appKey{}, application)
 	cmd.SetContext(ctx)
 	return nil
 }
 
-// App extracts the AppContainer from the command context
-func App(cmd *cobra.Command) *AppContainer {
-	if a, ok := cmd.Context().Value(AppKey{}).(*AppContainer); ok {
+// App extracts the appContainer from the command context
+func app(cmd *cobra.Command) *appContainer {
+	if a, ok := cmd.Context().Value(appKey{}).(*appContainer); ok {
 		return a
 	}
 	return nil
