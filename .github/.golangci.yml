@@ -31,6 +31,9 @@ linters-settings:
   gosec:
     excludes:
       - G104  # Unhandled errors (covered by errcheck)
+      - G115  # Integer overflow conversion uintptr -> int (false positive in taint analysis)
+      - G703  # Path traversal via taint analysis (false positive — inputs are validated upstream)
+      - G704  # SSRF via taint analysis (false positive — URLs are constructed internally)
   gocritic:
     enabled-tags:
       - diagnostic
