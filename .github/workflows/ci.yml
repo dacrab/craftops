@@ -1,46 +1,48 @@
 name: CI
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   test:
-    name: Test & Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-      
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25.7'
-          cache: true # Built-in caching for modules
+          cache: true
 
-      - name: Test
-        run: make test
+      - run: make test
 
-      - name: Coverage Summary
-        run: |
-          go tool cover -func=coverage.out | tail -1
+      - run: go tool cover -func=coverage.out | tail -1
 
-      - name: Upload Coverage
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage.out
           retention-days: 7
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v7
+      - uses: golangci/golangci-lint-action@v7
         with:
-          version: latest
+          version: v2.1.6
           args: -c .github/.golangci.yml
 
   build-check:
-    name: Verify Build
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         goos: [linux, darwin]
@@ -51,8 +53,6 @@ jobs:
         with:
           go-version: '1.25.7'
           cache: true
-      
-      - name: Build
-        run: |
+      - run: |
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
           go build -trimpath -buildvcs=auto -ldflags="-s -w" -o /dev/null ./cmd/craftops
