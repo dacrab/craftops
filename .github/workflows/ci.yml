@@ -34,7 +34,7 @@ jobs:
           path: coverage.out
           retention-days: 7
 
-      - uses: golangci/golangci-lint-action@v7
+      - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.10.1
           args: -c .github/.golangci.yml
