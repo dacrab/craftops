@@ -30,7 +30,7 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
 
-      - uses: aquasecurity/trivy-action@0.34.1
+      - uses: aquasecurity/trivy-action@0.35.0
         continue-on-error: true
         with:
           scan-type: fs
