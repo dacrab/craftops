@@ -2,7 +2,6 @@
 
 BIN := craftops
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
-# Go 1.25.7 optimizations: added -buildvcs and PGO support
 LDFLAGS := -s -w -X craftops/internal/cli.Version=$(VERSION)
 BUILDFLAGS := -trimpath -buildvcs=auto
 
@@ -18,9 +17,6 @@ clean:
 
 test:
 	go test -race -cover -coverprofile=coverage.out ./...
-
-test-verbose:
-	go test -race -cover -coverprofile=coverage.out -v ./...
 
 lint:
 	@command -v golangci-lint >/dev/null && golangci-lint run -c .github/.golangci.yml || go vet ./...

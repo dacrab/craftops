@@ -92,10 +92,25 @@ func (n *Notification) SendRestartWarnings(ctx context.Context) error {
 
 // HealthCheck verifies webhook configuration and alert settings
 func (n *Notification) HealthCheck(_ context.Context) []domain.HealthCheck {
-	return []domain.HealthCheck{
-		n.checkWebhook(),
-		n.checkSettings(),
+	webhook := n.cfg.Notifications.DiscordWebhook
+	var webhookCheck domain.HealthCheck
+	switch {
+	case webhook == "":
+		webhookCheck = domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusWarn, Message: "Not configured"}
+	case !strings.HasPrefix(webhook, "https://discord.com/api/webhooks/"):
+		webhookCheck = domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusError, Message: "Invalid URL format"}
+	default:
+		webhookCheck = domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusOK, Message: "Configured"}
 	}
+
+	var settingsCheck domain.HealthCheck
+	if !n.cfg.Notifications.ErrorNotifications && !n.cfg.Notifications.SuccessNotifications {
+		settingsCheck = domain.HealthCheck{Name: "Notification settings", Status: domain.StatusWarn, Message: "All disabled"}
+	} else {
+		settingsCheck = domain.HealthCheck{Name: "Notification settings", Status: domain.StatusOK, Message: "Configured"}
+	}
+
+	return []domain.HealthCheck{webhookCheck, settingsCheck}
 }
 
 type discordEmbed struct {
@@ -166,20 +181,3 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 	return nil
 }
 
-func (n *Notification) checkWebhook() domain.HealthCheck {
-	webhook := n.cfg.Notifications.DiscordWebhook
-	if webhook == "" {
-		return domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusWarn, Message: "Not configured"}
-	}
-	if !strings.HasPrefix(webhook, "https://discord.com/api/webhooks/") {
-		return domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusError, Message: "Invalid URL format"}
-	}
-	return domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusOK, Message: "Configured"}
-}
-
-func (n *Notification) checkSettings() domain.HealthCheck {
-	if !n.cfg.Notifications.ErrorNotifications && !n.cfg.Notifications.SuccessNotifications {
-		return domain.HealthCheck{Name: "Notification settings", Status: domain.StatusWarn, Message: "All disabled"}
-	}
-	return domain.HealthCheck{Name: "Notification settings", Status: domain.StatusOK, Message: "Configured"}
-}

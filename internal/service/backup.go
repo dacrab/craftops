@@ -52,8 +52,8 @@ func (b *Backup) Create(ctx context.Context) (string, error) {
 		return "dry-run-backup.tar.gz", nil
 	}
 
-	if err := b.validateServerDir(); err != nil {
-		return "", err
+	if check := domain.CheckPath("Server", b.cfg.Paths.Server); check.Status != domain.StatusOK {
+		return "", fmt.Errorf("%s: %s", check.Name, check.Message)
 	}
 
 	if err := os.MkdirAll(b.cfg.Paths.Backups, 0o750); err != nil {
@@ -113,14 +113,6 @@ func (b *Backup) HealthCheck(_ context.Context) []domain.HealthCheck {
 		domain.CheckPath("Backup directory", b.cfg.Paths.Backups),
 		b.checkRetention(),
 	}
-}
-
-func (b *Backup) validateServerDir() error {
-	check := domain.CheckPath("Server", b.cfg.Paths.Server)
-	if check.Status != domain.StatusOK {
-		return fmt.Errorf("%s: %s", check.Name, check.Message)
-	}
-	return nil
 }
 
 // createArchive performs the actual file walking and compression

@@ -77,7 +77,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return domain.NewServiceError("server", "start", err)
 	}
 
-	return s.waitForStart(ctx)
+	return s.waitForStatus(ctx, true, s.cfg.Server.StartupTimeout, "started")
 }
 
 // Stop sends the stop command to the server session and waits for exit
@@ -102,7 +102,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		return domain.NewServiceError("server", "stop", err)
 	}
 
-	return s.waitForStop(ctx)
+	return s.waitForStatus(ctx, false, s.cfg.Server.MaxStopWait, "stopped")
 }
 
 // Restart performs a sequential stop and start of the server
@@ -121,31 +121,29 @@ func (s *Server) Restart(ctx context.Context) error {
 
 // HealthCheck verifies all server dependencies (Java, Screen, paths)
 func (s *Server) HealthCheck(_ context.Context) []domain.HealthCheck {
-	return []domain.HealthCheck{
+	checks := []domain.HealthCheck{
 		domain.CheckPath("Server directory", s.cfg.Paths.Server),
-		s.checkServerJAR(),
-		s.checkBinary("java", "Java Runtime"),
-		s.checkBinary("screen", "GNU screen"),
 	}
-}
 
-func (s *Server) checkBinary(binary, name string) domain.HealthCheck {
-	if _, err := exec.LookPath(binary); err == nil {
-		return domain.HealthCheck{Name: name, Status: domain.StatusOK, Message: "Available"}
-	}
-	return domain.HealthCheck{Name: name, Status: domain.StatusError, Message: binary + " not found in PATH"}
-}
-
-func (s *Server) checkServerJAR() domain.HealthCheck {
 	serverJar := filepath.Join(s.cfg.Paths.Server, s.cfg.Server.JarName)
 	if info, err := os.Stat(serverJar); err == nil && !info.IsDir() {
-		return domain.HealthCheck{
+		checks = append(checks, domain.HealthCheck{
 			Name:    "Server JAR",
 			Status:  domain.StatusOK,
 			Message: fmt.Sprintf("Found (%.1f MB)", float64(info.Size())/(1024*1024)),
+		})
+	} else {
+		checks = append(checks, domain.HealthCheck{Name: "Server JAR", Status: domain.StatusError, Message: "Not found"})
+	}
+
+	for _, b := range []struct{ bin, name string }{{"java", "Java Runtime"}, {"screen", "GNU screen"}} {
+		if _, err := exec.LookPath(b.bin); err == nil {
+			checks = append(checks, domain.HealthCheck{Name: b.name, Status: domain.StatusOK, Message: "Available"})
+		} else {
+			checks = append(checks, domain.HealthCheck{Name: b.name, Status: domain.StatusError, Message: b.bin + " not found in PATH"})
 		}
 	}
-	return domain.HealthCheck{Name: "Server JAR", Status: domain.StatusError, Message: "Not found"}
+	return checks
 }
 
 func (s *Server) sessionName() string {
@@ -185,10 +183,3 @@ func (s *Server) waitForStatus(ctx context.Context, target bool, timeout int, la
 	}
 }
 
-func (s *Server) waitForStart(ctx context.Context) error {
-	return s.waitForStatus(ctx, true, s.cfg.Server.StartupTimeout, "started")
-}
-
-func (s *Server) waitForStop(ctx context.Context) error {
-	return s.waitForStatus(ctx, false, s.cfg.Server.MaxStopWait, "stopped")
-}
