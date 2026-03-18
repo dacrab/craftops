@@ -16,9 +16,10 @@ func main() {
 	// This propagates to every cmd.Context() call inside command handlers,
 	// so long-running operations (backups, downloads) honour Ctrl-C cleanly.
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
 
 	err := cli.Execute(ctx)
+	cancel() // release signal resources
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
