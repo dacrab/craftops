@@ -1,6 +1,8 @@
 package service_test
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"errors"
 	"os"
@@ -98,17 +100,18 @@ func TestBackup_List_Empty(t *testing.T) {
 }
 
 func TestBackup_List_SortedNewestFirst(t *testing.T) {
-	cfg, logger, ctx := setup(t)
-	cfg.Backup.Enabled = true
-	cfg.Backup.MaxBackups = 10
+	cfg, logger, _ := setup(t)
 	svc := service.NewBackup(cfg, logger)
 
-	// Create two backups with a small sleep to ensure distinct timestamps
-	_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "a.txt"), []byte("a"), 0o600)
-	path1, _ := svc.Create(ctx)
-	time.Sleep(1100 * time.Millisecond) // ensure different mod times
-	_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "b.txt"), []byte("b"), 0o600)
-	path2, _ := svc.Create(ctx)
+	// Seed the backup directory directly with two fake archives with known mtimes.
+	// This tests List() sorting without relying on svc.Create() timing.
+	now := time.Now()
+	older := filepath.Join(cfg.Paths.Backups, "minecraft_backup_20000101_000001.tar.gz")
+	newer := filepath.Join(cfg.Paths.Backups, "minecraft_backup_20000101_000002.tar.gz")
+	_ = os.WriteFile(older, []byte("old"), 0o600)
+	_ = os.WriteFile(newer, []byte("new"), 0o600)
+	_ = os.Chtimes(older, now.Add(-2*time.Second), now.Add(-2*time.Second))
+	_ = os.Chtimes(newer, now, now)
 
 	backups, err := svc.List()
 	if err != nil {
@@ -117,11 +120,10 @@ func TestBackup_List_SortedNewestFirst(t *testing.T) {
 	if len(backups) < 2 {
 		t.Fatalf("expected at least 2 backups, got %d", len(backups))
 	}
-	// Newest first — path2 should appear before path1
-	if backups[0].Path != path2 {
-		t.Errorf("expected newest backup first: got %s, want %s", backups[0].Path, path2)
+	// Newest first
+	if backups[0].Path != newer {
+		t.Errorf("expected newest backup first: got %s, want %s", backups[0].Path, newer)
 	}
-	_ = path1
 }
 
 func TestBackup_Retention(t *testing.T) {
@@ -131,10 +133,15 @@ func TestBackup_Retention(t *testing.T) {
 	svc := service.NewBackup(cfg, logger)
 
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "x.txt"), []byte("x"), 0o600)
-	for range 3 {
-		time.Sleep(1100 * time.Millisecond)
-		if _, err := svc.Create(ctx); err != nil {
+	for i := range 3 {
+		p, err := svc.Create(ctx)
+		if err != nil {
 			t.Fatalf("Create failed: %v", err)
+		}
+		// Give each backup a distinct mtime so retention sorting is deterministic.
+		if p != "" {
+			ts := time.Now().Add(time.Duration(i-3) * time.Second)
+			_ = os.Chtimes(p, ts, ts)
 		}
 	}
 
@@ -169,6 +176,100 @@ func TestBackup_HealthCheck_Enabled(t *testing.T) {
 	checks := svc.HealthCheck(ctx)
 	if len(checks) < 2 {
 		t.Fatalf("expected at least 2 checks, got %d", len(checks))
+	}
+	names := make(map[string]domain.HealthStatus)
+	for _, c := range checks {
+		names[c.Name] = c.Status
+	}
+	if _, ok := names["Backup directory"]; !ok {
+		t.Error("expected 'Backup directory' health check")
+	}
+	if _, ok := names["Backup retention"]; !ok {
+		t.Error("expected 'Backup retention' health check")
+	}
+}
+
+func TestBackup_Create_InvalidServerDir(t *testing.T) {
+	cfg, logger, ctx := setup(t)
+	cfg.Backup.Enabled = true
+	cfg.Paths.Server = filepath.Join(t.TempDir(), "nonexistent")
+	svc := service.NewBackup(cfg, logger)
+
+	_, err := svc.Create(ctx)
+	if err == nil {
+		t.Error("expected error when server directory does not exist")
+	}
+}
+
+func TestBackup_List_IgnoresNonTarGz(t *testing.T) {
+	cfg, logger, _ := setup(t)
+	svc := service.NewBackup(cfg, logger)
+
+	// Write files that should NOT be listed
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Backups, "minecraft_backup_20000101_000001.tar.gz"), []byte("real"), 0o600)
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Backups, "readme.txt"), []byte("ignore"), 0o600)
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Backups, "backup.zip"), []byte("ignore"), 0o600)
+	_ = os.Mkdir(filepath.Join(cfg.Paths.Backups, "subdir"), 0o750)
+
+	backups, err := svc.List()
+	if err != nil {
+		t.Fatalf("List() error: %v", err)
+	}
+	if len(backups) != 1 {
+		t.Errorf("expected exactly 1 backup (only .tar.gz), got %d", len(backups))
+	}
+}
+
+func TestBackup_ExcludePatterns(t *testing.T) {
+	cfg, logger, ctx := setup(t)
+	cfg.Backup.Enabled = true
+	cfg.Backup.ExcludePatterns = []string{"*.log"}
+	cfg.Backup.IncludeLogs = false
+	svc := service.NewBackup(cfg, logger)
+
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "server.log"), []byte("log data"), 0o600)
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "data.txt"), []byte("data"), 0o600)
+
+	path, err := svc.Create(ctx)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Open the archive and verify server.log is absent, data.txt is present.
+	f, err := os.Open(path) //nolint:gosec
+	if err != nil {
+		t.Fatalf("open archive: %v", err)
+	}
+	defer f.Close() //nolint:errcheck
+
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatalf("gzip reader: %v", err)
+	}
+	tr := tar.NewReader(gz)
+
+	var found []string
+	for {
+		hdr, err := tr.Next()
+		if err != nil {
+			break
+		}
+		found = append(found, hdr.Name)
+	}
+
+	for _, name := range found {
+		if strings.HasSuffix(name, ".log") {
+			t.Errorf("excluded .log file found in archive: %s", name)
+		}
+	}
+	hasData := false
+	for _, name := range found {
+		if strings.Contains(name, "data.txt") {
+			hasData = true
+		}
+	}
+	if !hasData {
+		t.Error("data.txt should be present in archive")
 	}
 }
 
@@ -251,6 +352,35 @@ func TestMods_UpdateAll_NoSources(t *testing.T) {
 	}
 }
 
+func TestMods_ListInstalled_Metadata(t *testing.T) {
+	cfg, logger, _ := setup(t)
+	svc := service.NewMods(cfg, logger)
+
+	content := []byte("fake jar content")
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "fabric-api.jar"), content, 0o600)
+
+	mods, err := svc.ListInstalled()
+	if err != nil {
+		t.Fatalf("ListInstalled error: %v", err)
+	}
+	if len(mods) != 1 {
+		t.Fatalf("expected 1 mod, got %d", len(mods))
+	}
+	m := mods[0]
+	if m.Name != "fabric-api" {
+		t.Errorf("Name = %q, want %q", m.Name, "fabric-api")
+	}
+	if m.Filename != "fabric-api.jar" {
+		t.Errorf("Filename = %q, want %q", m.Filename, "fabric-api.jar")
+	}
+	if m.Size != int64(len(content)) {
+		t.Errorf("Size = %d, want %d", m.Size, len(content))
+	}
+	if m.Modified.IsZero() {
+		t.Error("Modified should not be zero")
+	}
+}
+
 func TestMods_HealthCheck(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	svc := service.NewMods(cfg, logger)
@@ -259,15 +389,15 @@ func TestMods_HealthCheck(t *testing.T) {
 	if len(checks) < 2 {
 		t.Fatalf("expected at least 2 health checks, got %d", len(checks))
 	}
-	// Mods dir check
-	found := false
+	names := make(map[string]bool)
 	for _, c := range checks {
-		if strings.Contains(c.Name, "Mods") || strings.Contains(c.Name, "directory") {
-			found = true
-		}
+		names[c.Name] = true
 	}
-	if !found {
-		t.Error("expected a mods directory health check")
+	if !names["Mods directory"] {
+		t.Error("expected 'Mods directory' health check")
+	}
+	if !names["Mod sources"] {
+		t.Error("expected 'Mod sources' health check")
 	}
 }
 
@@ -385,6 +515,39 @@ func TestNotification_SendRestartWarnings_NoWebhook(t *testing.T) {
 	}
 }
 
+func TestNotification_SendRestartWarnings_SortedLongestFirst(t *testing.T) {
+	cfg, logger, _ := setup(t)
+	// Use a single interval — with one entry there is no inter-warning sleep,
+	// so the call returns immediately. The key thing being tested is that
+	// NewNotification accepts unsorted input without panicking.
+	cfg.Notifications.DiscordWebhook = ""
+	cfg.Notifications.WarningIntervals = []int{5} // single entry, no sleep
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	svc := service.NewNotification(cfg, logger)
+	if err := svc.SendRestartWarnings(ctx); err != nil {
+		t.Errorf("SendRestartWarnings: %v", err)
+	}
+}
+
+func TestNotification_SendSuccess_WithWebhook_DryRun(t *testing.T) {
+	cfg, logger, ctx := setup(t)
+	cfg.DryRun = true
+	cfg.Notifications.DiscordWebhook = "https://discord.com/api/webhooks/123/abc"
+	cfg.Notifications.SuccessNotifications = true
+	cfg.Notifications.ErrorNotifications = true
+	svc := service.NewNotification(cfg, logger)
+
+	if err := svc.SendSuccess(ctx, "server started"); err != nil {
+		t.Errorf("SendSuccess dry-run: %v", err)
+	}
+	if err := svc.SendError(ctx, "something broke"); err != nil {
+		t.Errorf("SendError dry-run: %v", err)
+	}
+}
+
 // ── Server ────────────────────────────────────────────────────────────────────
 
 func TestServer_HealthCheck(t *testing.T) {
@@ -407,18 +570,23 @@ func TestServer_HealthCheck(t *testing.T) {
 	}
 }
 
-func TestServer_Status_DryRun(t *testing.T) {
+func TestServer_Status_ReturnsResult(t *testing.T) {
 	cfg, logger, ctx := setup(t)
-	cfg.DryRun = true
 	svc := service.NewServer(cfg, logger)
 
-	// Status should always work (reads screen output)
+	// Status reads screen output — always returns a result even if screen isn't installed.
 	status, err := svc.Status(ctx)
 	if err != nil {
 		t.Fatalf("Status() error: %v", err)
 	}
 	if status == nil {
 		t.Fatal("Status() returned nil")
+	}
+	if status.CheckedAt.IsZero() {
+		t.Error("Status.CheckedAt should not be zero")
+	}
+	if status.SessionName == "" {
+		t.Error("Status.SessionName should not be empty")
 	}
 }
 

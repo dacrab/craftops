@@ -68,9 +68,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return domain.ErrServerJarNotFound
 	}
 
-	javaArgs := make([]string, len(s.cfg.Server.JavaFlags), len(s.cfg.Server.JavaFlags)+3)
-	copy(javaArgs, s.cfg.Server.JavaFlags)
-	javaArgs = append(javaArgs, "-jar", s.cfg.Server.JarName, "nogui")
+	javaArgs := append(append([]string{}, s.cfg.Server.JavaFlags...), "-jar", s.cfg.Server.JarName, "nogui")
 	cmdArgs := append([]string{"-dmS", s.sessionName(), "java"}, javaArgs...)
 
 	cmd := exec.CommandContext(ctx, "screen", cmdArgs...) //nolint:gosec // screen command is intentionally user-controlled
@@ -114,9 +112,6 @@ func (s *Server) Restart(ctx context.Context) error {
 	if err := s.Stop(ctx); err != nil {
 		return fmt.Errorf("failed to stop server: %w", err)
 	}
-
-	time.Sleep(2 * time.Second)
-
 	if err := s.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)
 	}

@@ -84,9 +84,14 @@ type LoggingConfig struct {
 	ConsoleEnabled bool   `toml:"console_enabled"`
 }
 
-// DefaultConfig returns a configuration with production-ready defaults
+// DefaultConfig returns a configuration with production-ready defaults.
+// If the user's home directory cannot be determined, paths default to
+// relative directories under "minecraft/".
 func DefaultConfig() *Config {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = ""
+	}
 	serverPath := filepath.Join(homeDir, "minecraft", "server")
 
 	return &Config{

@@ -79,7 +79,7 @@ func (b *Backup) List() ([]domain.BackupInfo, error) {
 		return nil, fmt.Errorf("failed to list backups: %w", err)
 	}
 
-	backups := make([]domain.BackupInfo, 0)
+	backups := make([]domain.BackupInfo, 0, len(files))
 	for _, entry := range files {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), backupExt) {
 			continue
@@ -255,8 +255,12 @@ func (b *Backup) shouldExclude(relPath string, isDir bool) bool {
 		if matched, _ := doublestar.Match(pattern, matchPath); matched {
 			return true
 		}
-		if matched, _ := doublestar.Match(pattern, relPath); matched {
-			return true
+		// For directories, also match without the trailing slash so patterns
+		// like "cache" match in addition to "cache/".
+		if isDir && matchPath != relPath {
+			if matched, _ := doublestar.Match(pattern, relPath); matched {
+				return true
+			}
 		}
 	}
 	return false
