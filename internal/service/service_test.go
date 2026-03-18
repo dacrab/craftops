@@ -18,6 +18,8 @@ import (
 	"craftops/internal/service"
 )
 
+const testDiscordWebhook = "https://discord.com/api/webhooks/123/abc"
+
 // setup creates a fully isolated test environment with temp directories.
 func setup(t *testing.T) (*config.Config, *zap.Logger, context.Context) {
 	t.Helper()
@@ -432,7 +434,7 @@ func TestNotification_HealthCheck_InvalidWebhook(t *testing.T) {
 
 func TestNotification_HealthCheck_ValidWebhook(t *testing.T) {
 	cfg, logger, ctx := setup(t)
-	cfg.Notifications.DiscordWebhook = "https://discord.com/api/webhooks/123/abc"
+	cfg.Notifications.DiscordWebhook = testDiscordWebhook
 	svc := service.NewNotification(cfg, logger)
 
 	checks := svc.HealthCheck(ctx)
@@ -482,7 +484,7 @@ func TestNotification_SendError_Disabled(t *testing.T) {
 func TestNotification_DryRun(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.DryRun = true
-	cfg.Notifications.DiscordWebhook = "https://discord.com/api/webhooks/123/abc"
+	cfg.Notifications.DiscordWebhook = testDiscordWebhook
 	cfg.Notifications.SuccessNotifications = true
 	svc := service.NewNotification(cfg, logger)
 
@@ -535,7 +537,7 @@ func TestNotification_SendRestartWarnings_SortedLongestFirst(t *testing.T) {
 func TestNotification_SendSuccess_WithWebhook_DryRun(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.DryRun = true
-	cfg.Notifications.DiscordWebhook = "https://discord.com/api/webhooks/123/abc"
+	cfg.Notifications.DiscordWebhook = testDiscordWebhook
 	cfg.Notifications.SuccessNotifications = true
 	cfg.Notifications.ErrorNotifications = true
 	svc := service.NewNotification(cfg, logger)
