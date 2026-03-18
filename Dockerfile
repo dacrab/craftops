@@ -1,12 +1,11 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.25.7-alpine AS builder
+FROM golang:1.25.8-alpine AS builder
 WORKDIR /src
 RUN apk add --no-cache git ca-certificates
 COPY go.mod go.sum ./
-RUN go mod download -x
+RUN go mod download
 COPY . .
 ARG VERSION=dev
-# Go 1.25.7 optimizations: -buildvcs=auto, improved build flags
 RUN CGO_ENABLED=0 go build -trimpath -buildvcs=auto \
     -ldflags "-s -w -X craftops/internal/cli.Version=${VERSION}" \
     -o /craftops ./cmd/craftops

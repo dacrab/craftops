@@ -53,9 +53,7 @@ func TestLoadAndSave(t *testing.T) {
 func TestLoadConfig_NoFile(t *testing.T) {
 	// No config file present in a temp dir — should succeed with defaults
 	// (LoadConfig falls back to defaults when no file is found)
-	orig := os.Getenv("HOME")
-	t.Setenv("HOME", t.TempDir()) // isolate from real user config
-	defer func() { _ = os.Setenv("HOME", orig) }()
+	t.Setenv("HOME", t.TempDir()) // isolate from real user config — t.Setenv restores automatically
 
 	cfg, err := LoadConfig("")
 	if err != nil {
@@ -134,9 +132,9 @@ func TestSaveConfig_BadPath(t *testing.T) {
 	}
 }
 
-func TestFindDefaultConfig(t *testing.T) {
-	// Place a config.toml in a temp dir and verify findDefaultConfig finds it
-	// by temporarily changing the working directory
+func TestLoadConfig_RoundTrip(t *testing.T) {
+	// Save a config and reload it — verifies SaveConfig+LoadConfig are inverses
+	// and that Validate() normalises fields correctly on load.
 	tmp := t.TempDir()
 	cfgPath := filepath.Join(tmp, "config.toml")
 	cfg := DefaultConfig()
@@ -146,9 +144,13 @@ func TestFindDefaultConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadConfig with explicit path: %v", err)
 	}
-	// Verify modloader is valid after normalisation
+	// Modloader must be one of the valid normalised values
 	validModloaders := []string{"fabric", "forge", "quilt", "neoforge"}
 	if !slices.Contains(validModloaders, loaded.Minecraft.Modloader) {
-		t.Errorf("unexpected modloader: %q", loaded.Minecraft.Modloader)
+		t.Errorf("unexpected modloader after round-trip: %q", loaded.Minecraft.Modloader)
+	}
+	// Log level must be uppercase after Validate()
+	if loaded.Logging.Level != "INFO" {
+		t.Errorf("expected log level INFO after round-trip, got %q", loaded.Logging.Level)
 	}
 }

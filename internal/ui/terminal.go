@@ -92,14 +92,34 @@ func (t *Terminal) Section(title string) {
 // Success prints a success message
 func (t *Terminal) Success(message string) { t.printMsg(successColor, "SUCCESS", message) }
 
+// Successf prints a formatted success message
+func (t *Terminal) Successf(format string, args ...interface{}) {
+	t.Success(fmt.Sprintf(format, args...))
+}
+
 // Error prints an error message
 func (t *Terminal) Error(message string) { t.printMsg(errorColor, "ERROR", message) }
+
+// Errorf prints a formatted error message
+func (t *Terminal) Errorf(format string, args ...interface{}) {
+	t.Error(fmt.Sprintf(format, args...))
+}
 
 // Warning prints a warning message
 func (t *Terminal) Warning(message string) { t.printMsg(warningColor, "WARNING", message) }
 
+// Warningf prints a formatted warning message
+func (t *Terminal) Warningf(format string, args ...interface{}) {
+	t.Warning(fmt.Sprintf(format, args...))
+}
+
 // Info prints an info message
 func (t *Terminal) Info(message string) { t.printMsg(infoColor, "INFO", message) }
+
+// Infof prints a formatted info message
+func (t *Terminal) Infof(format string, args ...interface{}) {
+	t.Info(fmt.Sprintf(format, args...))
+}
 
 func (t *Terminal) printMsg(c *color.Color, label, msg string) {
 	if t.isTTY {
@@ -185,9 +205,9 @@ func (t *Terminal) Table(headers []string, rows [][]string) {
 	}
 
 	table := tablewriter.NewTable(t.out, opts...)
-	table.Header(convertToInterfaceSlice(headers)...)
+	table.Header(stringsToAny(headers)...)
 	for _, row := range rows {
-		if err := table.Append(convertToInterfaceSlice(row)...); err != nil {
+		if err := table.Append(stringsToAny(row)...); err != nil {
 			// Log error but continue - best effort rendering
 			_, _ = fmt.Fprintf(t.errOut, "Table append error: %v\n", err) //nolint:errcheck
 		}
@@ -197,8 +217,8 @@ func (t *Terminal) Table(headers []string, rows [][]string) {
 	}
 }
 
-// convertToInterfaceSlice converts []string to []interface{} for tablewriter
-func convertToInterfaceSlice(strs []string) []interface{} {
+// stringsToAny converts []string to []interface{} as required by the tablewriter API.
+func stringsToAny(strs []string) []interface{} {
 	result := make([]interface{}, len(strs))
 	for i := range strs {
 		result[i] = strs[i]

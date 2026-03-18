@@ -30,7 +30,7 @@ fmt:
 	@command -v goimports >/dev/null && goimports -w . || true
 
 tidy:
-	go mod tidy -go=1.25.7
+	go mod tidy
 
 verify: fmt tidy
 	@git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum changed after tidy" && exit 1)

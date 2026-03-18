@@ -48,7 +48,7 @@ var serverStartCmd = &cobra.Command{
 		a := app(cmd)
 		a.Terminal.Info("Starting server...")
 		if err := a.Server.Start(cmd.Context()); err != nil {
-			a.Terminal.Error(fmt.Sprintf("Failed to start server: %v", err))
+			a.Terminal.Errorf("Failed to start server: %v", err)
 			return err
 		}
 		a.Terminal.Success("Server is now running")
@@ -63,7 +63,7 @@ var serverStopCmd = &cobra.Command{
 		a := app(cmd)
 		a.Terminal.Info("Stopping server...")
 		if err := a.Server.Stop(cmd.Context()); err != nil {
-			a.Terminal.Error(fmt.Sprintf("Failed to stop server: %v", err))
+			a.Terminal.Errorf("Failed to stop server: %v", err)
 			return err
 		}
 		a.Terminal.Success("Server has been stopped")
@@ -79,12 +79,12 @@ var serverRestartCmd = &cobra.Command{
 		if len(a.Config.Notifications.WarningIntervals) > 0 {
 			a.Terminal.Info("Sending restart warnings...")
 			if err := a.Notification.SendRestartWarnings(ctx); err != nil {
-				a.Terminal.Warning(fmt.Sprintf("Warning notifications failed: %v", err))
+				a.Terminal.Warningf("Warning notifications failed: %v", err)
 			}
 		}
 		a.Terminal.Info("Restarting server...")
 		if err := a.Server.Restart(ctx); err != nil {
-			a.Terminal.Error(fmt.Sprintf("Failed to restart: %v", err))
+			a.Terminal.Errorf("Failed to restart: %v", err)
 			_ = a.Notification.SendError(ctx, fmt.Sprintf("Server restart failed: %v", err))
 			return err
 		}
@@ -101,7 +101,7 @@ var serverStatusCmd = &cobra.Command{
 		a := app(cmd)
 		status, err := a.Server.Status(cmd.Context())
 		if err != nil {
-			a.Terminal.Error(fmt.Sprintf("Failed to get status: %v", err))
+			a.Terminal.Errorf("Failed to get status: %v", err)
 			return err
 		}
 		if status.IsRunning {
@@ -209,7 +209,7 @@ var backupListCmd = &cobra.Command{
 		a := app(cmd)
 		backups, err := a.Backup.List()
 		if err != nil {
-			a.Terminal.Error(fmt.Sprintf("Failed to list backups: %v", err))
+			a.Terminal.Errorf("Failed to list backups: %v", err)
 			return err
 		}
 		if len(backups) == 0 {

@@ -79,10 +79,12 @@ func initApp(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// App extracts the appContainer from the command context
+// app extracts the appContainer from the command context.
+// Panics if called before initApp has run — this is a programming error, not a user error.
 func app(cmd *cobra.Command) *appContainer {
-	if a, ok := cmd.Context().Value(appKey{}).(*appContainer); ok {
-		return a
+	a, ok := cmd.Context().Value(appKey{}).(*appContainer)
+	if !ok || a == nil {
+		panic("app: appContainer not found in context — was initApp skipped?")
 	}
-	return nil
+	return a
 }

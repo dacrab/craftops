@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
 	"craftops/internal/config"
@@ -54,16 +53,19 @@ func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResu
 	}
 
 	var mu sync.Mutex
+	var wg sync.WaitGroup
 	sem := semaphore.NewWeighted(int64(m.cfg.Mods.ConcurrentDownloads))
-	g, gctx := errgroup.WithContext(ctx)
 
 	for _, src := range sources {
-		if err := sem.Acquire(gctx, 1); err != nil {
-			continue
+		if err := sem.Acquire(ctx, 1); err != nil {
+			// Context cancelled — stop launching new goroutines.
+			break
 		}
-		g.Go(func() error {
+		wg.Add(1)
+		go func() {
 			defer sem.Release(1)
-			updated, name, err := m.updateMod(gctx, src, force)
+			defer wg.Done()
+			updated, name, err := m.updateMod(ctx, src, force)
 			if name == "" {
 				name = src
 			}
@@ -77,10 +79,9 @@ func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResu
 			default:
 				res.SkippedMods = append(res.SkippedMods, name)
 			}
-			return nil
-		})
+		}()
 	}
-	_ = g.Wait() // errors are captured in res.FailedMods
+	wg.Wait()
 	return res, nil
 }
 

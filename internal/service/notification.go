@@ -24,19 +24,23 @@ const (
 
 // Notification handles dispatching alerts to external services like Discord
 type Notification struct {
-	cfg    *config.Config
-	logger *zap.Logger
-	client *http.Client
+	cfg              *config.Config
+	logger           *zap.Logger
+	client           *http.Client
+	sortedIntervals  []int // WarningIntervals sorted longest→shortest, computed once at init
 }
 
 var _ Notifier = (*Notification)(nil)
 
 // NewNotification initializes a new notification service
 func NewNotification(cfg *config.Config, logger *zap.Logger) *Notification {
+	intervals := slices.Clone(cfg.Notifications.WarningIntervals)
+	slices.SortFunc(intervals, func(a, b int) int { return b - a })
 	return &Notification{
-		cfg:    cfg,
-		logger: logger,
-		client: &http.Client{Timeout: 30 * time.Second},
+		cfg:             cfg,
+		logger:          logger,
+		client:          &http.Client{Timeout: 30 * time.Second},
+		sortedIntervals: intervals,
 	}
 }
 
@@ -58,13 +62,10 @@ func (n *Notification) SendError(ctx context.Context, message string) error {
 
 // SendRestartWarnings sends a sequence of alerts based on configured intervals
 func (n *Notification) SendRestartWarnings(ctx context.Context) error {
-	if len(n.cfg.Notifications.WarningIntervals) == 0 {
+	intervals := n.sortedIntervals
+	if len(intervals) == 0 {
 		return nil
 	}
-
-	// Copy and sort from longest to shortest so warnings fire in the right order
-	intervals := slices.Clone(n.cfg.Notifications.WarningIntervals)
-	slices.SortFunc(intervals, func(a, b int) int { return b - a })
 
 	n.logger.Info("Sending restart warnings", zap.Ints("intervals", intervals))
 
