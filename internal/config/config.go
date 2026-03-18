@@ -187,10 +187,27 @@ func (c *Config) SaveConfig(configPath string) error {
 
 // Validate ensures settings are within supported bounds
 func (c *Config) Validate() error {
-	if err := c.validateModloader(); err != nil {
-		return err
+	valid := []string{"fabric", "forge", "quilt", "neoforge"}
+	modloader := strings.ToLower(c.Minecraft.Modloader)
+	if !slices.Contains(valid, modloader) {
+		return fmt.Errorf("unsupported modloader: %s. Must be one of %v", c.Minecraft.Modloader, valid)
 	}
-	return c.validateLogging()
+	c.Minecraft.Modloader = modloader
+
+	validLevels := []string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+	level := strings.ToUpper(c.Logging.Level)
+	if !slices.Contains(validLevels, level) {
+		return fmt.Errorf("invalid log level: %s. Must be one of %v", c.Logging.Level, validLevels)
+	}
+	c.Logging.Level = level
+
+	validFormats := []string{"json", "text"}
+	format := strings.ToLower(c.Logging.Format)
+	if !slices.Contains(validFormats, format) {
+		return fmt.Errorf("invalid log format: %s. Must be one of %v", c.Logging.Format, validFormats)
+	}
+	c.Logging.Format = format
+	return nil
 }
 
 func findDefaultConfig() string {
@@ -209,29 +226,3 @@ func findDefaultConfig() string {
 	return ""
 }
 
-func (c *Config) validateModloader() error {
-	valid := []string{"fabric", "forge", "quilt", "neoforge"}
-	modloader := strings.ToLower(c.Minecraft.Modloader)
-	if !slices.Contains(valid, modloader) {
-		return fmt.Errorf("unsupported modloader: %s. Must be one of %v", c.Minecraft.Modloader, valid)
-	}
-	c.Minecraft.Modloader = modloader
-	return nil
-}
-
-func (c *Config) validateLogging() error {
-	validLevels := []string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-	level := strings.ToUpper(c.Logging.Level)
-	if !slices.Contains(validLevels, level) {
-		return fmt.Errorf("invalid log level: %s. Must be one of %v", c.Logging.Level, validLevels)
-	}
-	c.Logging.Level = level
-
-	validFormats := []string{"json", "text"}
-	format := strings.ToLower(c.Logging.Format)
-	if !slices.Contains(validFormats, format) {
-		return fmt.Errorf("invalid log format: %s. Must be one of %v", c.Logging.Format, validFormats)
-	}
-	c.Logging.Format = format
-	return nil
-}

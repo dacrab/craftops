@@ -113,9 +113,16 @@ func (m *Mods) ListInstalled() ([]domain.InstalledMod, error) {
 
 // HealthCheck verifies mods directory availability and API connectivity
 func (m *Mods) HealthCheck(ctx context.Context) []domain.HealthCheck {
+	total := len(m.cfg.Mods.ModrinthSources)
+	var sourcesCheck domain.HealthCheck
+	if total == 0 {
+		sourcesCheck = domain.HealthCheck{Name: "Mod sources", Status: domain.StatusWarn, Message: "None configured"}
+	} else {
+		sourcesCheck = domain.HealthCheck{Name: "Mod sources", Status: domain.StatusOK, Message: fmt.Sprintf("%d sources", total)}
+	}
 	return []domain.HealthCheck{
 		domain.CheckPath("Mods directory", m.cfg.Paths.Mods),
-		m.checkModSources(),
+		sourcesCheck,
 		m.checkAPI(ctx),
 	}
 }
@@ -314,13 +321,6 @@ func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domai
 	}, nil
 }
 
-func (m *Mods) checkModSources() domain.HealthCheck {
-	total := len(m.cfg.Mods.ModrinthSources)
-	if total == 0 {
-		return domain.HealthCheck{Name: "Mod sources", Status: domain.StatusWarn, Message: "None configured"}
-	}
-	return domain.HealthCheck{Name: "Mod sources", Status: domain.StatusOK, Message: fmt.Sprintf("%d sources", total)}
-}
 
 func (m *Mods) checkAPI(ctx context.Context) domain.HealthCheck {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
