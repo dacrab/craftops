@@ -109,9 +109,15 @@ func (b *Backup) HealthCheck(_ context.Context) []domain.HealthCheck {
 	if !b.cfg.Backup.Enabled {
 		return []domain.HealthCheck{{Name: "Backup system", Status: domain.StatusWarn, Message: "Disabled"}}
 	}
+	var retentionCheck domain.HealthCheck
+	if b.cfg.Backup.MaxBackups <= 0 {
+		retentionCheck = domain.HealthCheck{Name: "Backup retention", Status: domain.StatusWarn, Message: "Invalid max_backups"}
+	} else {
+		retentionCheck = domain.HealthCheck{Name: "Backup retention", Status: domain.StatusOK, Message: fmt.Sprintf("Keeping %d backups", b.cfg.Backup.MaxBackups)}
+	}
 	return []domain.HealthCheck{
 		domain.CheckPath("Backup directory", b.cfg.Paths.Backups),
-		b.checkRetention(),
+		retentionCheck,
 	}
 }
 
@@ -278,13 +284,3 @@ func (b *Backup) cleanup() {
 	}
 }
 
-func (b *Backup) checkRetention() domain.HealthCheck {
-	if b.cfg.Backup.MaxBackups <= 0 {
-		return domain.HealthCheck{Name: "Backup retention", Status: domain.StatusWarn, Message: "Invalid max_backups"}
-	}
-	return domain.HealthCheck{
-		Name:    "Backup retention",
-		Status:  domain.StatusOK,
-		Message: fmt.Sprintf("Keeping %d backups", b.cfg.Backup.MaxBackups),
-	}
-}

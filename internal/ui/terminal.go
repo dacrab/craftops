@@ -17,10 +17,9 @@ import (
 
 // Terminal provides structured and styled output to the console
 type Terminal struct {
-	out     io.Writer
-	errOut  io.Writer
-	isTTY   bool
-	noColor bool
+	out    io.Writer
+	errOut io.Writer
+	isTTY  bool
 }
 
 // Global color definitions for consistent UI branding
@@ -40,20 +39,18 @@ func NewTerminal() *Terminal {
 	color.NoColor = !isTTY
 
 	return &Terminal{
-		out:     os.Stdout,
-		errOut:  os.Stderr,
-		isTTY:   isTTY,
-		noColor: !isTTY,
+		out:    os.Stdout,
+		errOut: os.Stderr,
+		isTTY:  isTTY,
 	}
 }
 
 // NewTerminalWithWriter allows injecting custom writers for testing or redirection
 func NewTerminalWithWriter(out, errOut io.Writer, isTTY bool) *Terminal {
 	return &Terminal{
-		out:     out,
-		errOut:  errOut,
-		isTTY:   isTTY,
-		noColor: !isTTY,
+		out:    out,
+		errOut: errOut,
+		isTTY:  isTTY,
 	}
 }
 
@@ -147,14 +144,6 @@ func (t *Terminal) Printf(format string, args ...interface{}) {
 // Println prints arguments to the terminal output
 func (t *Terminal) Println(args ...interface{}) {
 	_, _ = fmt.Fprintln(t.out, args...) //nolint:errcheck
-}
-
-// AccentSprintf formats a string with accent color
-func (t *Terminal) AccentSprintf(format string, args ...interface{}) string {
-	if t.isTTY {
-		return accentColor.Sprintf(format, args...)
-	}
-	return fmt.Sprintf(format, args...)
 }
 
 // SuccessSprint returns text formatted with success color
