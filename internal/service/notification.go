@@ -39,7 +39,7 @@ func NewNotification(cfg *config.Config, logger *zap.Logger) *Notification {
 	return &Notification{
 		cfg:             cfg,
 		logger:          logger,
-		client:          &http.Client{Timeout: 30 * time.Second},
+		client:          &http.Client{Timeout: time.Duration(cfg.Notifications.Timeout) * time.Second},
 		sortedIntervals: intervals,
 	}
 }

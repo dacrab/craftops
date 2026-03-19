@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -21,25 +24,50 @@ type appContainer struct {
 }
 
 // newLogger builds a zap logger configured from the app config.
-// cfg.Logging.Level is normalised to uppercase by config.Validate().
+// Respects FileEnabled (writes to Paths.Logs/craftops.log) and ConsoleEnabled.
 func newLogger(cfg *config.Config) *zap.Logger {
-	level := zap.InfoLevel
+	level := zap.NewAtomicLevelAt(zap.InfoLevel)
 	if cfg.Logging.Level == "DEBUG" {
-		level = zap.DebugLevel
+		level = zap.NewAtomicLevelAt(zap.DebugLevel)
 	}
-	zapCfg := zap.NewProductionConfig()
-	zapCfg.Level = zap.NewAtomicLevelAt(level)
+
+	encoderCfg := zap.NewProductionEncoderConfig()
 	if cfg.Logging.Format == "text" {
-		zapCfg.Encoding = "console"
-		zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		encoderCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoderCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
-	logger, err := zapCfg.Build()
-	if err != nil {
-		// Fall back to a no-op logger rather than panicking on misconfiguration.
+
+	encoding := "json"
+	if cfg.Logging.Format == "text" {
+		encoding = "console"
+	}
+
+	var cores []zapcore.Core
+
+	if cfg.Logging.ConsoleEnabled {
+		consoleEnc := zapcore.NewConsoleEncoder(encoderCfg)
+		cores = append(cores, zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stderr), level))
+	}
+
+	if cfg.Logging.FileEnabled && cfg.Paths.Logs != "" {
+		if err := os.MkdirAll(cfg.Paths.Logs, 0o750); err == nil {
+			logPath := filepath.Join(cfg.Paths.Logs, "craftops.log")
+			if f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil { //nolint:gosec
+				var enc zapcore.Encoder
+				if encoding == "console" {
+					enc = zapcore.NewConsoleEncoder(encoderCfg)
+				} else {
+					enc = zapcore.NewJSONEncoder(encoderCfg)
+				}
+				cores = append(cores, zapcore.NewCore(enc, zapcore.AddSync(f), level))
+			}
+		}
+	}
+
+	if len(cores) == 0 {
 		return zap.NewNop()
 	}
-	return logger
+	return zap.New(zapcore.NewTee(cores...))
 }
 
 // newApp wires up all services and dependencies based on the provided config
