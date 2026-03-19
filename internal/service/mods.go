@@ -20,6 +20,8 @@ import (
 	"craftops/internal/domain"
 )
 
+const userAgent = "craftops/2.0"
+
 // Mods handles automated mod updates from Modrinth API
 type Mods struct {
 	cfg    *config.Config
@@ -159,7 +161,7 @@ func (m *Mods) apiRequest(ctx context.Context, apiURL string, result any) error 
 		if err != nil {
 			return err
 		}
-		req.Header.Set("User-Agent", "craftops/2.0")
+		req.Header.Set("User-Agent", userAgent)
 
 		resp, err := m.client.Do(req) //nolint:gosec // URL is constructed from Modrinth API base URL + config values, not raw user input
 		if err != nil {
@@ -216,7 +218,7 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 		if err != nil {
 			return err
 		}
-		req.Header.Set("User-Agent", "craftops/2.0")
+		req.Header.Set("User-Agent", userAgent)
 
 		resp, err := m.client.Do(req) //nolint:gosec // URL comes from Modrinth API response, not user input
 		if err != nil {

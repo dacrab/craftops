@@ -68,14 +68,17 @@ type BackupInfo struct {
 	Size      int64     `json:"size_bytes"`
 }
 
-// SizeFormatted returns a human-readable representation of the file size using go-humanize
-func (b BackupInfo) SizeFormatted() string {
-	if b.Size < 0 {
+// FormatSize returns a human-readable file size (e.g. "4.2 MB").
+func FormatSize(bytes int64) string {
+	if bytes < 0 {
 		return "0 B"
 	}
-	//nolint:gosec // Size is checked for negative values above
-	return humanize.Bytes(uint64(b.Size))
+	//nolint:gosec // checked for negative above
+	return humanize.Bytes(uint64(bytes))
 }
+
+// SizeFormatted returns a human-readable representation of the backup size.
+func (b BackupInfo) SizeFormatted() string { return FormatSize(b.Size) }
 
 // CheckPath verifies if a path exists and is a directory, returning a HealthCheck.
 func CheckPath(name, path string) HealthCheck {

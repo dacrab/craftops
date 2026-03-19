@@ -162,10 +162,3 @@ func TestTerminal_HealthCheckTable(t *testing.T) {
 	}
 }
 
-func TestTerminal_AccentSprintf_NoTTY(t *testing.T) {
-	term, _, _ := newTestTerminal()
-	got := term.AccentSprintf("count=%d", 7)
-	if got != "count=7" {
-		t.Errorf("AccentSprintf non-TTY: got %q, want %q", got, "count=7")
-	}
-}

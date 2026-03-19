@@ -166,7 +166,7 @@ var modsListCmd = &cobra.Command{
 		headers := []string{"Name", "Size", "Modified"}
 		rows := make([][]string, len(mods))
 		for i, m := range mods {
-			rows[i] = []string{m.Name, domain.BackupInfo{Size: m.Size}.SizeFormatted(), m.Modified.Format("2006-01-02 15:04:05")}
+			rows[i] = []string{m.Name, domain.FormatSize(m.Size), m.Modified.Format("2006-01-02 15:04:05")}
 		}
 		a.Terminal.Table(headers, rows)
 		return nil
