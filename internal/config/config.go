@@ -70,6 +70,7 @@ type BackupConfig struct {
 // NotificationConfig contains webhook and alert settings
 type NotificationConfig struct {
 	DiscordWebhook       string `toml:"discord_webhook"`
+	Timeout              int    `toml:"timeout"`
 	WarningIntervals     []int  `toml:"warning_intervals"`
 	WarningMessage       string `toml:"warning_message"`
 	SuccessNotifications bool   `toml:"success_notifications"`
@@ -138,6 +139,7 @@ func DefaultConfig() *Config {
 		},
 		Notifications: NotificationConfig{
 			DiscordWebhook:       "",
+			Timeout:              30,
 			WarningIntervals:     []int{15, 10, 5, 1},
 			WarningMessage:       "Server will restart in {minutes} minute(s) for mod updates",
 			SuccessNotifications: true,
