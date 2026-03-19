@@ -35,10 +35,10 @@ func TestInitConfig_CreatesFile(t *testing.T) {
 	cfgFile = ""
 	outputPath = out
 	force = false
-	os.Args = []string{"craftops", "init-config", "-o", out}
+	os.Args = []string{"craftops", "init", "-o", out}
 
 	if err := Execute(context.Background()); err != nil {
-		t.Fatalf("Execute(init-config) error: %v", err)
+		t.Fatalf("Execute(init) error: %v", err)
 	}
 	if _, err := os.Stat(out); err != nil {
 		t.Fatalf("config file not created: %v", err)
@@ -56,10 +56,10 @@ func TestInitConfig_ForceOverwrite(t *testing.T) {
 	cfgFile = ""
 	outputPath = out
 	force = true
-	os.Args = []string{"craftops", "init-config", "-o", out, "--force"}
+	os.Args = []string{"craftops", "init", "-o", out, "--force"}
 
 	if err := Execute(context.Background()); err != nil {
-		t.Fatalf("Execute(init-config --force) error: %v", err)
+		t.Fatalf("Execute(init --force) error: %v", err)
 	}
 	data, err := os.ReadFile(out) //nolint:gosec
 	if err != nil {
@@ -81,7 +81,7 @@ func TestInitConfig_NoForce_ExistingFile(t *testing.T) {
 	cfgFile = ""
 	outputPath = out
 	force = false
-	os.Args = []string{"craftops", "init-config", "-o", out}
+	os.Args = []string{"craftops", "init", "-o", out}
 
 	if err := Execute(context.Background()); err != nil {
 		t.Fatalf("Execute should not error when file exists without --force: %v", err)
@@ -100,7 +100,7 @@ func TestInitConfig_OutputIsDirectory(t *testing.T) {
 	cfgFile = ""
 	outputPath = tmp // directory, not a file
 	force = true
-	os.Args = []string{"craftops", "init-config", "-o", tmp, "--force"}
+	os.Args = []string{"craftops", "init", "-o", tmp, "--force"}
 
 	if err := Execute(context.Background()); err == nil {
 		t.Error("expected error when output path is a directory")
@@ -119,10 +119,10 @@ func TestInitConfig_DefaultPath(t *testing.T) {
 	cfgFile = ""
 	outputPath = "" // let it default to "config.toml"
 	force = false
-	os.Args = []string{"craftops", "init-config"}
+	os.Args = []string{"craftops", "init"}
 
 	if err := Execute(context.Background()); err != nil {
-		t.Fatalf("Execute(init-config) with default path: %v", err)
+		t.Fatalf("Execute(init) with default path: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(tmp, "config.toml")); err != nil {
 		t.Fatalf("default config.toml not created: %v", err)
