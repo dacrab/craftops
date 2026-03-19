@@ -24,12 +24,13 @@ var (
 )
 
 func init() {
-	rootCmd.AddCommand(serverCmd, updateModsCmd, backupCmd, healthCheckCmd, initCmd)
+	rootCmd.AddCommand(serverCmd, modsCmd, backupCmd, healthCmd, initCmd)
 	serverCmd.AddCommand(serverStartCmd, serverStopCmd, serverRestartCmd, serverStatusCmd)
-	backupCmd.AddCommand(backupCreateCmd, backupListCmd)
+	modsCmd.AddCommand(modsUpdateCmd, modsListCmd)
+	backupCmd.AddCommand(backupCreateCmd, backupListCmd, backupDeleteCmd)
 
-	updateModsCmd.Flags().BoolVar(&forceUpdate, "force", false, "force update even if mod is current")
-	updateModsCmd.Flags().BoolVar(&noBackup, "no-backup", false, "skip pre-update backup")
+	modsUpdateCmd.Flags().BoolVar(&forceUpdate, "force", false, "force update even if mod is current")
+	modsUpdateCmd.Flags().BoolVar(&noBackup, "no-backup", false, "skip pre-update backup")
 	initCmd.Flags().StringVarP(&outputPath, "output", "o", "", "config file output path")
 	initCmd.Flags().BoolVar(&force, "force", false, "overwrite existing config file")
 }
@@ -66,7 +67,7 @@ var serverStopCmd = &cobra.Command{
 			a.Terminal.Errorf("Failed to stop server: %v", err)
 			return err
 		}
-		a.Terminal.Success("Server has been stopped")
+		a.Terminal.Success("Server stopped")
 		return nil
 	},
 }
@@ -96,7 +97,7 @@ var serverRestartCmd = &cobra.Command{
 
 var serverStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Check server status",
+	Short: "Show server status",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		a := app(cmd)
 		status, err := a.Server.Status(cmd.Context())
@@ -106,25 +107,35 @@ var serverStatusCmd = &cobra.Command{
 		}
 		if status.IsRunning {
 			a.Terminal.Success("Server is running")
+			a.Terminal.Printf("  Session : %s\n", status.SessionName)
 		} else {
-			a.Terminal.Error("Server is not running")
+			a.Terminal.Warning("Server is not running")
+			a.Terminal.Printf("  Session : %s\n", status.SessionName)
 		}
+		a.Terminal.Printf("  Checked : %s\n", status.CheckedAt.Format("2006-01-02 15:04:05"))
 		return nil
 	},
 }
 
 // ── Mods ─────────────────────────────────────────────────────────────────────
 
-var updateModsCmd = &cobra.Command{
-	Use:   "update-mods",
+var modsCmd = &cobra.Command{
+	Use:   "mods",
+	Short: "Mod management",
+}
+
+var modsUpdateCmd = &cobra.Command{
+	Use:   "update",
 	Short: "Update all configured mods",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx, a := cmd.Context(), app(cmd)
 		a.Terminal.Banner("Mod Update Manager")
 		if !noBackup && a.Config.Backup.Enabled {
-			a.Terminal.Info("Creating backup...")
-			if _, err := a.Backup.Create(ctx); err != nil && !errors.Is(err, domain.ErrBackupsDisabled) {
+			a.Terminal.Info("Creating pre-update backup...")
+			if path, err := a.Backup.Create(ctx); err != nil && !errors.Is(err, domain.ErrBackupsDisabled) {
 				return err
+			} else if path != "" {
+				a.Terminal.Successf("Backup created: %s", path)
 			}
 		}
 		a.Terminal.Info("Updating mods...")
@@ -133,6 +144,31 @@ var updateModsCmd = &cobra.Command{
 			return err
 		}
 		displayModResults(a, result)
+		return nil
+	},
+}
+
+var modsListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List installed mods",
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		a := app(cmd)
+		mods, err := a.Mods.ListInstalled()
+		if err != nil {
+			a.Terminal.Errorf("Failed to list mods: %v", err)
+			return err
+		}
+		if len(mods) == 0 {
+			a.Terminal.Warning("No mods installed in " + a.Config.Paths.Mods)
+			return nil
+		}
+		a.Terminal.Section(fmt.Sprintf("Installed Mods (%d)", len(mods)))
+		headers := []string{"Name", "Size", "Modified"}
+		rows := make([][]string, len(mods))
+		for i, m := range mods {
+			rows[i] = []string{m.Name, domain.BackupInfo{Size: m.Size}.SizeFormatted(), m.Modified.Format("2006-01-02 15:04:05")}
+		}
+		a.Terminal.Table(headers, rows)
 		return nil
 	},
 }
@@ -155,10 +191,9 @@ func displayModResults(a *appContainer, result *domain.ModUpdateResult) {
 		a.Terminal.Println()
 	}
 
-	printList(fmt.Sprintf("Updated %d mods:", len(result.UpdatedMods)), result.UpdatedMods, a.Terminal.SuccessSprint)
+	printList(fmt.Sprintf("Updated (%d):", len(result.UpdatedMods)), result.UpdatedMods, a.Terminal.SuccessSprint)
 	if len(result.FailedMods) > 0 {
-		a.Terminal.Error(fmt.Sprintf("Failed %d mods:", len(result.FailedMods)))
-		// Sort keys for deterministic output — FailedMods is a map.
+		a.Terminal.Errorf("Failed (%d):", len(result.FailedMods))
 		keys := slices.Sorted(func(yield func(string) bool) {
 			for k := range result.FailedMods {
 				if !yield(k) {
@@ -171,7 +206,7 @@ func displayModResults(a *appContainer, result *domain.ModUpdateResult) {
 		}
 		a.Terminal.Println()
 	}
-	printList(fmt.Sprintf("Skipped %d mods:", len(result.SkippedMods)), result.SkippedMods, a.Terminal.WarningSprint)
+	printList(fmt.Sprintf("Skipped (%d):", len(result.SkippedMods)), result.SkippedMods, a.Terminal.WarningSprint)
 }
 
 // ── Backup ────────────────────────────────────────────────────────────────────
@@ -190,7 +225,7 @@ var backupCreateCmd = &cobra.Command{
 		path, err := a.Backup.Create(cmd.Context())
 		if err != nil {
 			if errors.Is(err, domain.ErrBackupsDisabled) {
-				a.Terminal.Warning("Backups disabled")
+				a.Terminal.Warning("Backups are disabled in config")
 				return nil
 			}
 			return err
@@ -213,46 +248,68 @@ var backupListCmd = &cobra.Command{
 			return err
 		}
 		if len(backups) == 0 {
-			a.Terminal.Warning("No backups found")
+			a.Terminal.Warning("No backups found in " + a.Config.Paths.Backups)
 			return nil
 		}
-		a.Terminal.Section("Available Backups")
+		a.Terminal.Section(fmt.Sprintf("Backups (%d)", len(backups)))
 		headers := []string{"Name", "Date", "Size"}
 		rows := make([][]string, len(backups))
 		for i, b := range backups {
 			rows[i] = []string{b.Name, b.CreatedAt.Format("2006-01-02 15:04:05"), b.SizeFormatted()}
 		}
 		a.Terminal.Table(headers, rows)
-		a.Terminal.Printf("\nTotal: %d backups\n", len(backups))
 		return nil
+	},
+}
+
+var backupDeleteCmd = &cobra.Command{
+	Use:   "delete <name>",
+	Short: "Delete a backup by name",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a := app(cmd)
+		name := args[0]
+		backups, err := a.Backup.List()
+		if err != nil {
+			return err
+		}
+		for _, b := range backups {
+			if b.Name == name {
+				if err := os.Remove(b.Path); err != nil {
+					return fmt.Errorf("failed to delete backup: %w", err)
+				}
+				a.Terminal.Successf("Deleted backup: %s", name)
+				return nil
+			}
+		}
+		return fmt.Errorf("backup not found: %s", name)
 	},
 }
 
 // ── Health ────────────────────────────────────────────────────────────────────
 
-var healthCheckCmd = &cobra.Command{
-	Use:   "health-check",
+var healthCmd = &cobra.Command{
+	Use:   "health",
 	Short: "Run system health checks",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx, a := cmd.Context(), app(cmd)
 		a.Terminal.Banner("System Health Check")
 
 		var checks []domain.HealthCheck
-		a.Terminal.Step(1, 5, "Checking paths and permissions...")
+		a.Terminal.Step(1, 4, "Checking paths...")
 		checks = append(checks, domain.CheckPath("Server directory", a.Config.Paths.Server))
 		checks = append(checks, domain.CheckPath("Mods directory", a.Config.Paths.Mods))
 		checks = append(checks, domain.CheckPath("Backups directory", a.Config.Paths.Backups))
 		checks = append(checks, domain.CheckPath("Logs directory", a.Config.Paths.Logs))
-		a.Terminal.Step(2, 5, "Validating mod service...")
-		checks = append(checks, a.Mods.HealthCheck(ctx)...)
-		a.Terminal.Step(3, 5, "Testing server management...")
+		a.Terminal.Step(2, 4, "Checking server...")
 		checks = append(checks, a.Server.HealthCheck(ctx)...)
-		a.Terminal.Step(4, 5, "Verifying backup system...")
+		checks = append(checks, a.Mods.HealthCheck(ctx)...)
+		a.Terminal.Step(3, 4, "Checking backup & notifications...")
 		checks = append(checks, a.Backup.HealthCheck(ctx)...)
-		a.Terminal.Step(5, 5, "Checking notifications...")
 		checks = append(checks, a.Notification.HealthCheck(ctx)...)
+		a.Terminal.Step(4, 4, "Done")
 
-		a.Terminal.Section("Detailed Results")
+		a.Terminal.Section("Results")
 		a.Terminal.HealthCheckTable(checks)
 		return healthSummary(a, checks)
 	},
@@ -272,13 +329,13 @@ func healthSummary(a *appContainer, checks []domain.HealthCheck) error {
 	}
 	a.Terminal.Section("Summary")
 	if failed > 0 {
-		a.Terminal.Error(fmt.Sprintf("%d failed, %d warnings, %d passed", failed, warned, passed))
+		a.Terminal.Errorf("%d failed, %d warnings, %d passed", failed, warned, passed)
 		return fmt.Errorf("%d health checks failed", failed)
 	}
 	if warned > 0 {
-		a.Terminal.Warning(fmt.Sprintf("%d warnings, %d passed", warned, passed))
+		a.Terminal.Warningf("%d warnings, %d passed", warned, passed)
 	} else {
-		a.Terminal.Success(fmt.Sprintf("All %d checks passed!", passed))
+		a.Terminal.Successf("All %d checks passed", passed)
 	}
 	return nil
 }
@@ -286,7 +343,7 @@ func healthSummary(a *appContainer, checks []domain.HealthCheck) error {
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 var initCmd = &cobra.Command{
-	Use:   "init-config",
+	Use:   "init",
 	Short: "Initialize a new configuration file",
 	// Skip the normal app initialization — config may not exist yet.
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error { return nil },
@@ -297,7 +354,7 @@ var initCmd = &cobra.Command{
 			outputPath = "config.toml"
 		}
 
-		t.Step(1, 4, "Checking output path: "+outputPath)
+		t.Step(1, 3, "Checking output path: "+outputPath)
 		if info, err := os.Stat(outputPath); err == nil && !force {
 			if info.IsDir() {
 				return errors.New("output path is a directory")
@@ -307,15 +364,14 @@ var initCmd = &cobra.Command{
 			return nil
 		}
 
-		t.Step(2, 4, "Creating directory structure...")
 		if err := os.MkdirAll(filepath.Dir(outputPath), 0o750); err != nil {
 			return fmt.Errorf("failed to create directory: %w", err)
 		}
 
-		t.Step(3, 4, "Generating default configuration...")
+		t.Step(2, 3, "Generating default configuration...")
 		cfg := config.DefaultConfig()
 
-		t.Step(4, 4, "Saving configuration file...")
+		t.Step(3, 3, "Saving...")
 		if err := cfg.SaveConfig(outputPath); err != nil {
 			return fmt.Errorf("failed to save config: %w", err)
 		}
@@ -323,10 +379,11 @@ var initCmd = &cobra.Command{
 		t.Success("Configuration created: " + outputPath)
 		t.Println()
 		t.Info("Next steps:")
-		t.Printf("  1. Edit the config: nano %s\n", outputPath)
-		t.Println("  2. Add Modrinth mod URLs to [mods.modrinth_sources]")
-		t.Println("  3. Run health check: craftops health-check")
-		t.Println("  4. Start managing: craftops update-mods")
+		t.Printf("  1. Edit the config:   %s\n", outputPath)
+		t.Println("  2. Add mod sources:   [mods.modrinth_sources] in config")
+		t.Println("  3. Check setup:       craftops health")
+		t.Println("  4. Update mods:       craftops mods update")
+		t.Println("  5. Start server:      craftops server start")
 		return nil
 	},
 }
