@@ -53,6 +53,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: |
+      - name: build-check
+        run: |
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
           go build -trimpath -buildvcs=auto -ldflags="-s -w" -o /dev/null ./cmd/craftops
