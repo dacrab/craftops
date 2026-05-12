@@ -159,7 +159,7 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := n.client.Do(req)
+	resp, err := n.client.Do(req) //nolint:gosec // webhook URL from user config
 	if err != nil {
 		return err
 	}
