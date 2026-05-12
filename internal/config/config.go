@@ -1,3 +1,4 @@
+// Package config handles TOML configuration loading, defaults, and validation.
 package config
 
 import (
@@ -10,6 +11,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// Config is the top-level application configuration.
 type Config struct {
 	Debug  bool `toml:"debug"`
 	DryRun bool `toml:"dry_run"`
@@ -23,11 +25,13 @@ type Config struct {
 	Logging       LoggingConfig      `toml:"logging"`
 }
 
+// MinecraftConfig specifies game version and mod loader.
 type MinecraftConfig struct {
 	Version   string `toml:"version"`
 	Modloader string `toml:"modloader"`
 }
 
+// PathsConfig defines filesystem locations.
 type PathsConfig struct {
 	Server  string `toml:"server"`
 	Mods    string `toml:"mods"`
@@ -35,6 +39,7 @@ type PathsConfig struct {
 	Logs    string `toml:"logs"`
 }
 
+// ServerConfig holds JVM flags and lifecycle settings.
 type ServerConfig struct {
 	JarName        string   `toml:"jar_name"`
 	JavaFlags      []string `toml:"java_flags"`
@@ -44,6 +49,7 @@ type ServerConfig struct {
 	SessionName    string   `toml:"session_name"`
 }
 
+// ModsConfig controls mod update behavior.
 type ModsConfig struct {
 	ConcurrentDownloads int      `toml:"concurrent_downloads"`
 	MaxRetries          int      `toml:"max_retries"`
@@ -52,6 +58,7 @@ type ModsConfig struct {
 	ModrinthSources     []string `toml:"modrinth_sources"`
 }
 
+// BackupConfig controls backup creation and retention.
 type BackupConfig struct {
 	Enabled          bool     `toml:"enabled"`
 	MaxBackups       int      `toml:"max_backups"`
@@ -60,6 +67,7 @@ type BackupConfig struct {
 	ExcludePatterns  []string `toml:"exclude_patterns"`
 }
 
+// NotificationConfig controls Discord webhook alerts.
 type NotificationConfig struct {
 	DiscordWebhook       string `toml:"discord_webhook"`
 	Timeout              int    `toml:"timeout"`
@@ -69,6 +77,7 @@ type NotificationConfig struct {
 	ErrorNotifications   bool   `toml:"error_notifications"`
 }
 
+// LoggingConfig controls log output.
 type LoggingConfig struct {
 	Level          string `toml:"level"`
 	Format         string `toml:"format"`
@@ -76,6 +85,7 @@ type LoggingConfig struct {
 	ConsoleEnabled bool   `toml:"console_enabled"`
 }
 
+// DefaultConfig returns production-ready defaults.
 func DefaultConfig() *Config {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -138,6 +148,7 @@ func DefaultConfig() *Config {
 	}
 }
 
+// LoadConfig reads config from file (or defaults) and validates it.
 func LoadConfig(configPath string) (*Config, error) {
 	config := DefaultConfig()
 
@@ -157,6 +168,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	return config, nil
 }
 
+// SaveConfig writes the configuration as TOML.
 func (c *Config) SaveConfig(configPath string) error {
 	file, err := os.Create(configPath) //nolint:gosec
 	if err != nil {
@@ -166,6 +178,7 @@ func (c *Config) SaveConfig(configPath string) error {
 	return toml.NewEncoder(file).Encode(c)
 }
 
+// Validate checks that all settings are within supported bounds and normalizes case.
 func (c *Config) Validate() error {
 	valid := []string{"fabric", "forge", "quilt", "neoforge"}
 	modloader := strings.ToLower(c.Minecraft.Modloader)

@@ -16,15 +16,18 @@ import (
 	"craftops/internal/domain"
 )
 
+// Server manages the Minecraft server process lifecycle.
 type Server struct {
 	cfg    *config.Config
 	logger *zap.Logger
 }
 
+// NewServer creates a server manager.
 func NewServer(cfg *config.Config, logger *zap.Logger) *Server {
 	return &Server{cfg: cfg, logger: logger}
 }
 
+// Status checks if the server screen session is running.
 func (s *Server) Status(ctx context.Context) (*domain.ServerStatus, error) {
 	cmd := exec.CommandContext(ctx, "screen", "-ls")
 	output, err := cmd.Output()
@@ -42,6 +45,7 @@ func (s *Server) Status(ctx context.Context) (*domain.ServerStatus, error) {
 	}, nil
 }
 
+// Start launches the server in a detached screen session.
 func (s *Server) Start(ctx context.Context) error {
 	if s.cfg.DryRun {
 		s.logger.Info("Dry run: Would start server")
@@ -74,6 +78,7 @@ func (s *Server) Start(ctx context.Context) error {
 	return s.waitForStatus(ctx, true, s.cfg.Server.StartupTimeout, "started")
 }
 
+// Stop sends the stop command and waits for exit.
 func (s *Server) Stop(ctx context.Context) error {
 	if s.cfg.DryRun {
 		s.logger.Info("Dry run: Would stop server")
@@ -98,6 +103,7 @@ func (s *Server) Stop(ctx context.Context) error {
 	return s.waitForStatus(ctx, false, s.cfg.Server.MaxStopWait, "stopped")
 }
 
+// Restart performs a sequential stop then start.
 func (s *Server) Restart(ctx context.Context) error {
 	s.logger.Info("Restarting server")
 	if err := s.Stop(ctx); err != nil {
@@ -106,6 +112,7 @@ func (s *Server) Restart(ctx context.Context) error {
 	return s.Start(ctx)
 }
 
+// HealthCheck verifies server dependencies (Java, screen, paths).
 func (s *Server) HealthCheck(_ context.Context) []domain.HealthCheck {
 	checks := []domain.HealthCheck{
 		domain.CheckPath("Server directory", s.cfg.Paths.Server),

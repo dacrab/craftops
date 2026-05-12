@@ -3,7 +3,7 @@ version: "2"
 run:
   timeout: 5m
   modules-download-mode: readonly
-  go: '1.25.8'
+  go: '1.25.10'
 
 linters:
   enable-all: false
@@ -11,7 +11,7 @@ linters:
     - errcheck
     - govet
     - ineffassign
-    - staticcheck   # covers gosimple + unused in golangci-lint v2
+    - staticcheck
     - gosec
     - misspell
     - revive
@@ -19,9 +19,9 @@ linters:
     - unconvert
     - goconst
     - gocritic
-    - perfsprint    # detect fmt.Sprintf replaceable with faster alternatives
-    - intrange      # Go 1.22+: range over integer
-    - copyloopvar   # Go 1.22+: loop variable capture (safe since 1.22 but good to flag)
+    - perfsprint
+    - intrange
+    - copyloopvar
 
 linters-settings:
   govet:
@@ -30,10 +30,10 @@ linters-settings:
       - shadow
   gosec:
     excludes:
-      - G104  # Unhandled errors (covered by errcheck)
-      - G115  # Integer overflow conversion uintptr -> int (false positive in taint analysis)
-      - G703  # Path traversal via taint analysis (false positive — inputs are validated upstream)
-      - G704  # SSRF via taint analysis (false positive — URLs are constructed internally)
+      - G104
+      - G115
+      - G703
+      - G704
   gocritic:
     enabled-tags:
       - diagnostic

@@ -27,15 +27,18 @@ const (
 	backupExt        = ".tar.gz"
 )
 
+// Backup manages compressed server archives with retention.
 type Backup struct {
 	cfg    *config.Config
 	logger *zap.Logger
 }
 
+// NewBackup creates a backup manager.
 func NewBackup(cfg *config.Config, logger *zap.Logger) *Backup {
 	return &Backup{cfg: cfg, logger: logger}
 }
 
+// Create generates a compressed tarball of the server directory.
 func (b *Backup) Create(ctx context.Context) (string, error) {
 	if !b.cfg.Backup.Enabled {
 		b.logger.Info("Backups are disabled")
@@ -64,6 +67,7 @@ func (b *Backup) Create(ctx context.Context) (string, error) {
 	return backupPath, nil
 }
 
+// List returns metadata for all backup archives, newest first.
 func (b *Backup) List() ([]domain.BackupInfo, error) {
 	files, err := os.ReadDir(b.cfg.Paths.Backups)
 	if err != nil {
@@ -97,6 +101,7 @@ func (b *Backup) List() ([]domain.BackupInfo, error) {
 	return backups, nil
 }
 
+// HealthCheck verifies backup directory and retention settings.
 func (b *Backup) HealthCheck(_ context.Context) []domain.HealthCheck {
 	if !b.cfg.Backup.Enabled {
 		return []domain.HealthCheck{{Name: "Backup system", Status: domain.StatusWarn, Message: "Disabled"}}

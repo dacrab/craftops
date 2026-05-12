@@ -1,3 +1,4 @@
+// Package ui provides styled terminal output for the CLI.
 package ui
 
 import (
@@ -14,6 +15,7 @@ import (
 	"craftops/internal/domain"
 )
 
+// Terminal provides structured output with optional color and formatting.
 type Terminal struct {
 	out    io.Writer
 	errOut io.Writer
@@ -30,18 +32,22 @@ var (
 	dimColor     = color.New(color.FgHiBlack)
 )
 
+// NewTerminal creates a terminal linked to stdout/stderr.
 func NewTerminal() *Terminal {
 	isTTY := term.IsTerminal(int(os.Stdout.Fd())) //nolint:gosec
 	color.NoColor = !isTTY
 	return &Terminal{out: os.Stdout, errOut: os.Stderr, isTTY: isTTY}
 }
 
+// NewTerminalWithWriter creates a terminal with custom writers (for testing).
 func NewTerminalWithWriter(out, errOut io.Writer, isTTY bool) *Terminal {
 	return &Terminal{out: out, errOut: errOut, isTTY: isTTY}
 }
 
+// IsTTY reports whether output is a terminal.
 func (t *Terminal) IsTTY() bool { return t.isTTY }
 
+// Banner prints a prominent header.
 func (t *Terminal) Banner(title string) {
 	if !t.isTTY {
 		_, _ = fmt.Fprintf(t.out, "%s\n", title)
@@ -56,6 +62,7 @@ func (t *Terminal) Banner(title string) {
 	_, _ = fmt.Fprintln(t.out)
 }
 
+// Section prints a secondary header.
 func (t *Terminal) Section(title string) {
 	if t.isTTY {
 		_, _ = accentColor.Fprintf(t.out, "\n▶ %s\n", title)
@@ -65,22 +72,34 @@ func (t *Terminal) Section(title string) {
 	}
 }
 
+// Success prints a success message.
 func (t *Terminal) Success(message string) { t.printMsg(successColor, "SUCCESS", message) }
+
+// Successf prints a formatted success message.
 func (t *Terminal) Successf(format string, args ...interface{}) {
 	t.Success(fmt.Sprintf(format, args...))
 }
 
+// Error prints an error message.
 func (t *Terminal) Error(message string) { t.printMsg(errorColor, "ERROR", message) }
+
+// Errorf prints a formatted error message.
 func (t *Terminal) Errorf(format string, args ...interface{}) {
 	t.Error(fmt.Sprintf(format, args...))
 }
 
+// Warning prints a warning message.
 func (t *Terminal) Warning(message string) { t.printMsg(warningColor, "WARNING", message) }
+
+// Warningf prints a formatted warning message.
 func (t *Terminal) Warningf(format string, args ...interface{}) {
 	t.Warning(fmt.Sprintf(format, args...))
 }
 
+// Info prints an info message.
 func (t *Terminal) Info(message string) { t.printMsg(infoColor, "INFO", message) }
+
+// Infof prints a formatted info message.
 func (t *Terminal) Infof(format string, args ...interface{}) {
 	t.Info(fmt.Sprintf(format, args...))
 }
@@ -93,6 +112,7 @@ func (t *Terminal) printMsg(c *color.Color, label, msg string) {
 	}
 }
 
+// Step prints a progress indicator like [1/5].
 func (t *Terminal) Step(current, total int, message string) {
 	if t.isTTY {
 		_, _ = accentColor.Fprintf(t.out, "[%d/%d] ", current, total)
@@ -102,18 +122,27 @@ func (t *Terminal) Step(current, total int, message string) {
 	_, _ = fmt.Fprintln(t.out, message)
 }
 
+// Printf writes formatted output.
 func (t *Terminal) Printf(format string, args ...interface{}) {
 	_, _ = fmt.Fprintf(t.out, format, args...)
 }
 
+// Println writes a line of output.
 func (t *Terminal) Println(args ...interface{}) {
 	_, _ = fmt.Fprintln(t.out, args...)
 }
 
+// SuccessSprint returns text with success color applied.
 func (t *Terminal) SuccessSprint(text string) string { return t.sprintWithColor(text, successColor) }
-func (t *Terminal) ErrorSprint(text string) string   { return t.sprintWithColor(text, errorColor) }
-func (t *Terminal) WarningSprint(text string) string  { return t.sprintWithColor(text, warningColor) }
-func (t *Terminal) DimSprint(text string) string      { return t.sprintWithColor(text, dimColor) }
+
+// ErrorSprint returns text with error color applied.
+func (t *Terminal) ErrorSprint(text string) string { return t.sprintWithColor(text, errorColor) }
+
+// WarningSprint returns text with warning color applied.
+func (t *Terminal) WarningSprint(text string) string { return t.sprintWithColor(text, warningColor) }
+
+// DimSprint returns text with dim color applied.
+func (t *Terminal) DimSprint(text string) string { return t.sprintWithColor(text, dimColor) }
 
 func (t *Terminal) sprintWithColor(text string, c *color.Color) string {
 	if t.isTTY {
@@ -122,6 +151,7 @@ func (t *Terminal) sprintWithColor(text string, c *color.Color) string {
 	return text
 }
 
+// Table renders a formatted table.
 func (t *Terminal) Table(headers []string, rows [][]string) {
 	var opts []tablewriter.Option
 	if t.isTTY {
@@ -152,7 +182,6 @@ func (t *Terminal) Table(headers []string, rows [][]string) {
 	}
 }
 
-// stringsToAny converts []string to []interface{} as required by the tablewriter API.
 func stringsToAny(strs []string) []interface{} {
 	result := make([]interface{}, len(strs))
 	for i := range strs {
@@ -161,6 +190,7 @@ func stringsToAny(strs []string) []interface{} {
 	return result
 }
 
+// HealthCheckTable renders a diagnostic results table with colored status.
 func (t *Terminal) HealthCheckTable(checks []domain.HealthCheck) {
 	headers := []string{"Component", "Status", "Details"}
 	rows := make([][]string, len(checks))

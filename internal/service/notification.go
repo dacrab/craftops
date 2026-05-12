@@ -22,6 +22,7 @@ const (
 	colorOrange = 0xFFA500
 )
 
+// Notification dispatches alerts via Discord webhooks.
 type Notification struct {
 	cfg             *config.Config
 	logger          *zap.Logger
@@ -29,6 +30,7 @@ type Notification struct {
 	sortedIntervals []int
 }
 
+// NewNotification creates a notification dispatcher.
 func NewNotification(cfg *config.Config, logger *zap.Logger) *Notification {
 	intervals := slices.Clone(cfg.Notifications.WarningIntervals)
 	slices.SortFunc(intervals, func(a, b int) int { return b - a })
@@ -40,6 +42,7 @@ func NewNotification(cfg *config.Config, logger *zap.Logger) *Notification {
 	}
 }
 
+// SendSuccess dispatches a success alert if enabled.
 func (n *Notification) SendSuccess(ctx context.Context, message string) error {
 	if !n.cfg.Notifications.SuccessNotifications {
 		return nil
@@ -47,6 +50,7 @@ func (n *Notification) SendSuccess(ctx context.Context, message string) error {
 	return n.sendDiscord(ctx, "Success", message, colorGreen)
 }
 
+// SendError dispatches an error alert if enabled.
 func (n *Notification) SendError(ctx context.Context, message string) error {
 	if !n.cfg.Notifications.ErrorNotifications {
 		return nil
@@ -54,6 +58,7 @@ func (n *Notification) SendError(ctx context.Context, message string) error {
 	return n.sendDiscord(ctx, "Error", message, colorRed)
 }
 
+// SendRestartWarnings sends timed alerts before a restart.
 func (n *Notification) SendRestartWarnings(ctx context.Context) error {
 	intervals := n.sortedIntervals
 	if len(intervals) == 0 {
@@ -82,6 +87,8 @@ func (n *Notification) SendRestartWarnings(ctx context.Context) error {
 	return nil
 }
 
+// HealthCheck verifies webhook configuration.
+// HealthCheck verifies webhook configuration.
 func (n *Notification) HealthCheck(_ context.Context) []domain.HealthCheck {
 	webhook := n.cfg.Notifications.DiscordWebhook
 	var webhookCheck domain.HealthCheck
