@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.25.8-alpine AS builder
+FROM golang:1.25.10-alpine AS builder
 WORKDIR /src
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
@@ -11,7 +11,6 @@ RUN CGO_ENABLED=0 go build -trimpath -buildvcs=auto \
     -o /craftops ./cmd/craftops
 
 FROM alpine:3.20
-# Install runtime dependencies and setup user in one layer
 RUN apk add --no-cache screen openjdk17-jre-headless ca-certificates tzdata \
     && adduser -D -u 1000 minecraft \
     && mkdir -p /minecraft/server /minecraft/mods /minecraft/backups /config /logs \

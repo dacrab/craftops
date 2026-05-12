@@ -27,20 +27,15 @@ const (
 	backupExt        = ".tar.gz"
 )
 
-// Backup provides methods to create and manage server backups
 type Backup struct {
 	cfg    *config.Config
 	logger *zap.Logger
 }
 
-var _ BackupManager = (*Backup)(nil)
-
-// NewBackup initializes a new backup service
 func NewBackup(cfg *config.Config, logger *zap.Logger) *Backup {
 	return &Backup{cfg: cfg, logger: logger}
 }
 
-// Create generates a new compressed tarball of the server directory
 func (b *Backup) Create(ctx context.Context) (string, error) {
 	if !b.cfg.Backup.Enabled {
 		b.logger.Info("Backups are disabled")
@@ -69,7 +64,6 @@ func (b *Backup) Create(ctx context.Context) (string, error) {
 	return backupPath, nil
 }
 
-// List scans the backup directory and returns metadata for all archives
 func (b *Backup) List() ([]domain.BackupInfo, error) {
 	files, err := os.ReadDir(b.cfg.Paths.Backups)
 	if err != nil {
@@ -96,7 +90,6 @@ func (b *Backup) List() ([]domain.BackupInfo, error) {
 		})
 	}
 
-	// Sort backups by creation time (newest first)
 	slices.SortFunc(backups, func(a, b domain.BackupInfo) int {
 		return b.CreatedAt.Compare(a.CreatedAt)
 	})
@@ -104,7 +97,6 @@ func (b *Backup) List() ([]domain.BackupInfo, error) {
 	return backups, nil
 }
 
-// HealthCheck verifies backup directory availability and retention settings
 func (b *Backup) HealthCheck(_ context.Context) []domain.HealthCheck {
 	if !b.cfg.Backup.Enabled {
 		return []domain.HealthCheck{{Name: "Backup system", Status: domain.StatusWarn, Message: "Disabled"}}
@@ -121,7 +113,6 @@ func (b *Backup) HealthCheck(_ context.Context) []domain.HealthCheck {
 	}
 }
 
-// createArchive performs the actual file walking and compression
 func (b *Backup) createArchive(ctx context.Context) (string, error) {
 	timestamp := time.Now().Format(backupTimeFormat)
 	backupName := backupPrefix + timestamp + backupExt
@@ -129,12 +120,11 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 
 	b.logger.Info("Creating backup", zap.String("name", backupName))
 
-	file, err := os.Create(backupPath) //nolint:gosec // backup path is from config
+	file, err := os.Create(backupPath) //nolint:gosec
 	if err != nil {
 		return "", err
 	}
 
-	// Ensure compression level is within valid gzip range
 	gzLevel := b.cfg.Backup.CompressionLevel
 	if gzLevel < gzip.NoCompression || gzLevel > gzip.BestCompression {
 		gzLevel = gzip.DefaultCompression
@@ -146,7 +136,6 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 	}
 	tarWriter := tar.NewWriter(gzWriter)
 
-	// Walk and archive — if anything fails, remove the partial file.
 	if err := b.addFiles(ctx, tarWriter); err != nil {
 		_ = tarWriter.Close()
 		_ = gzWriter.Close()
@@ -155,8 +144,6 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	// Close in reverse order: tar → gzip → file so each layer flushes correctly.
-	// All close errors are propagated — a failed close means a corrupt archive.
 	if err := tarWriter.Close(); err != nil {
 		_ = gzWriter.Close()
 		_ = file.Close()
@@ -173,7 +160,6 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("closing backup file: %w", err)
 	}
 
-	// Verify file was created and isn't empty
 	info, err := os.Stat(backupPath)
 	if err != nil || info.Size() == 0 {
 		_ = os.Remove(backupPath)
@@ -184,7 +170,6 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 	return backupPath, nil
 }
 
-// addFiles walks the server directory and adds eligible files to the archive
 func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 	return filepath.WalkDir(b.cfg.Paths.Server, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -199,7 +184,6 @@ func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 			return err
 		}
 
-		// Skip symlinks
 		if d.Type()&fs.ModeSymlink != 0 {
 			return nil
 		}
@@ -229,7 +213,7 @@ func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 			return nil
 		}
 
-		f, err := os.Open(path) //nolint:gosec // path is from server directory walk
+		f, err := os.Open(path) //nolint:gosec
 		if err != nil {
 			return err
 		}
@@ -239,12 +223,12 @@ func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 	})
 }
 
-// shouldExclude checks if a file/dir should be skipped based on config patterns using doublestar for glob support
+// shouldExclude checks patterns using doublestar glob. Appends trailing slash
+// for directories so patterns like "cache/" match correctly.
 func (b *Backup) shouldExclude(relPath string, isDir bool) bool {
 	if !b.cfg.Backup.IncludeLogs && (relPath == "logs" || strings.HasPrefix(relPath, "logs/")) {
 		return true
 	}
-	// Append trailing slash for directories so patterns like "cache/" match correctly
 	matchPath := relPath
 	if isDir && !strings.HasSuffix(matchPath, "/") {
 		matchPath += "/"
@@ -253,8 +237,6 @@ func (b *Backup) shouldExclude(relPath string, isDir bool) bool {
 		if matched, _ := doublestar.Match(pattern, matchPath); matched {
 			return true
 		}
-		// For directories, also match without the trailing slash so patterns
-		// like "cache" match in addition to "cache/".
 		if isDir && matchPath != relPath {
 			if matched, _ := doublestar.Match(pattern, relPath); matched {
 				return true
@@ -264,7 +246,6 @@ func (b *Backup) shouldExclude(relPath string, isDir bool) bool {
 	return false
 }
 
-// cleanup enforces the max_backups retention policy
 func (b *Backup) cleanup() {
 	backups, err := b.List()
 	if err != nil {
@@ -274,7 +255,6 @@ func (b *Backup) cleanup() {
 	if len(backups) <= b.cfg.Backup.MaxBackups {
 		return
 	}
-	// List is sorted newest first, so delete from index max_backups onwards
 	for _, old := range backups[b.cfg.Backup.MaxBackups:] {
 		if err := os.Remove(old.Path); err != nil {
 			b.logger.Warn("Failed to remove old backup", zap.String("name", old.Name), zap.Error(err))
@@ -283,4 +263,3 @@ func (b *Backup) cleanup() {
 		}
 	}
 }
-

@@ -202,3 +202,112 @@ func TestMods_UpdateAll_NoCompatibleVersions(t *testing.T) {
 		t.Errorf("expected 1 failed mod for empty versions, got %v", result.FailedMods)
 	}
 }
+
+func TestMods_ListInstalled_Empty(t *testing.T) {
+	cfg, logger, _ := setup(t)
+	svc := service.NewMods(cfg, logger)
+
+	mods, err := svc.ListInstalled()
+	if err != nil {
+		t.Fatalf("ListInstalled error: %v", err)
+	}
+	if len(mods) != 0 {
+		t.Errorf("expected 0 mods, got %d", len(mods))
+	}
+}
+
+func TestMods_ListInstalled(t *testing.T) {
+	cfg, logger, _ := setup(t)
+	svc := service.NewMods(cfg, logger)
+
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "fabric-api.jar"), []byte("jar"), 0o600)
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "sodium.jar"), []byte("jar"), 0o600)
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "readme.txt"), []byte("text"), 0o600)
+
+	mods, err := svc.ListInstalled()
+	if err != nil {
+		t.Fatalf("ListInstalled error: %v", err)
+	}
+	if len(mods) != 2 {
+		t.Errorf("expected 2 mods, got %d", len(mods))
+	}
+}
+
+func TestParseProjectID(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{"fabric-api", "fabric-api", false},
+		{"https://modrinth.com/mod/fabric-api", "fabric-api", false},
+		{"https://modrinth.com/mod/sodium/versions", "sodium", false},
+		{"https://invalid.com/notamod", "", true},
+	}
+	for _, tt := range tests {
+		got, err := service.ParseProjectID(tt.input)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("ParseProjectID(%q) err=%v, wantErr=%v", tt.input, err, tt.wantErr)
+		}
+		if !tt.wantErr && got != tt.want {
+			t.Errorf("ParseProjectID(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestMods_UpdateAll_NoSources(t *testing.T) {
+	cfg, logger, ctx := setup(t)
+	cfg.Mods.ModrinthSources = []string{}
+	svc := service.NewMods(cfg, logger)
+
+	result, err := svc.UpdateAll(ctx, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.UpdatedMods) != 0 || len(result.FailedMods) != 0 || len(result.SkippedMods) != 0 {
+		t.Error("expected empty results with no sources")
+	}
+}
+
+func TestMods_ListInstalled_Metadata(t *testing.T) {
+	cfg, logger, _ := setup(t)
+	svc := service.NewMods(cfg, logger)
+
+	content := []byte("fake jar content")
+	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "fabric-api.jar"), content, 0o600)
+
+	mods, err := svc.ListInstalled()
+	if err != nil {
+		t.Fatalf("ListInstalled error: %v", err)
+	}
+	if len(mods) != 1 {
+		t.Fatalf("expected 1 mod, got %d", len(mods))
+	}
+	m := mods[0]
+	if m.Name != "fabric-api" {
+		t.Errorf("Name = %q, want %q", m.Name, "fabric-api")
+	}
+	if m.Size != int64(len(content)) {
+		t.Errorf("Size = %d, want %d", m.Size, len(content))
+	}
+}
+
+func TestMods_HealthCheck(t *testing.T) {
+	cfg, logger, ctx := setup(t)
+	svc := service.NewMods(cfg, logger)
+
+	checks := svc.HealthCheck(ctx)
+	if len(checks) < 2 {
+		t.Fatalf("expected at least 2 health checks, got %d", len(checks))
+	}
+	names := make(map[string]bool)
+	for _, c := range checks {
+		names[c.Name] = true
+	}
+	if !names["Mods directory"] {
+		t.Error("expected 'Mods directory' health check")
+	}
+	if !names["Mod sources"] {
+		t.Error("expected 'Mod sources' health check")
+	}
+}
