@@ -155,7 +155,7 @@ func (m *Mods) apiRequest(ctx context.Context, apiURL string, result any) error 
 		}
 		req.Header.Set("User-Agent", userAgent)
 
-		resp, err := m.client.Do(req)
+		resp, err := m.client.Do(req) //nolint:gosec // URL built from Modrinth API base
 		if err != nil {
 			return err
 		}
@@ -212,7 +212,7 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 		}
 		req.Header.Set("User-Agent", userAgent)
 
-		resp, err := m.client.Do(req)
+		resp, err := m.client.Do(req) //nolint:gosec // URL from Modrinth API response
 		if err != nil {
 			return err
 		}
@@ -234,7 +234,7 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 	}
 
 	_ = os.Remove(finalPath)
-	if err := os.Rename(tmpPath, finalPath); err != nil {
+	if err := os.Rename(tmpPath, finalPath); err != nil { //nolint:gosec // path from validated config + API slug
 		return false, err
 	}
 
@@ -320,7 +320,7 @@ func (m *Mods) checkAPI(ctx context.Context) domain.HealthCheck {
 	if err != nil {
 		return domain.HealthCheck{Name: "Modrinth API", Status: domain.StatusError, Message: "Failed to build request"}
 	}
-	resp, err := m.client.Do(req)
+	resp, err := m.client.Do(req) //nolint:gosec // fixed known-good URL
 	if err != nil {
 		return domain.HealthCheck{Name: "Modrinth API", Status: domain.StatusError, Message: "Connection failed"}
 	}

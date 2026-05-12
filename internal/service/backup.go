@@ -1,3 +1,4 @@
+// Package service implements business logic for server, mods, backups, and notifications.
 package service
 
 import (
