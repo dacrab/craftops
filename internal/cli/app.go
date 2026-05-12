@@ -1,3 +1,4 @@
+// Package cli wires Cobra commands to service layer operations.
 package cli
 
 import (

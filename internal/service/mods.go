@@ -22,12 +22,14 @@ import (
 
 const userAgent = "craftops/2.0"
 
+// Mods handles automated mod updates from Modrinth.
 type Mods struct {
 	cfg    *config.Config
 	logger *zap.Logger
 	client *http.Client
 }
 
+// NewMods creates a mod manager.
 func NewMods(cfg *config.Config, logger *zap.Logger) *Mods {
 	return &Mods{
 		cfg:    cfg,
@@ -36,6 +38,7 @@ func NewMods(cfg *config.Config, logger *zap.Logger) *Mods {
 	}
 }
 
+// UpdateAll downloads the latest versions of all configured mods concurrently.
 func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResult, error) {
 	m.logger.Info("Starting mod update", zap.Bool("force", force))
 	res := &domain.ModUpdateResult{
@@ -81,6 +84,7 @@ func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResu
 	return res, nil
 }
 
+// ListInstalled returns all .jar files in the mods directory.
 func (m *Mods) ListInstalled() ([]domain.InstalledMod, error) {
 	files, err := filepath.Glob(filepath.Join(m.cfg.Paths.Mods, "*.jar"))
 	if err != nil {
@@ -104,6 +108,7 @@ func (m *Mods) ListInstalled() ([]domain.InstalledMod, error) {
 	return mods, nil
 }
 
+// HealthCheck verifies mods directory and API connectivity.
 func (m *Mods) HealthCheck(ctx context.Context) []domain.HealthCheck {
 	total := len(m.cfg.Mods.ModrinthSources)
 	var sourcesCheck domain.HealthCheck

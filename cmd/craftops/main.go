@@ -1,3 +1,4 @@
+// Package main is the craftops CLI entry point.
 package main
 
 import (

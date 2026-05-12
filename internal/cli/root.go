@@ -33,6 +33,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+// Execute runs the root command.
 func Execute(ctx context.Context) error {
 	return rootCmd.ExecuteContext(ctx)
 }
