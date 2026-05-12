@@ -12,19 +12,16 @@ import (
 	"craftops/internal/ui"
 )
 
-// appContainer is the central dependency injection container for the application
-type appContainer struct {
+type app struct {
 	Config       *config.Config
 	Logger       *zap.Logger
 	Terminal     *ui.Terminal
-	Server       service.ServerManager
-	Mods         service.ModManager
-	Backup       service.BackupManager
-	Notification service.Notifier
+	Server       *service.Server
+	Mods         *service.Mods
+	Backup       *service.Backup
+	Notification *service.Notification
 }
 
-// newLogger builds a zap logger configured from the app config.
-// Respects FileEnabled (writes to Paths.Logs/craftops.log) and ConsoleEnabled.
 func newLogger(cfg *config.Config) *zap.Logger {
 	level := zap.NewAtomicLevelAt(zap.InfoLevel)
 	if cfg.Logging.Level == "DEBUG" {
@@ -37,16 +34,14 @@ func newLogger(cfg *config.Config) *zap.Logger {
 		encoderCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
 
-	encoding := "json"
-	if cfg.Logging.Format == "text" {
-		encoding = "console"
-	}
-
 	var cores []zapcore.Core
 
 	if cfg.Logging.ConsoleEnabled {
-		consoleEnc := zapcore.NewConsoleEncoder(encoderCfg)
-		cores = append(cores, zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stderr), level))
+		cores = append(cores, zapcore.NewCore(
+			zapcore.NewConsoleEncoder(encoderCfg),
+			zapcore.AddSync(os.Stderr),
+			level,
+		))
 	}
 
 	if cfg.Logging.FileEnabled && cfg.Paths.Logs != "" {
@@ -54,7 +49,7 @@ func newLogger(cfg *config.Config) *zap.Logger {
 			logPath := filepath.Join(cfg.Paths.Logs, "craftops.log")
 			if f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil { //nolint:gosec
 				var enc zapcore.Encoder
-				if encoding == "console" {
+				if cfg.Logging.Format == "text" {
 					enc = zapcore.NewConsoleEncoder(encoderCfg)
 				} else {
 					enc = zapcore.NewJSONEncoder(encoderCfg)
@@ -70,15 +65,12 @@ func newLogger(cfg *config.Config) *zap.Logger {
 	return zap.New(zapcore.NewTee(cores...))
 }
 
-// newApp wires up all services and dependencies based on the provided config
-func newApp(cfg *config.Config) *appContainer {
+func newApp(cfg *config.Config) *app {
 	logger := newLogger(cfg)
-	terminal := ui.NewTerminal()
-
-	return &appContainer{
+	return &app{
 		Config:       cfg,
 		Logger:       logger,
-		Terminal:     terminal,
+		Terminal:     ui.NewTerminal(),
 		Server:       service.NewServer(cfg, logger),
 		Mods:         service.NewMods(cfg, logger),
 		Backup:       service.NewBackup(cfg, logger),
@@ -86,8 +78,7 @@ func newApp(cfg *config.Config) *appContainer {
 	}
 }
 
-// Close ensures all resources (like log buffers) are properly flushed
-func (a *appContainer) Close() {
+func (a *app) Close() {
 	if a.Logger != nil {
 		_ = a.Logger.Sync()
 	}

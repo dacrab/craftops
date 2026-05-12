@@ -16,20 +16,15 @@ import (
 	"craftops/internal/domain"
 )
 
-// Server manages the lifecycle and health of the Minecraft server process
 type Server struct {
 	cfg    *config.Config
 	logger *zap.Logger
 }
 
-var _ ServerManager = (*Server)(nil)
-
-// NewServer initializes a new server management service
 func NewServer(cfg *config.Config, logger *zap.Logger) *Server {
 	return &Server{cfg: cfg, logger: logger}
 }
 
-// Status checks if the server is running by listing GNU screen sessions
 func (s *Server) Status(ctx context.Context) (*domain.ServerStatus, error) {
 	cmd := exec.CommandContext(ctx, "screen", "-ls")
 	output, err := cmd.Output()
@@ -47,7 +42,6 @@ func (s *Server) Status(ctx context.Context) (*domain.ServerStatus, error) {
 	}, nil
 }
 
-// Start launches the server in a detached screen session
 func (s *Server) Start(ctx context.Context) error {
 	if s.cfg.DryRun {
 		s.logger.Info("Dry run: Would start server")
@@ -56,7 +50,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	status, err := s.Status(ctx)
 	if err != nil {
-		return domain.NewServiceError("server", "start", err)
+		return fmt.Errorf("server.start: %w", err)
 	}
 	if status.IsRunning {
 		s.logger.Warn("Server is already running")
@@ -71,16 +65,15 @@ func (s *Server) Start(ctx context.Context) error {
 	javaArgs := append(append([]string{}, s.cfg.Server.JavaFlags...), "-jar", s.cfg.Server.JarName, "nogui")
 	cmdArgs := append([]string{"-dmS", s.sessionName(), "java"}, javaArgs...)
 
-	cmd := exec.CommandContext(ctx, "screen", cmdArgs...) //nolint:gosec // screen command is intentionally user-controlled
+	cmd := exec.CommandContext(ctx, "screen", cmdArgs...) //nolint:gosec
 	cmd.Dir = s.cfg.Paths.Server
 	if err := cmd.Start(); err != nil {
-		return domain.NewServiceError("server", "start", err)
+		return fmt.Errorf("server.start: %w", err)
 	}
 
 	return s.waitForStatus(ctx, true, s.cfg.Server.StartupTimeout, "started")
 }
 
-// Stop sends the stop command to the server session and waits for exit
 func (s *Server) Stop(ctx context.Context) error {
 	if s.cfg.DryRun {
 		s.logger.Info("Dry run: Would stop server")
@@ -89,7 +82,7 @@ func (s *Server) Stop(ctx context.Context) error {
 
 	status, err := s.Status(ctx)
 	if err != nil {
-		return domain.NewServiceError("server", "stop", err)
+		return fmt.Errorf("server.stop: %w", err)
 	}
 	if !status.IsRunning {
 		s.logger.Warn("Server is not running")
@@ -97,29 +90,22 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 
 	stopCmd := s.cfg.Server.StopCommand + "\n"
-	cmd := exec.CommandContext(ctx, "screen", "-S", s.sessionName(), "-X", "stuff", stopCmd) //nolint:gosec // screen command is intentionally user-controlled
+	cmd := exec.CommandContext(ctx, "screen", "-S", s.sessionName(), "-X", "stuff", stopCmd) //nolint:gosec
 	if err := cmd.Run(); err != nil {
-		return domain.NewServiceError("server", "stop", err)
+		return fmt.Errorf("server.stop: %w", err)
 	}
 
 	return s.waitForStatus(ctx, false, s.cfg.Server.MaxStopWait, "stopped")
 }
 
-// Restart performs a sequential stop and start of the server
 func (s *Server) Restart(ctx context.Context) error {
 	s.logger.Info("Restarting server")
-
 	if err := s.Stop(ctx); err != nil {
-		return fmt.Errorf("failed to stop server: %w", err)
+		return err
 	}
-	if err := s.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start server: %w", err)
-	}
-
-	return nil
+	return s.Start(ctx)
 }
 
-// HealthCheck verifies all server dependencies (Java, Screen, paths)
 func (s *Server) HealthCheck(_ context.Context) []domain.HealthCheck {
 	checks := []domain.HealthCheck{
 		domain.CheckPath("Server directory", s.cfg.Paths.Server),
@@ -153,7 +139,7 @@ func (s *Server) sessionName() string {
 	return "minecraft"
 }
 
-// waitForStatus polls the server status until target is reached or timeout occurs
+// waitForStatus polls until the server reaches the target state or timeout.
 func (s *Server) waitForStatus(ctx context.Context, target bool, timeout int, label string) error {
 	if timeout <= 0 {
 		timeout = 30
@@ -182,4 +168,3 @@ func (s *Server) waitForStatus(ctx context.Context, target bool, timeout int, la
 		}
 	}
 }
-

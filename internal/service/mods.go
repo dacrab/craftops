@@ -22,16 +22,12 @@ import (
 
 const userAgent = "craftops/2.0"
 
-// Mods handles automated mod updates from Modrinth API
 type Mods struct {
 	cfg    *config.Config
 	logger *zap.Logger
 	client *http.Client
 }
 
-var _ ModManager = (*Mods)(nil)
-
-// NewMods initializes a new mod management service
 func NewMods(cfg *config.Config, logger *zap.Logger) *Mods {
 	return &Mods{
 		cfg:    cfg,
@@ -40,7 +36,6 @@ func NewMods(cfg *config.Config, logger *zap.Logger) *Mods {
 	}
 }
 
-// UpdateAll identifies and downloads the latest versions of all configured mods
 func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResult, error) {
 	m.logger.Info("Starting mod update", zap.Bool("force", force))
 	res := &domain.ModUpdateResult{
@@ -60,7 +55,6 @@ func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResu
 
 	for _, src := range sources {
 		if err := sem.Acquire(ctx, 1); err != nil {
-			// Context cancelled — stop launching new goroutines.
 			break
 		}
 		wg.Add(1)
@@ -87,7 +81,6 @@ func (m *Mods) UpdateAll(ctx context.Context, force bool) (*domain.ModUpdateResu
 	return res, nil
 }
 
-// ListInstalled returns a list of all .jar files in the mods directory
 func (m *Mods) ListInstalled() ([]domain.InstalledMod, error) {
 	files, err := filepath.Glob(filepath.Join(m.cfg.Paths.Mods, "*.jar"))
 	if err != nil {
@@ -100,7 +93,6 @@ func (m *Mods) ListInstalled() ([]domain.InstalledMod, error) {
 		if err != nil {
 			continue
 		}
-
 		filename := filepath.Base(file)
 		mods = append(mods, domain.InstalledMod{
 			Name:     strings.TrimSuffix(filename, filepath.Ext(filename)),
@@ -109,11 +101,9 @@ func (m *Mods) ListInstalled() ([]domain.InstalledMod, error) {
 			Modified: info.ModTime(),
 		})
 	}
-
 	return mods, nil
 }
 
-// HealthCheck verifies mods directory availability and API connectivity
 func (m *Mods) HealthCheck(ctx context.Context) []domain.HealthCheck {
 	total := len(m.cfg.Mods.ModrinthSources)
 	var sourcesCheck domain.HealthCheck
@@ -129,8 +119,6 @@ func (m *Mods) HealthCheck(ctx context.Context) []domain.HealthCheck {
 	}
 }
 
-// withRetry retries op up to MaxRetries times with a fixed delay between attempts.
-// Non-retryable API errors are returned immediately.
 func (m *Mods) withRetry(ctx context.Context, op func() error) error {
 	maxRetries := m.cfg.Mods.MaxRetries
 	delay := time.Duration(m.cfg.Mods.RetryDelay * float64(time.Second))
@@ -151,10 +139,9 @@ func (m *Mods) withRetry(ctx context.Context, op func() error) error {
 			}
 		}
 	}
-	return err // return the actual last error, not a synthetic one
+	return err
 }
 
-// apiRequest performs a JSON GET request with retries
 func (m *Mods) apiRequest(ctx context.Context, apiURL string, result any) error {
 	return m.withRetry(ctx, func() error {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
@@ -163,7 +150,7 @@ func (m *Mods) apiRequest(ctx context.Context, apiURL string, result any) error 
 		}
 		req.Header.Set("User-Agent", userAgent)
 
-		resp, err := m.client.Do(req) //nolint:gosec // URL is constructed from Modrinth API base URL + config values, not raw user input
+		resp, err := m.client.Do(req)
 		if err != nil {
 			return err
 		}
@@ -172,12 +159,10 @@ func (m *Mods) apiRequest(ctx context.Context, apiURL string, result any) error 
 		if resp.StatusCode != http.StatusOK {
 			return &domain.APIError{URL: apiURL, StatusCode: resp.StatusCode, Message: "request failed"}
 		}
-
 		return json.NewDecoder(resp.Body).Decode(result)
 	})
 }
 
-// downloadMod handles the actual file transfer and persistence
 func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool) (bool, error) {
 	if m.cfg.DryRun {
 		m.logger.Info("Dry run: Would download mod", zap.String("filename", info.Filename))
@@ -200,9 +185,11 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 		return false, err
 	}
 	tmpPath := tmpFile.Name()
+
+	success := false
 	defer func() {
-		if removeErr := os.Remove(tmpPath); removeErr != nil {
-			m.logger.Warn("Failed to remove temporary file", zap.String("path", tmpPath), zap.Error(removeErr))
+		if !success {
+			_ = os.Remove(tmpPath)
 		}
 	}()
 
@@ -220,7 +207,7 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 		}
 		req.Header.Set("User-Agent", userAgent)
 
-		resp, err := m.client.Do(req) //nolint:gosec // URL comes from Modrinth API response, not user input
+		resp, err := m.client.Do(req)
 		if err != nil {
 			return err
 		}
@@ -242,17 +229,17 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 	}
 
 	_ = os.Remove(finalPath)
-	if err := os.Rename(tmpPath, finalPath); err != nil { //nolint:gosec // path derived from validated config + Modrinth API slug
+	if err := os.Rename(tmpPath, finalPath); err != nil {
 		return false, err
 	}
 
+	success = true
 	m.logger.Info("Downloaded mod", zap.String("filename", info.Filename))
 	return true, nil
 }
 
-// updateMod performs high-level mod update flow for a single URL
 func (m *Mods) updateMod(ctx context.Context, modURL string, force bool) (bool, string, error) {
-	projectID, err := m.parseProjectID(modURL)
+	projectID, err := parseProjectID(modURL)
 	if err != nil {
 		return false, projectID, err
 	}
@@ -267,12 +254,10 @@ func (m *Mods) updateMod(ctx context.Context, modURL string, force bool) (bool, 
 }
 
 // parseProjectID extracts the Modrinth slug from a full URL or bare slug.
-func (m *Mods) parseProjectID(modURL string) (string, error) {
-	// Handle direct slug
+func parseProjectID(modURL string) (string, error) {
 	if !strings.Contains(modURL, "/") {
 		return modURL, nil
 	}
-	// Extract from URL path (e.g., https://modrinth.com/mod/fabric-api -> fabric-api)
 	if idx := strings.LastIndex(modURL, "/mod/"); idx != -1 {
 		slug := strings.TrimPrefix(modURL[idx+5:], "/")
 		if idx := strings.Index(slug, "/"); idx != -1 {
@@ -296,7 +281,6 @@ type modrinthVersion struct {
 	Files         []modrinthFile `json:"files"`
 }
 
-// fetchLatestVersion queries the Modrinth API for the newest compatible release
 func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domain.ModInfo, error) {
 	apiURL := fmt.Sprintf("https://api.modrinth.com/v2/project/%s/version?game_versions=[\"%s\"]&loaders=[\"%s\"]",
 		projectID, m.cfg.Minecraft.Version, m.cfg.Minecraft.Modloader)
@@ -323,7 +307,6 @@ func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domai
 	}, nil
 }
 
-
 func (m *Mods) checkAPI(ctx context.Context) domain.HealthCheck {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -332,7 +315,7 @@ func (m *Mods) checkAPI(ctx context.Context) domain.HealthCheck {
 	if err != nil {
 		return domain.HealthCheck{Name: "Modrinth API", Status: domain.StatusError, Message: "Failed to build request"}
 	}
-	resp, err := m.client.Do(req) //nolint:gosec // fixed known-good URL
+	resp, err := m.client.Do(req)
 	if err != nil {
 		return domain.HealthCheck{Name: "Modrinth API", Status: domain.StatusError, Message: "Connection failed"}
 	}

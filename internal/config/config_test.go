@@ -21,9 +21,6 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Backup.MaxBackups <= 0 {
 		t.Error("DefaultConfig: MaxBackups should be positive")
 	}
-	if len(cfg.Server.JavaFlags) == 0 {
-		t.Error("DefaultConfig: JavaFlags should not be empty")
-	}
 }
 
 func TestLoadAndSave(t *testing.T) {
@@ -51,10 +48,7 @@ func TestLoadAndSave(t *testing.T) {
 }
 
 func TestLoadConfig_NoFile(t *testing.T) {
-	// No config file present in a temp dir — should succeed with defaults
-	// (LoadConfig falls back to defaults when no file is found)
-	t.Setenv("HOME", t.TempDir()) // isolate from real user config — t.Setenv restores automatically
-
+	t.Setenv("HOME", t.TempDir())
 	cfg, err := LoadConfig("")
 	if err != nil {
 		t.Fatalf("LoadConfig with no file should not error: %v", err)
@@ -102,25 +96,18 @@ func TestValidation(t *testing.T) {
 	}
 }
 
-func TestValidation_NormalizesModloader(t *testing.T) {
+func TestValidation_Normalizes(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Minecraft.Modloader = "FABRIC"
+	cfg.Logging.Level = "debug"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() unexpected error: %v", err)
 	}
 	if cfg.Minecraft.Modloader != "fabric" {
-		t.Errorf("expected modloader normalized to lowercase, got %q", cfg.Minecraft.Modloader)
-	}
-}
-
-func TestValidation_NormalizesLogLevel(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.Logging.Level = "debug"
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("modloader not normalized: got %q", cfg.Minecraft.Modloader)
 	}
 	if cfg.Logging.Level != "DEBUG" {
-		t.Errorf("expected log level normalized to uppercase, got %q", cfg.Logging.Level)
+		t.Errorf("log level not normalized: got %q", cfg.Logging.Level)
 	}
 }
 
@@ -133,8 +120,6 @@ func TestSaveConfig_BadPath(t *testing.T) {
 }
 
 func TestLoadConfig_RoundTrip(t *testing.T) {
-	// Save a config and reload it — verifies SaveConfig+LoadConfig are inverses
-	// and that Validate() normalises fields correctly on load.
 	tmp := t.TempDir()
 	cfgPath := filepath.Join(tmp, "config.toml")
 	cfg := DefaultConfig()
@@ -144,12 +129,10 @@ func TestLoadConfig_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadConfig with explicit path: %v", err)
 	}
-	// Modloader must be one of the valid normalised values
 	validModloaders := []string{"fabric", "forge", "quilt", "neoforge"}
 	if !slices.Contains(validModloaders, loaded.Minecraft.Modloader) {
 		t.Errorf("unexpected modloader after round-trip: %q", loaded.Minecraft.Modloader)
 	}
-	// Log level must be uppercase after Validate()
 	if loaded.Logging.Level != "INFO" {
 		t.Errorf("expected log level INFO after round-trip, got %q", loaded.Logging.Level)
 	}

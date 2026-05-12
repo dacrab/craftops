@@ -1,9 +1,9 @@
-// Package cli provides the command-line interface for craftops.
 package cli
 
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,7 +15,6 @@ import (
 	"craftops/internal/ui"
 )
 
-// Flag variables for commands.
 var (
 	forceUpdate bool
 	noBackup    bool
@@ -46,7 +45,7 @@ var serverStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the Minecraft server",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := app(cmd)
+		a := appFrom(cmd)
 		a.Terminal.Info("Starting server...")
 		if err := a.Server.Start(cmd.Context()); err != nil {
 			a.Terminal.Errorf("Failed to start server: %v", err)
@@ -61,7 +60,7 @@ var serverStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the Minecraft server",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := app(cmd)
+		a := appFrom(cmd)
 		a.Terminal.Info("Stopping server...")
 		if err := a.Server.Stop(cmd.Context()); err != nil {
 			a.Terminal.Errorf("Failed to stop server: %v", err)
@@ -76,7 +75,7 @@ var serverRestartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restart the Minecraft server",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		ctx, a := cmd.Context(), app(cmd)
+		ctx, a := cmd.Context(), appFrom(cmd)
 		if len(a.Config.Notifications.WarningIntervals) > 0 {
 			a.Terminal.Info("Sending restart warnings...")
 			if err := a.Notification.SendRestartWarnings(ctx); err != nil {
@@ -99,7 +98,7 @@ var serverStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show server status",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := app(cmd)
+		a := appFrom(cmd)
 		status, err := a.Server.Status(cmd.Context())
 		if err != nil {
 			a.Terminal.Errorf("Failed to get status: %v", err)
@@ -107,11 +106,10 @@ var serverStatusCmd = &cobra.Command{
 		}
 		if status.IsRunning {
 			a.Terminal.Success("Server is running")
-			a.Terminal.Printf("  Session : %s\n", status.SessionName)
 		} else {
 			a.Terminal.Warning("Server is not running")
-			a.Terminal.Printf("  Session : %s\n", status.SessionName)
 		}
+		a.Terminal.Printf("  Session : %s\n", status.SessionName)
 		a.Terminal.Printf("  Checked : %s\n", status.CheckedAt.Format("2006-01-02 15:04:05"))
 		return nil
 	},
@@ -128,7 +126,7 @@ var modsUpdateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update all configured mods",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		ctx, a := cmd.Context(), app(cmd)
+		ctx, a := cmd.Context(), appFrom(cmd)
 		a.Terminal.Banner("Mod Update Manager")
 		if !noBackup && a.Config.Backup.Enabled {
 			a.Terminal.Info("Creating pre-update backup...")
@@ -152,7 +150,7 @@ var modsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List installed mods",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := app(cmd)
+		a := appFrom(cmd)
 		mods, err := a.Mods.ListInstalled()
 		if err != nil {
 			a.Terminal.Errorf("Failed to list mods: %v", err)
@@ -173,7 +171,7 @@ var modsListCmd = &cobra.Command{
 	},
 }
 
-func displayModResults(a *appContainer, result *domain.ModUpdateResult) {
+func displayModResults(a *app, result *domain.ModUpdateResult) {
 	a.Terminal.Section("Update Results")
 	if len(result.UpdatedMods) == 0 && len(result.FailedMods) == 0 && len(result.SkippedMods) == 0 {
 		a.Terminal.Info("No mods configured for updates")
@@ -194,14 +192,7 @@ func displayModResults(a *appContainer, result *domain.ModUpdateResult) {
 	printList(fmt.Sprintf("Updated (%d):", len(result.UpdatedMods)), result.UpdatedMods, a.Terminal.SuccessSprint)
 	if len(result.FailedMods) > 0 {
 		a.Terminal.Errorf("Failed (%d):", len(result.FailedMods))
-		keys := slices.Sorted(func(yield func(string) bool) {
-			for k := range result.FailedMods {
-				if !yield(k) {
-					return
-				}
-			}
-		})
-		for _, m := range keys {
+		for _, m := range slices.Sorted(maps.Keys(result.FailedMods)) {
 			a.Terminal.Printf("   %s: %s\n", a.Terminal.ErrorSprint(m), a.Terminal.DimSprint(result.FailedMods[m]))
 		}
 		a.Terminal.Println()
@@ -220,7 +211,7 @@ var backupCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a backup",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := app(cmd)
+		a := appFrom(cmd)
 		a.Terminal.Info("Creating backup...")
 		path, err := a.Backup.Create(cmd.Context())
 		if err != nil {
@@ -241,7 +232,7 @@ var backupListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available backups",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := app(cmd)
+		a := appFrom(cmd)
 		backups, err := a.Backup.List()
 		if err != nil {
 			a.Terminal.Errorf("Failed to list backups: %v", err)
@@ -255,7 +246,7 @@ var backupListCmd = &cobra.Command{
 		headers := []string{"Name", "Date", "Size"}
 		rows := make([][]string, len(backups))
 		for i, b := range backups {
-			rows[i] = []string{b.Name, b.CreatedAt.Format("2006-01-02 15:04:05"), b.SizeFormatted()}
+			rows[i] = []string{b.Name, b.CreatedAt.Format("2006-01-02 15:04:05"), domain.FormatSize(b.Size)}
 		}
 		a.Terminal.Table(headers, rows)
 		return nil
@@ -267,7 +258,7 @@ var backupDeleteCmd = &cobra.Command{
 	Short: "Delete a backup by name",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := app(cmd)
+		a := appFrom(cmd)
 		name := args[0]
 		backups, err := a.Backup.List()
 		if err != nil {
@@ -292,7 +283,7 @@ var healthCmd = &cobra.Command{
 	Use:   "health",
 	Short: "Run system health checks",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		ctx, a := cmd.Context(), app(cmd)
+		ctx, a := cmd.Context(), appFrom(cmd)
 		a.Terminal.Banner("System Health Check")
 
 		var checks []domain.HealthCheck
@@ -315,7 +306,7 @@ var healthCmd = &cobra.Command{
 	},
 }
 
-func healthSummary(a *appContainer, checks []domain.HealthCheck) error {
+func healthSummary(a *app, checks []domain.HealthCheck) error {
 	var passed, warned, failed int
 	for _, c := range checks {
 		switch c.Status {
@@ -345,7 +336,7 @@ func healthSummary(a *appContainer, checks []domain.HealthCheck) error {
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a new configuration file",
-	// Skip the normal app initialization — config may not exist yet.
+	// Skip normal app initialization — config may not exist yet.
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error { return nil },
 	RunE: func(_ *cobra.Command, _ []string) error {
 		t := ui.NewTerminal()

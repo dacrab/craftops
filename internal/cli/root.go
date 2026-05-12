@@ -14,36 +14,25 @@ var (
 	debug   bool
 	dryRun  bool
 
-	// Version is set by ldflags during build
+	// Version is set by ldflags during build.
 	Version = "dev"
 )
 
-// appKey is the context key for the appContainer
 type appKey struct{}
 
-// rootCmd defines the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "craftops",
-	Short: "Modern Minecraft server operations and mod management",
-	Long: `CraftOps is a CLI tool for Minecraft server operations and mod management.
-
-Features:
-  - Server lifecycle management (start, stop, restart)
-  - Automated mod updates from Modrinth
-  - Backups with retention policies
-  - Discord notifications
-  - Health checks`,
+	Use:           "craftops",
+	Short:         "Modern Minecraft server operations and mod management",
+	SilenceErrors: true,
+	SilenceUsage:  true,
 	PersistentPreRunE: initApp,
 	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
-		if a, ok := cmd.Context().Value(appKey{}).(*appContainer); ok {
+		if a, ok := cmd.Context().Value(appKey{}).(*app); ok {
 			a.Close()
 		}
 	},
 }
 
-// Execute runs the root command with the provided context.
-// The context should carry OS signal cancellation so long-running operations
-// respect SIGINT/SIGTERM.
 func Execute(ctx context.Context) error {
 	return rootCmd.ExecuteContext(ctx)
 }
@@ -57,7 +46,6 @@ func init() {
 	rootCmd.Run = func(cmd *cobra.Command, _ []string) { _ = cmd.Help() }
 }
 
-// initApp handles configuration loading and dependency injection for all commands
 func initApp(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.LoadConfig(cfgFile)
 	if err != nil {
@@ -73,18 +61,16 @@ func initApp(cmd *cobra.Command, _ []string) error {
 	}
 
 	application := newApp(cfg)
-	// Inject the application container into the command context to avoid global state "lock-in"
 	ctx := context.WithValue(cmd.Context(), appKey{}, application)
 	cmd.SetContext(ctx)
 	return nil
 }
 
-// app extracts the appContainer from the command context.
-// Panics if called before initApp has run — this is a programming error, not a user error.
-func app(cmd *cobra.Command) *appContainer {
-	a, ok := cmd.Context().Value(appKey{}).(*appContainer)
+// Panics if called before initApp — programming error, not user error.
+func appFrom(cmd *cobra.Command) *app {
+	a, ok := cmd.Context().Value(appKey{}).(*app)
 	if !ok || a == nil {
-		panic("app: appContainer not found in context — was initApp skipped?")
+		panic("appFrom: app not found in context — was initApp skipped?")
 	}
 	return a
 }

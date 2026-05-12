@@ -1,4 +1,3 @@
-// Package config provides configuration management for craftops
 package config
 
 import (
@@ -11,7 +10,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Config is the main configuration object
 type Config struct {
 	Debug  bool `toml:"debug"`
 	DryRun bool `toml:"dry_run"`
@@ -25,13 +23,11 @@ type Config struct {
 	Logging       LoggingConfig      `toml:"logging"`
 }
 
-// MinecraftConfig contains settings for the Minecraft version and loader
 type MinecraftConfig struct {
 	Version   string `toml:"version"`
 	Modloader string `toml:"modloader"`
 }
 
-// PathsConfig defines core directory locations
 type PathsConfig struct {
 	Server  string `toml:"server"`
 	Mods    string `toml:"mods"`
@@ -39,7 +35,6 @@ type PathsConfig struct {
 	Logs    string `toml:"logs"`
 }
 
-// ServerConfig contains JVM and lifecycle settings
 type ServerConfig struct {
 	JarName        string   `toml:"jar_name"`
 	JavaFlags      []string `toml:"java_flags"`
@@ -49,7 +44,6 @@ type ServerConfig struct {
 	SessionName    string   `toml:"session_name"`
 }
 
-// ModsConfig contains mod update settings
 type ModsConfig struct {
 	ConcurrentDownloads int      `toml:"concurrent_downloads"`
 	MaxRetries          int      `toml:"max_retries"`
@@ -58,7 +52,6 @@ type ModsConfig struct {
 	ModrinthSources     []string `toml:"modrinth_sources"`
 }
 
-// BackupConfig contains backup and retention settings
 type BackupConfig struct {
 	Enabled          bool     `toml:"enabled"`
 	MaxBackups       int      `toml:"max_backups"`
@@ -67,7 +60,6 @@ type BackupConfig struct {
 	ExcludePatterns  []string `toml:"exclude_patterns"`
 }
 
-// NotificationConfig contains webhook and alert settings
 type NotificationConfig struct {
 	DiscordWebhook       string `toml:"discord_webhook"`
 	Timeout              int    `toml:"timeout"`
@@ -77,7 +69,6 @@ type NotificationConfig struct {
 	ErrorNotifications   bool   `toml:"error_notifications"`
 }
 
-// LoggingConfig defines log output levels and formats
 type LoggingConfig struct {
 	Level          string `toml:"level"`
 	Format         string `toml:"format"`
@@ -85,9 +76,6 @@ type LoggingConfig struct {
 	ConsoleEnabled bool   `toml:"console_enabled"`
 }
 
-// DefaultConfig returns a configuration with production-ready defaults.
-// If the user's home directory cannot be determined, paths default to
-// relative directories under "minecraft/".
 func DefaultConfig() *Config {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -96,8 +84,6 @@ func DefaultConfig() *Config {
 	serverPath := filepath.Join(homeDir, "minecraft", "server")
 
 	return &Config{
-		Debug:  false,
-		DryRun: false,
 		Minecraft: MinecraftConfig{
 			Version:   "1.20.1",
 			Modloader: "fabric",
@@ -131,14 +117,12 @@ func DefaultConfig() *Config {
 			Enabled:          true,
 			MaxBackups:       5,
 			CompressionLevel: 6,
-			IncludeLogs:      false,
 			ExcludePatterns: []string{
 				"*.log", "*.log.*", "cache/", "temp/",
 				".DS_Store", "Thumbs.db",
 			},
 		},
 		Notifications: NotificationConfig{
-			DiscordWebhook:       "",
 			Timeout:              30,
 			WarningIntervals:     []int{15, 10, 5, 1},
 			WarningMessage:       "Server will restart in {minutes} minute(s) for mod updates",
@@ -154,7 +138,6 @@ func DefaultConfig() *Config {
 	}
 }
 
-// LoadConfig loads configuration from a file or fallback paths
 func LoadConfig(configPath string) (*Config, error) {
 	config := DefaultConfig()
 
@@ -174,20 +157,15 @@ func LoadConfig(configPath string) (*Config, error) {
 	return config, nil
 }
 
-// SaveConfig writes the configuration to a TOML file
 func (c *Config) SaveConfig(configPath string) error {
-	file, err := os.Create(configPath) //nolint:gosec // config path is user-controlled
+	file, err := os.Create(configPath) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)
 	}
-	defer func() {
-		_ = file.Close() // Close errors are non-critical after successful encoding
-	}()
-
+	defer func() { _ = file.Close() }()
 	return toml.NewEncoder(file).Encode(c)
 }
 
-// Validate ensures settings are within supported bounds
 func (c *Config) Validate() error {
 	valid := []string{"fabric", "forge", "quilt", "neoforge"}
 	modloader := strings.ToLower(c.Minecraft.Modloader)
@@ -214,7 +192,6 @@ func (c *Config) Validate() error {
 
 func findDefaultConfig() string {
 	candidates := []string{"config.toml"}
-
 	if cfgDir, err := os.UserConfigDir(); err == nil {
 		candidates = append(candidates, filepath.Join(cfgDir, "craftops", "config.toml"))
 	}
@@ -227,4 +204,3 @@ func findDefaultConfig() string {
 	}
 	return ""
 }
-
