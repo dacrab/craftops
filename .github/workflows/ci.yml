@@ -56,3 +56,12 @@ jobs:
       - run: |
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
           go build -trimpath -buildvcs=auto -ldflags="-s -w" -o /dev/null ./cmd/craftops
+
+  auto-merge:
+    needs: [test, build-check]
+    permissions:
+      pull-requests: write
+      contents: write
+    uses: dacrab/.github-workflows/.github/workflows/dependabot-auto-merge.yml@v1
+    with:
+      target: minor
