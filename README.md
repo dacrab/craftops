@@ -1,6 +1,6 @@
 # CraftOps
 
-Modern CLI for Minecraft server operations and Modrinth mod management — built with Go 1.25.7.
+Modern CLI for Minecraft server operations and Modrinth mod management — built with Go.
 
 ## Features
 
@@ -34,7 +34,7 @@ VERSION=v2.3.0 bash <(curl -fsSL https://raw.githubusercontent.com/dacrab/crafto
 
 ### From source
 
-Requires Go 1.25.7+:
+Requires Go 1.25+:
 
 ```bash
 make install
