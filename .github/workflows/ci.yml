@@ -36,7 +36,7 @@ jobs:
           path: coverage.out
           retention-days: 7
 
-      - uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
+      - uses: golangci/golangci-lint-action@db582008a42febd596419635a5abc9d9815daa9c # v9.2.1
         with:
           version: v2.10.1
           args: -c .github/.golangci.yml
@@ -60,4 +60,5 @@ jobs:
       - run: |
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
           go build -trimpath -buildvcs=auto -ldflags="-s -w" -o /dev/null ./cmd/craftops
+
 
