@@ -12,8 +12,5 @@
       "groupName": "non-major updates",
       "automerge": true
     }
-  ],
-  "gomod": {
-    "updateToolchain": true
-  }
+  ]
 }
