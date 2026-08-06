@@ -5,6 +5,7 @@
   ],
   "labels": ["dependencies"],
   "rebaseWhen": "auto",
+  "platformAutomerge": true,
   "schedule": ["before 4am on Monday"],
   "packageRules": [
     {
