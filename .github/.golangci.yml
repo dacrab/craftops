@@ -3,7 +3,6 @@ version: "2"
 run:
   timeout: 5m
   modules-download-mode: readonly
-  go: '1.25.10'
 
 linters:
   enable-all: false
@@ -22,23 +21,29 @@ linters:
     - perfsprint
     - intrange
     - copyloopvar
-
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - shadow
-  gosec:
-    excludes:
-      - G104
-      - G115
-      - G703
-      - G704
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - performance
-      - style
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - shadow
+    gosec:
+      excludes:
+        - G104
+        - G115
+        - G703
+        - G704
+        # G204/G304: paths and subprocess args come from the user's own TOML
+        # config, and exec uses []string args (no shell), so there is no
+        # untrusted input to protect against.
+        - G204
+        - G304
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+    goconst:
+      ignore-tests: true
 
 issues:
   exclude-use-default: false

@@ -27,15 +27,13 @@ type HealthCheck struct {
 
 // ServerStatus describes whether the Minecraft server process is active.
 type ServerStatus struct {
-	IsRunning   bool      `json:"is_running"`
-	SessionName string    `json:"session_name,omitempty"`
 	CheckedAt   time.Time `json:"checked_at"`
+	SessionName string    `json:"session_name,omitempty"`
+	IsRunning   bool      `json:"is_running"`
 }
 
 // ModInfo holds metadata for a mod version from Modrinth.
 type ModInfo struct {
-	VersionID   string `json:"version_id"`
-	Version     string `json:"version_number"`
 	DownloadURL string `json:"download_url"`
 	Filename    string `json:"filename"`
 	ProjectName string `json:"project_name"`
@@ -50,17 +48,17 @@ type ModUpdateResult struct {
 
 // InstalledMod represents a .jar file in the mods directory.
 type InstalledMod struct {
+	Modified time.Time `json:"modified"`
 	Name     string    `json:"name"`
 	Filename string    `json:"filename"`
 	Size     int64     `json:"size"`
-	Modified time.Time `json:"modified"`
 }
 
 // BackupInfo holds metadata for a backup archive.
 type BackupInfo struct {
+	CreatedAt time.Time `json:"created_at"`
 	Name      string    `json:"name"`
 	Path      string    `json:"path"`
-	CreatedAt time.Time `json:"created_at"`
 	Size      int64     `json:"size_bytes"`
 }
 
@@ -102,8 +100,8 @@ var (
 // APIError captures details from a failed HTTP API call.
 type APIError struct {
 	URL        string
-	StatusCode int
 	Message    string
+	StatusCode int
 }
 
 // Error implements the error interface.

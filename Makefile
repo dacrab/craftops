@@ -22,8 +22,8 @@ lint:
 	@command -v golangci-lint >/dev/null && golangci-lint run -c .github/.golangci.yml || go vet ./...
 
 fmt:
-	go fmt ./...
-	@command -v goimports >/dev/null && goimports -w . || true
+	gofmt -w .
+	@command -v goimports >/dev/null && goimports -w $(shell find . -name '*.go' -not -path './vendor/*') || true
 
 tidy:
 	go mod tidy

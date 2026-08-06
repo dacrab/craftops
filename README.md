@@ -48,13 +48,13 @@ docker pull ghcr.io/dacrab/craftops:latest
 
 ```bash
 # 1. Generate a default config
-craftops init-config
+craftops init
 
 # 2. Edit the config
 $EDITOR ~/.config/craftops/config.toml
 
 # 3. Verify everything looks good
-craftops health-check
+craftops health
 
 # 4. Start your server
 craftops server start

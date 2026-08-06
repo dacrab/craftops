@@ -48,7 +48,7 @@ func newLogger(cfg *config.Config) *zap.Logger {
 	if cfg.Logging.FileEnabled && cfg.Paths.Logs != "" {
 		if err := os.MkdirAll(cfg.Paths.Logs, 0o750); err == nil {
 			logPath := filepath.Join(cfg.Paths.Logs, "craftops.log")
-			if f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil { //nolint:gosec
+			if f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
 				var enc zapcore.Encoder
 				if cfg.Logging.Format == "text" {
 					enc = zapcore.NewConsoleEncoder(encoderCfg)

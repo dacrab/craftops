@@ -8,21 +8,20 @@ import (
 	"craftops/internal/domain"
 )
 
-func newTestTerminal() (*Terminal, *bytes.Buffer, *bytes.Buffer) {
+func newTestTerminal() (*Terminal, *bytes.Buffer) {
 	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
-	return NewTerminalWithWriter(out, errOut, false), out, errOut
+	return NewTerminalWithWriter(out, false), out
 }
 
 func TestTerminal_IsTTY(t *testing.T) {
-	term, _, _ := newTestTerminal()
+	term, _ := newTestTerminal()
 	if term.IsTTY() {
 		t.Error("expected IsTTY=false for test terminal")
 	}
 }
 
 func TestTerminal_Banner(t *testing.T) {
-	term, out, _ := newTestTerminal()
+	term, out := newTestTerminal()
 	term.Banner("Hello World")
 	if !strings.Contains(out.String(), "Hello World") {
 		t.Errorf("Banner output missing title: %q", out.String())
@@ -30,7 +29,7 @@ func TestTerminal_Banner(t *testing.T) {
 }
 
 func TestTerminal_Section(t *testing.T) {
-	term, out, _ := newTestTerminal()
+	term, out := newTestTerminal()
 	term.Section("My Section")
 	if !strings.Contains(out.String(), "My Section") {
 		t.Errorf("Section output missing title: %q", out.String())
@@ -50,7 +49,7 @@ func TestTerminal_Messages(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			term, out, _ := newTestTerminal()
+			term, out := newTestTerminal()
 			tt.call(term, "test msg")
 			got := out.String()
 			if !strings.Contains(got, "test msg") || !strings.Contains(got, tt.label) {
@@ -61,7 +60,7 @@ func TestTerminal_Messages(t *testing.T) {
 }
 
 func TestTerminal_Step(t *testing.T) {
-	term, out, _ := newTestTerminal()
+	term, out := newTestTerminal()
 	term.Step(2, 5, "doing something")
 	got := out.String()
 	if !strings.Contains(got, "[2/5]") || !strings.Contains(got, "doing something") {
@@ -70,7 +69,7 @@ func TestTerminal_Step(t *testing.T) {
 }
 
 func TestTerminal_Printf(t *testing.T) {
-	term, out, _ := newTestTerminal()
+	term, out := newTestTerminal()
 	term.Printf("value=%d", 42)
 	if !strings.Contains(out.String(), "value=42") {
 		t.Errorf("Printf output wrong: %q", out.String())
@@ -78,7 +77,7 @@ func TestTerminal_Printf(t *testing.T) {
 }
 
 func TestTerminal_SprintColors_NoTTY(t *testing.T) {
-	term, _, _ := newTestTerminal()
+	term, _ := newTestTerminal()
 	if got := term.SuccessSprint("ok"); got != "ok" {
 		t.Errorf("SuccessSprint non-TTY: got %q, want %q", got, "ok")
 	}
@@ -94,7 +93,7 @@ func TestTerminal_SprintColors_NoTTY(t *testing.T) {
 }
 
 func TestTerminal_Table(t *testing.T) {
-	term, out, _ := newTestTerminal()
+	term, out := newTestTerminal()
 	term.Table([]string{"Name", "Value"}, [][]string{{"foo", "bar"}, {"baz", "qux"}})
 	got := out.String()
 	if !strings.Contains(got, "foo") || !strings.Contains(got, "bar") {
@@ -103,7 +102,7 @@ func TestTerminal_Table(t *testing.T) {
 }
 
 func TestTerminal_HealthCheckTable(t *testing.T) {
-	term, out, _ := newTestTerminal()
+	term, out := newTestTerminal()
 	checks := []domain.HealthCheck{
 		{Name: "Database", Status: domain.StatusOK, Message: "connected"},
 		{Name: "Cache", Status: domain.StatusWarn, Message: "slow"},

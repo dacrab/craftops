@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -66,10 +67,10 @@ func (s *Server) Start(ctx context.Context) error {
 		return domain.ErrServerJarNotFound
 	}
 
-	javaArgs := append(append([]string{}, s.cfg.Server.JavaFlags...), "-jar", s.cfg.Server.JarName, "nogui")
+	javaArgs := slices.Concat(s.cfg.Server.JavaFlags, []string{"-jar", s.cfg.Server.JarName, "nogui"})
 	cmdArgs := append([]string{"-dmS", s.sessionName(), "java"}, javaArgs...)
 
-	cmd := exec.CommandContext(ctx, "screen", cmdArgs...) //nolint:gosec
+	cmd := exec.CommandContext(ctx, "screen", cmdArgs...)
 	cmd.Dir = s.cfg.Paths.Server
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("server.start: %w", err)
@@ -95,7 +96,7 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 
 	stopCmd := s.cfg.Server.StopCommand + "\n"
-	cmd := exec.CommandContext(ctx, "screen", "-S", s.sessionName(), "-X", "stuff", stopCmd) //nolint:gosec
+	cmd := exec.CommandContext(ctx, "screen", "-S", s.sessionName(), "-X", "stuff", stopCmd)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("server.stop: %w", err)
 	}

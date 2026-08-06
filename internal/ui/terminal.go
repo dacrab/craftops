@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/olekukonko/tablewriter"
-	"github.com/olekukonko/tablewriter/tw"
 	"golang.org/x/term"
 
 	"craftops/internal/domain"
@@ -17,9 +15,8 @@ import (
 
 // Terminal provides structured output with optional color and formatting.
 type Terminal struct {
-	out    io.Writer
-	errOut io.Writer
-	isTTY  bool
+	out   io.Writer
+	isTTY bool
 }
 
 var (
@@ -32,16 +29,16 @@ var (
 	dimColor     = color.New(color.FgHiBlack)
 )
 
-// NewTerminal creates a terminal linked to stdout/stderr.
+// NewTerminal creates a terminal linked to stdout.
 func NewTerminal() *Terminal {
-	isTTY := term.IsTerminal(int(os.Stdout.Fd())) //nolint:gosec
+	isTTY := term.IsTerminal(int(os.Stdout.Fd()))
 	color.NoColor = !isTTY
-	return &Terminal{out: os.Stdout, errOut: os.Stderr, isTTY: isTTY}
+	return &Terminal{out: os.Stdout, isTTY: isTTY}
 }
 
-// NewTerminalWithWriter creates a terminal with custom writers (for testing).
-func NewTerminalWithWriter(out, errOut io.Writer, isTTY bool) *Terminal {
-	return &Terminal{out: out, errOut: errOut, isTTY: isTTY}
+// NewTerminalWithWriter creates a terminal with a custom writer (for testing).
+func NewTerminalWithWriter(out io.Writer, isTTY bool) *Terminal {
+	return &Terminal{out: out, isTTY: isTTY}
 }
 
 // IsTTY reports whether output is a terminal.
@@ -99,11 +96,6 @@ func (t *Terminal) Warningf(format string, args ...interface{}) {
 // Info prints an info message.
 func (t *Terminal) Info(message string) { t.printMsg(infoColor, "INFO", message) }
 
-// Infof prints a formatted info message.
-func (t *Terminal) Infof(format string, args ...interface{}) {
-	t.Info(fmt.Sprintf(format, args...))
-}
-
 func (t *Terminal) printMsg(c *color.Color, label, msg string) {
 	if t.isTTY {
 		_, _ = c.Fprintln(t.out, msg)
@@ -114,12 +106,7 @@ func (t *Terminal) printMsg(c *color.Color, label, msg string) {
 
 // Step prints a progress indicator like [1/5].
 func (t *Terminal) Step(current, total int, message string) {
-	if t.isTTY {
-		_, _ = accentColor.Fprintf(t.out, "[%d/%d] ", current, total)
-	} else {
-		_, _ = fmt.Fprintf(t.out, "[%d/%d] ", current, total)
-	}
-	_, _ = fmt.Fprintln(t.out, message)
+	_, _ = fmt.Fprintf(t.out, "[%d/%d] %s\n", current, total, message)
 }
 
 // Printf writes formatted output.
@@ -151,43 +138,71 @@ func (t *Terminal) sprintWithColor(text string, c *color.Color) string {
 	return text
 }
 
-// Table renders a formatted table.
+// Table renders a simple aligned table.
 func (t *Terminal) Table(headers []string, rows [][]string) {
-	var opts []tablewriter.Option
-	if t.isTTY {
-		opts = []tablewriter.Option{
-			tablewriter.WithRendition(tw.Rendition{
-				Borders: tw.Border{Left: tw.On, Top: tw.On, Right: tw.On, Bottom: tw.On},
-			}),
-			tablewriter.WithHeaderAlignment(tw.AlignCenter),
-			tablewriter.WithHeaderAutoFormat(tw.On),
-		}
-	} else {
-		opts = []tablewriter.Option{
-			tablewriter.WithRendition(tw.Rendition{
-				Borders: tw.Border{Left: tw.Off, Top: tw.Off, Right: tw.Off, Bottom: tw.Off},
-			}),
+	if len(headers) == 0 {
+		return
+	}
+	widths := make([]int, len(headers))
+	for i, h := range headers {
+		widths[i] = visibleLen(h)
+	}
+	for _, row := range rows {
+		for i, cell := range row {
+			if i < len(widths) && visibleLen(cell) > widths[i] {
+				widths[i] = visibleLen(cell)
+			}
 		}
 	}
 
-	table := tablewriter.NewTable(t.out, opts...)
-	table.Header(stringsToAny(headers)...)
-	for _, row := range rows {
-		if err := table.Append(stringsToAny(row)...); err != nil {
-			_, _ = fmt.Fprintf(t.errOut, "Table append error: %v\n", err)
+	formatRow := func(cells []string) string {
+		var b strings.Builder
+		for i, cell := range cells {
+			if i > 0 {
+				b.WriteString("  ")
+			}
+			if i < len(widths) {
+				b.WriteString(pad(cell, widths[i]))
+			} else {
+				b.WriteString(cell)
+			}
 		}
+		return strings.TrimRight(b.String(), " ")
 	}
-	if err := table.Render(); err != nil {
-		_, _ = fmt.Fprintf(t.errOut, "Table render error: %v\n", err)
+
+	_, _ = fmt.Fprintln(t.out, formatRow(headers))
+	if t.isTTY {
+		_, _ = fmt.Fprintln(t.out, strings.Repeat("─", len(formatRow(headers))))
+	}
+	for _, row := range rows {
+		_, _ = fmt.Fprintln(t.out, formatRow(row))
 	}
 }
 
-func stringsToAny(strs []string) []interface{} {
-	result := make([]interface{}, len(strs))
-	for i := range strs {
-		result[i] = strs[i]
+// visibleLen returns the string length ignoring ANSI escape sequences.
+func visibleLen(s string) int {
+	n := 0
+	for i := 0; i < len(s); {
+		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '[' {
+			i += 2
+			for i < len(s) && s[i] != 'm' {
+				i++
+			}
+			i++
+			continue
+		}
+		n++
+		i++
 	}
-	return result
+	return n
+}
+
+// pad pads s to width w using visible (non-ANSI) length.
+func pad(s string, w int) string {
+	if v := visibleLen(s); v < w {
+		return s + strings.Repeat(" ", w-v)
+	}
+	return s
 }
 
 // HealthCheckTable renders a diagnostic results table with colored status.

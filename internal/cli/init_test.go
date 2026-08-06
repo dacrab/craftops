@@ -61,7 +61,7 @@ func TestInitConfig_ForceOverwrite(t *testing.T) {
 	if err := Execute(context.Background()); err != nil {
 		t.Fatalf("Execute(init --force) error: %v", err)
 	}
-	data, err := os.ReadFile(out) //nolint:gosec
+	data, err := os.ReadFile(out)
 	if err != nil {
 		t.Fatalf("reading config: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestInitConfig_NoForce_ExistingFile(t *testing.T) {
 		t.Fatalf("Execute should not error when file exists without --force: %v", err)
 	}
 	// File should be unchanged
-	data, _ := os.ReadFile(out) //nolint:gosec
+	data, _ := os.ReadFile(out)
 	if string(data) != "original" {
 		t.Error("file should not be overwritten without --force")
 	}
