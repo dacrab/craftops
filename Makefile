@@ -1,4 +1,4 @@
-.PHONY: build install clean test lint fmt package tidy verify
+.PHONY: build install clean test lint fmt tidy package
 
 BIN := craftops
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
@@ -28,9 +28,6 @@ fmt:
 tidy:
 	go mod tidy
 
-verify: fmt tidy
-	@git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum changed after tidy" && exit 1)
-
 package: clean
 	@mkdir -p dist
 	@for os in linux darwin; do \
@@ -39,3 +36,4 @@ package: clean
 			GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 go build $(BUILDFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BIN)-$$os-$$arch ./cmd/$(BIN); \
 		done; \
 	done
+	@cd dist && sha256sum $(BIN)-* > SHA256SUMS

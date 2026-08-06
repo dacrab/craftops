@@ -22,17 +22,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Build
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
-          mkdir -p dist
-          for os in linux darwin; do
-            for arch in amd64 arm64; do
-              GOOS=$os GOARCH=$arch CGO_ENABLED=0 \
-              go build -trimpath -buildvcs=auto -ldflags="-s -w -X craftops/internal/cli.Version=${VERSION}" \
-              -o "dist/craftops-${os}-${arch}" ./cmd/craftops
-            done
-          done
-          cd dist && sha256sum * > SHA256SUMS
+        run: VERSION="${GITHUB_REF#refs/tags/v}" make package
 
       - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
