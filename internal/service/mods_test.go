@@ -60,21 +60,14 @@ func TestMods_UpdateAll_Downloads(t *testing.T) {
 		[]byte("FAKE_JAR_CONTENT"),
 	)
 
-	// Point the mods service at the mock server by using a slug and patching
-	// the API base. We do this by using the test server URL as the source —
-	// parseProjectID accepts bare slugs, and fetchLatestVersion builds the URL
-	// from the configured API base. We override via the config source list and
-	// patch the client's transport to redirect to the mock.
+	// Point the mods service at the mock server via NewModsWithBaseURL.
 	cfg.Mods.ModrinthSources = []string{"fabric-api"}
 	cfg.Mods.MaxRetries = 0
 	cfg.Mods.Timeout = 5
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL)
+	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
-	result, err := svc.UpdateAll(ctx, false)
-	if err != nil {
-		t.Fatalf("UpdateAll error: %v", err)
-	}
+	result := svc.UpdateAll(ctx, false)
 
 	if len(result.FailedMods) > 0 {
 		t.Errorf("unexpected failures: %v", result.FailedMods)
@@ -86,7 +79,7 @@ func TestMods_UpdateAll_Downloads(t *testing.T) {
 
 	// Verify the jar was written to disk
 	jar := filepath.Join(cfg.Paths.Mods, "mod-1.0.0.jar")
-	data, err := os.ReadFile(jar) //nolint:gosec
+	data, err := os.ReadFile(jar)
 	if err != nil {
 		t.Fatalf("jar not written to disk: %v", err)
 	}
@@ -111,12 +104,9 @@ func TestMods_UpdateAll_SkipsExisting(t *testing.T) {
 	// Pre-place the jar so it appears "already installed"
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "mod-1.0.0.jar"), []byte("OLD"), 0o600)
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL)
+	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
-	result, err := svc.UpdateAll(ctx, false)
-	if err != nil {
-		t.Fatalf("UpdateAll error: %v", err)
-	}
+	result := svc.UpdateAll(ctx, false)
 	if len(result.SkippedMods) != 1 {
 		t.Errorf("expected 1 skipped mod, got updated=%v skipped=%v failed=%v",
 			result.UpdatedMods, result.SkippedMods, result.FailedMods)
@@ -139,12 +129,9 @@ func TestMods_UpdateAll_ForceRedownload(t *testing.T) {
 	// Pre-place old jar
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "mod-1.0.0.jar"), []byte("OLD"), 0o600)
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL)
+	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
-	result, err := svc.UpdateAll(ctx, true) // force=true
-	if err != nil {
-		t.Fatalf("UpdateAll(force) error: %v", err)
-	}
+	result := svc.UpdateAll(ctx, true) // force=true
 	if len(result.UpdatedMods) != 1 {
 		t.Errorf("expected 1 updated mod with force, got skipped=%v updated=%v failed=%v",
 			result.SkippedMods, result.UpdatedMods, result.FailedMods)
@@ -168,12 +155,9 @@ func TestMods_UpdateAll_API404(t *testing.T) {
 	cfg.Mods.MaxRetries = 0
 	cfg.Mods.Timeout = 5
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL)
+	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
-	result, err := svc.UpdateAll(ctx, false)
-	if err != nil {
-		t.Fatalf("UpdateAll should not return top-level error: %v", err)
-	}
+	result := svc.UpdateAll(ctx, false)
 	if len(result.FailedMods) != 1 {
 		t.Errorf("expected 1 failed mod for 404, got %v", result.FailedMods)
 	}
@@ -192,12 +176,9 @@ func TestMods_UpdateAll_NoCompatibleVersions(t *testing.T) {
 	cfg.Mods.MaxRetries = 0
 	cfg.Mods.Timeout = 5
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL)
+	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
-	result, err := svc.UpdateAll(ctx, false)
-	if err != nil {
-		t.Fatalf("unexpected top-level error: %v", err)
-	}
+	result := svc.UpdateAll(ctx, false)
 	if len(result.FailedMods) != 1 {
 		t.Errorf("expected 1 failed mod for empty versions, got %v", result.FailedMods)
 	}
@@ -260,10 +241,7 @@ func TestMods_UpdateAll_NoSources(t *testing.T) {
 	cfg.Mods.ModrinthSources = []string{}
 	svc := service.NewMods(cfg, logger)
 
-	result, err := svc.UpdateAll(ctx, false)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	result := svc.UpdateAll(ctx, false)
 	if len(result.UpdatedMods) != 0 || len(result.FailedMods) != 0 || len(result.SkippedMods) != 0 {
 		t.Error("expected empty results with no sources")
 	}
@@ -294,7 +272,13 @@ func TestMods_ListInstalled_Metadata(t *testing.T) {
 
 func TestMods_HealthCheck(t *testing.T) {
 	cfg, logger, ctx := setup(t)
-	svc := service.NewMods(cfg, logger)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
 	checks := svc.HealthCheck(ctx)
 	if len(checks) < 2 {

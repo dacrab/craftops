@@ -17,9 +17,10 @@ import (
 )
 
 const (
-	colorGreen  = 0x00FF00
-	colorRed    = 0xFF0000
-	colorOrange = 0xFFA500
+	colorGreen        = 0x00FF00
+	colorRed          = 0xFF0000
+	colorOrange       = 0xFFA500
+	webhookHealthName = "Discord webhook"
 )
 
 // Notification dispatches alerts via Discord webhooks.
@@ -88,17 +89,16 @@ func (n *Notification) SendRestartWarnings(ctx context.Context) error {
 }
 
 // HealthCheck verifies webhook configuration.
-// HealthCheck verifies webhook configuration.
 func (n *Notification) HealthCheck(_ context.Context) []domain.HealthCheck {
 	webhook := n.cfg.Notifications.DiscordWebhook
 	var webhookCheck domain.HealthCheck
 	switch {
 	case webhook == "":
-		webhookCheck = domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusWarn, Message: "Not configured"}
+		webhookCheck = domain.HealthCheck{Name: webhookHealthName, Status: domain.StatusWarn, Message: "Not configured"}
 	case !strings.HasPrefix(webhook, "https://discord.com/api/webhooks/"):
-		webhookCheck = domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusError, Message: "Invalid URL format"}
+		webhookCheck = domain.HealthCheck{Name: webhookHealthName, Status: domain.StatusError, Message: "Invalid URL format"}
 	default:
-		webhookCheck = domain.HealthCheck{Name: "Discord webhook", Status: domain.StatusOK, Message: "Configured"}
+		webhookCheck = domain.HealthCheck{Name: webhookHealthName, Status: domain.StatusOK, Message: "Configured"}
 	}
 
 	var settingsCheck domain.HealthCheck
@@ -112,11 +112,11 @@ func (n *Notification) HealthCheck(_ context.Context) []domain.HealthCheck {
 }
 
 type discordEmbed struct {
+	Footer      map[string]string `json:"footer"`
 	Title       string            `json:"title"`
 	Description string            `json:"description"`
-	Color       int               `json:"color"`
 	Timestamp   string            `json:"timestamp"`
-	Footer      map[string]string `json:"footer"`
+	Color       int               `json:"color"`
 }
 
 type discordPayload struct {
@@ -159,7 +159,7 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := n.client.Do(req) //nolint:gosec // webhook URL from user config
+	resp, err := n.client.Do(req)
 	if err != nil {
 		return err
 	}

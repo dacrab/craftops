@@ -16,11 +16,13 @@ RUN apk add --no-cache screen openjdk17-jre-headless ca-certificates tzdata \
     && mkdir -p /minecraft/server /minecraft/mods /minecraft/backups /config /logs \
     && chown -R minecraft:minecraft /minecraft /config /logs
 
+COPY --from=builder /craftops /usr/local/bin/craftops
+
 USER minecraft
 WORKDIR /minecraft
 VOLUME ["/minecraft/server", "/minecraft/mods", "/minecraft/backups", "/config", "/logs"]
 
-HEALTHCHECK --interval=60s --timeout=10s CMD ["craftops", "health-check"]
+HEALTHCHECK --interval=60s --timeout=10s CMD ["craftops", "health"]
 ENTRYPOINT ["craftops"]
 CMD ["--help"]
 

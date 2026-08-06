@@ -48,7 +48,7 @@ func (b *Backup) Create(ctx context.Context) (string, error) {
 
 	if b.cfg.DryRun {
 		b.logger.Info("Dry run: Would create backup")
-		return "dry-run-backup.tar.gz", nil
+		return "", nil
 	}
 
 	if check := domain.CheckPath("Server", b.cfg.Paths.Server); check.Status != domain.StatusOK {
@@ -102,6 +102,25 @@ func (b *Backup) List() ([]domain.BackupInfo, error) {
 	return backups, nil
 }
 
+// Delete removes a backup archive by name.
+func (b *Backup) Delete(name string) error {
+	backups, err := b.List()
+	if err != nil {
+		return err
+	}
+	for _, bk := range backups {
+		if bk.Name != name {
+			continue
+		}
+		if err := os.Remove(bk.Path); err != nil {
+			return fmt.Errorf("failed to delete backup: %w", err)
+		}
+		b.logger.Info("Deleted backup", zap.String("name", name))
+		return nil
+	}
+	return fmt.Errorf("backup not found: %s", name)
+}
+
 // HealthCheck verifies backup directory and retention settings.
 func (b *Backup) HealthCheck(_ context.Context) []domain.HealthCheck {
 	if !b.cfg.Backup.Enabled {
@@ -126,7 +145,7 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 
 	b.logger.Info("Creating backup", zap.String("name", backupName))
 
-	file, err := os.Create(backupPath) //nolint:gosec
+	file, err := os.Create(backupPath)
 	if err != nil {
 		return "", err
 	}
@@ -177,17 +196,18 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 }
 
 func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
-	return filepath.WalkDir(b.cfg.Paths.Server, func(path string, d fs.DirEntry, err error) error {
+	root, err := os.OpenRoot(b.cfg.Paths.Server)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+
+	return fs.WalkDir(root.FS(), ".", func(relPath string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if ctx.Err() != nil {
 			return ctx.Err()
-		}
-
-		relPath, err := filepath.Rel(b.cfg.Paths.Server, path)
-		if err != nil {
-			return err
 		}
 
 		if d.Type()&fs.ModeSymlink != 0 {
@@ -219,12 +239,12 @@ func (b *Backup) addFiles(ctx context.Context, tw *tar.Writer) error {
 			return nil
 		}
 
-		f, err := os.Open(path) //nolint:gosec
+		f, err := root.Open(relPath)
 		if err != nil {
 			return err
 		}
-		defer func() { _ = f.Close() }()
 		_, err = io.Copy(tw, f)
+		_ = f.Close()
 		return err
 	})
 }
