@@ -32,7 +32,7 @@ VERSION=v2.3.0 bash <(curl -fsSL https://raw.githubusercontent.com/dacrab/crafto
 
 ### From source
 
-Requires Go 1.25+:
+Requires Go 1.26+:
 
 ```bash
 make install
