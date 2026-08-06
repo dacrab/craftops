@@ -13,16 +13,14 @@ import (
 
 // Config is the top-level application configuration.
 type Config struct {
-	Debug  bool `toml:"debug"`
-	DryRun bool `toml:"dry_run"`
-
-	Minecraft     MinecraftConfig    `toml:"minecraft"`
 	Paths         PathsConfig        `toml:"paths"`
-	Server        ServerConfig       `toml:"server"`
-	Mods          ModsConfig         `toml:"mods"`
-	Backup        BackupConfig       `toml:"backup"`
-	Notifications NotificationConfig `toml:"notifications"`
+	Minecraft     MinecraftConfig    `toml:"minecraft"`
 	Logging       LoggingConfig      `toml:"logging"`
+	Server        ServerConfig       `toml:"server"`
+	Notifications NotificationConfig `toml:"notifications"`
+	Backup        BackupConfig       `toml:"backup"`
+	Mods          ModsConfig         `toml:"mods"`
+	DryRun        bool               `toml:"dry_run"`
 }
 
 // MinecraftConfig specifies game version and mod loader.
@@ -42,37 +40,37 @@ type PathsConfig struct {
 // ServerConfig holds JVM flags and lifecycle settings.
 type ServerConfig struct {
 	JarName        string   `toml:"jar_name"`
-	JavaFlags      []string `toml:"java_flags"`
 	StopCommand    string   `toml:"stop_command"`
+	SessionName    string   `toml:"session_name"`
+	JavaFlags      []string `toml:"java_flags"`
 	MaxStopWait    int      `toml:"max_stop_wait"`
 	StartupTimeout int      `toml:"startup_timeout"`
-	SessionName    string   `toml:"session_name"`
 }
 
 // ModsConfig controls mod update behavior.
 type ModsConfig struct {
+	ModrinthSources     []string `toml:"modrinth_sources"`
 	ConcurrentDownloads int      `toml:"concurrent_downloads"`
 	MaxRetries          int      `toml:"max_retries"`
 	RetryDelay          float64  `toml:"retry_delay"`
 	Timeout             int      `toml:"timeout"`
-	ModrinthSources     []string `toml:"modrinth_sources"`
 }
 
 // BackupConfig controls backup creation and retention.
 type BackupConfig struct {
-	Enabled          bool     `toml:"enabled"`
+	ExcludePatterns  []string `toml:"exclude_patterns"`
 	MaxBackups       int      `toml:"max_backups"`
 	CompressionLevel int      `toml:"compression_level"`
+	Enabled          bool     `toml:"enabled"`
 	IncludeLogs      bool     `toml:"include_logs"`
-	ExcludePatterns  []string `toml:"exclude_patterns"`
 }
 
 // NotificationConfig controls Discord webhook alerts.
 type NotificationConfig struct {
 	DiscordWebhook       string `toml:"discord_webhook"`
-	Timeout              int    `toml:"timeout"`
-	WarningIntervals     []int  `toml:"warning_intervals"`
 	WarningMessage       string `toml:"warning_message"`
+	WarningIntervals     []int  `toml:"warning_intervals"`
+	Timeout              int    `toml:"timeout"`
 	SuccessNotifications bool   `toml:"success_notifications"`
 	ErrorNotifications   bool   `toml:"error_notifications"`
 }
@@ -170,7 +168,7 @@ func LoadConfig(configPath string) (*Config, error) {
 
 // SaveConfig writes the configuration as TOML.
 func (c *Config) SaveConfig(configPath string) error {
-	file, err := os.Create(configPath) //nolint:gosec
+	file, err := os.Create(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)
 	}

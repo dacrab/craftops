@@ -53,8 +53,8 @@ func TestBackup_Create_DryRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in dry-run: %v", err)
 	}
-	if path == "" {
-		t.Error("dry-run should return a non-empty path placeholder")
+	if path != "" {
+		t.Error("dry-run should return an empty path")
 	}
 }
 
@@ -119,6 +119,31 @@ func TestBackup_Retention(t *testing.T) {
 	}
 	if len(backups) > cfg.Backup.MaxBackups {
 		t.Errorf("retention: expected max %d backups, got %d", cfg.Backup.MaxBackups, len(backups))
+	}
+}
+
+func TestBackup_Delete(t *testing.T) {
+	cfg, logger, _ := setup(t)
+	svc := service.NewBackup(cfg, logger)
+
+	name := "minecraft_backup_20000101_000001.tar.gz"
+	p := filepath.Join(cfg.Paths.Backups, name)
+	_ = os.WriteFile(p, []byte("x"), 0o600)
+
+	if err := svc.Delete(name); err != nil {
+		t.Fatalf("Delete error: %v", err)
+	}
+	if _, err := os.Stat(p); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("backup still exists after Delete: %v", err)
+	}
+}
+
+func TestBackup_Delete_NotFound(t *testing.T) {
+	cfg, logger, _ := setup(t)
+	svc := service.NewBackup(cfg, logger)
+
+	if err := svc.Delete("nonexistent.tar.gz"); err == nil {
+		t.Error("expected error deleting nonexistent backup")
 	}
 }
 
@@ -202,11 +227,11 @@ func TestBackup_ExcludePatterns(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	f, err := os.Open(path) //nolint:gosec
+	f, err := os.Open(path)
 	if err != nil {
 		t.Fatalf("open archive: %v", err)
 	}
-	defer f.Close() //nolint:errcheck
+	defer func() { _ = f.Close() }()
 
 	gz, err := gzip.NewReader(f)
 	if err != nil {

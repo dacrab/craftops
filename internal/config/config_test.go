@@ -71,17 +71,17 @@ func TestLoadConfig_InvalidFile(t *testing.T) {
 
 func TestValidation(t *testing.T) {
 	tests := []struct {
-		name    string
 		mutate  func(*Config)
+		name    string
 		wantErr bool
 	}{
-		{"valid defaults", func(_ *Config) {}, false},
-		{"modloader case insensitive", func(c *Config) { c.Minecraft.Modloader = "Fabric" }, false},
-		{"invalid modloader", func(c *Config) { c.Minecraft.Modloader = "badloader" }, true},
-		{"invalid log level", func(c *Config) { c.Logging.Level = "VERBOSE" }, true},
-		{"invalid log format", func(c *Config) { c.Logging.Format = "xml" }, true},
-		{"valid log level debug", func(c *Config) { c.Logging.Level = "debug" }, false},
-		{"valid format text", func(c *Config) { c.Logging.Format = "text" }, false},
+		{name: "valid defaults", mutate: func(_ *Config) {}, wantErr: false},
+		{name: "modloader case insensitive", mutate: func(c *Config) { c.Minecraft.Modloader = "Fabric" }, wantErr: false},
+		{name: "invalid modloader", mutate: func(c *Config) { c.Minecraft.Modloader = "badloader" }, wantErr: true},
+		{name: "invalid log level", mutate: func(c *Config) { c.Logging.Level = "VERBOSE" }, wantErr: true},
+		{name: "invalid log format", mutate: func(c *Config) { c.Logging.Format = "xml" }, wantErr: true},
+		{name: "valid log level debug", mutate: func(c *Config) { c.Logging.Level = "debug" }, wantErr: false},
+		{name: "valid format text", mutate: func(c *Config) { c.Logging.Format = "text" }, wantErr: false},
 	}
 
 	for _, tt := range tests {

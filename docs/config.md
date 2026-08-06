@@ -1,6 +1,6 @@
 # Configuration
 
-Run `craftops init-config` to generate a default config, then edit it:
+Run `craftops init` to generate a default config, then edit it:
 
 ```toml
 [minecraft]

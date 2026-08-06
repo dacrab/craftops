@@ -21,10 +21,10 @@ var (
 type appKey struct{}
 
 var rootCmd = &cobra.Command{
-	Use:           "craftops",
-	Short:         "Modern Minecraft server operations and mod management",
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:               "craftops",
+	Short:             "Modern Minecraft server operations and mod management",
+	SilenceErrors:     true,
+	SilenceUsage:      true,
 	PersistentPreRunE: initApp,
 	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
 		if a, ok := cmd.Context().Value(appKey{}).(*app); ok {
@@ -54,7 +54,6 @@ func initApp(cmd *cobra.Command, _ []string) error {
 	}
 
 	if debug {
-		cfg.Debug = true
 		cfg.Logging.Level = "DEBUG"
 	}
 	if dryRun {

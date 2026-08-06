@@ -137,11 +137,7 @@ var modsUpdateCmd = &cobra.Command{
 			}
 		}
 		a.Terminal.Info("Updating mods...")
-		result, err := a.Mods.UpdateAll(ctx, forceUpdate)
-		if err != nil {
-			return err
-		}
-		displayModResults(a, result)
+		displayModResults(a, a.Mods.UpdateAll(ctx, forceUpdate))
 		return nil
 	},
 }
@@ -259,21 +255,11 @@ var backupDeleteCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a := appFrom(cmd)
-		name := args[0]
-		backups, err := a.Backup.List()
-		if err != nil {
+		if err := a.Backup.Delete(args[0]); err != nil {
 			return err
 		}
-		for _, b := range backups {
-			if b.Name == name {
-				if err := os.Remove(b.Path); err != nil {
-					return fmt.Errorf("failed to delete backup: %w", err)
-				}
-				a.Terminal.Successf("Deleted backup: %s", name)
-				return nil
-			}
-		}
-		return fmt.Errorf("backup not found: %s", name)
+		a.Terminal.Successf("Deleted backup: %s", args[0])
+		return nil
 	},
 }
 

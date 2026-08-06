@@ -94,7 +94,7 @@ CFG="${HOME}/.config/craftops/config.toml"
 if [ ! -f "$CFG" ]; then
   printf 'Creating default config at %s...\n' "$CFG"
   mkdir -p "$(dirname "$CFG")"
-  "${DEST}/${NAME}" init-config -o "$CFG" > /dev/null 2>&1 || true
+  "${DEST}/${NAME}" init -o "$CFG" > /dev/null 2>&1 || true
 fi
 
 printf 'Done. Run '\''%s --help'\'' to get started.\n' "$NAME"

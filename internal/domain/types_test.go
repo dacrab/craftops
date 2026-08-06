@@ -71,14 +71,14 @@ func TestCheckPath(t *testing.T) {
 
 func TestFormatSize(t *testing.T) {
 	tests := []struct {
-		size int64
 		want string
+		size int64
 	}{
-		{0, "0 B"},
-		{999, "999 B"},
-		{1000, "kB"},
-		{1000 * 1000, "MB"},
-		{-1, "0 B"},
+		{size: 0, want: "0 B"},
+		{size: 999, want: "999 B"},
+		{size: 1000, want: "kB"},
+		{size: 1000 * 1000, want: "MB"},
+		{size: -1, want: "0 B"},
 	}
 	for _, tt := range tests {
 		got := FormatSize(tt.size)
