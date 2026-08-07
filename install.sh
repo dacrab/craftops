@@ -16,7 +16,7 @@ fi
 
 die() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 
-# ---- OS / arch detection -----------------------------------------------------
+# OS / arch detection
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 case "$OS" in
   linux|darwin) ;;
@@ -30,7 +30,7 @@ case "$ARCH" in
   *)             die "Unsupported architecture: $ARCH" ;;
 esac
 
-# ---- Resolve version ---------------------------------------------------------
+# Resolve version
 if [ -z "${VERSION:-}" ]; then
   printf 'Checking latest version...\n'
   # Parse tag_name from GitHub API response without relying on jq
@@ -41,7 +41,7 @@ if [ -z "${VERSION:-}" ]; then
 fi
 [ -n "$VERSION" ] || die "Failed to determine latest version"
 
-# ---- Download ----------------------------------------------------------------
+# Download
 BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
 BINARY_URL="${BASE_URL}/${NAME}-${OS}-${ARCH}"
 SUMS_URL="${BASE_URL}/SHA256SUMS"
@@ -57,7 +57,7 @@ TMPSUMS="${TMPDIR}/SHA256SUMS"
 curl -fsSL -o "$TMPBIN"   "$BINARY_URL" || die "Download failed: $BINARY_URL"
 curl -fsSL -o "$TMPSUMS"  "$SUMS_URL"   || die "Download failed: $SUMS_URL"
 
-# ---- Verify checksum ---------------------------------------------------------
+# Verify checksum
 EXPECTED=$(grep "${NAME}-${OS}-${ARCH}" "$TMPSUMS" | awk '{print $1}')
 [ -n "$EXPECTED" ] || die "Checksum not found for ${NAME}-${OS}-${ARCH}"
 
@@ -71,7 +71,7 @@ fi
 
 [ "$ACTUAL" = "$EXPECTED" ] || die "Checksum mismatch (expected $EXPECTED, got $ACTUAL)"
 
-# ---- Install -----------------------------------------------------------------
+# Install
 chmod +x "$TMPBIN"
 mkdir -p "$DEST"
 
@@ -83,13 +83,13 @@ fi
 
 printf 'Installed to %s/%s\n' "$DEST" "$NAME"
 
-# ---- Warn if DEST is not in PATH ---------------------------------------------
+# Warn if DEST is not in PATH
 case ":${PATH}:" in
   *":${DEST}:"*) ;;
   *) printf "Warning: %s is not in your PATH. Add it with:\n  export PATH=\"%s:\$PATH\"\n" "$DEST" "$DEST" ;;
 esac
 
-# ---- Optional: create default config -----------------------------------------
+# Optional: create default config
 CFG="${HOME}/.config/craftops/config.toml"
 if [ ! -f "$CFG" ]; then
   printf 'Creating default config at %s...\n' "$CFG"

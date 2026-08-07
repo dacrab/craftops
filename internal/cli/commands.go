@@ -34,7 +34,7 @@ func init() {
 	initCmd.Flags().BoolVar(&force, "force", false, "overwrite existing config file")
 }
 
-// ── Server ────────────────────────────────────────────────────────────────────
+// ── Server ──
 
 var serverCmd = &cobra.Command{
 	Use:   "server",
@@ -115,7 +115,7 @@ var serverStatusCmd = &cobra.Command{
 	},
 }
 
-// ── Mods ─────────────────────────────────────────────────────────────────────
+// ── Mods ──
 
 var modsCmd = &cobra.Command{
 	Use:   "mods",
@@ -196,7 +196,7 @@ func displayModResults(a *app, result *domain.ModUpdateResult) {
 	printList(fmt.Sprintf("Skipped (%d):", len(result.SkippedMods)), result.SkippedMods, a.Terminal.WarningSprint)
 }
 
-// ── Backup ────────────────────────────────────────────────────────────────────
+// ── Backup ──
 
 var backupCmd = &cobra.Command{
 	Use:   "backup",
@@ -263,7 +263,7 @@ var backupDeleteCmd = &cobra.Command{
 	},
 }
 
-// ── Health ────────────────────────────────────────────────────────────────────
+// ── Health ──
 
 var healthCmd = &cobra.Command{
 	Use:   "health",
@@ -317,7 +317,7 @@ func healthSummary(a *app, checks []domain.HealthCheck) error {
 	return nil
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Init ──
 
 var initCmd = &cobra.Command{
 	Use:   "init",

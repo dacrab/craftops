@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
-# release.sh — bump the semver tag and push it to trigger the GitHub Actions release.
+# Bump the semver tag and push it to trigger the GitHub Actions release.
 # Usage: ./scripts/release.sh [patch|minor|major] ["optional release message"]
 set -euo pipefail
 
 VERSION_TYPE="${1:-patch}"
 RELEASE_MESSAGE="${2:-}"
 
-# ---- Determine current version -----------------------------------------------
 CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
-# ---- Bump --------------------------------------------------------------------
 case "$VERSION_TYPE" in
   major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
   minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
@@ -24,7 +22,7 @@ esac
 NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
 LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
 
-# ---- Build changelog into a temp file (avoids subshell variable loss) --------
+# Build changelog into a temp file (avoids subshell variable loss)
 TMPFILE=$(mktemp)
 trap 'rm -f "$TMPFILE"' EXIT
 
@@ -47,7 +45,6 @@ fi
 
 CHANGELOG=$(cat "$TMPFILE")
 
-# ---- Confirm -----------------------------------------------------------------
 printf 'Current version : %s\n' "$CURRENT_VERSION"
 printf 'New version     : %s\n' "$NEW_VERSION"
 printf '\nChangelog:\n%s\n\n' "$CHANGELOG"
@@ -59,7 +56,6 @@ if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
   exit 1
 fi
 
-# ---- Tag and push ------------------------------------------------------------
 git tag -a "$NEW_VERSION" -m "$CHANGELOG"
 git push origin "$NEW_VERSION"
 

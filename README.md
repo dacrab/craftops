@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | b
 Pin a specific version:
 
 ```bash
-VERSION=v2.3.0 bash <(curl -fsSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh)
+VERSION=v2.8.0 bash <(curl -fsSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh)
 ```
 
 ### From source
