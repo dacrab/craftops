@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	backupTimeFormat = "20060102_150405"
+	backupTimeFormat = "20060102_150405.000000000"
 	backupPrefix     = "minecraft_backup_"
 	backupExt        = ".tar.gz"
 )
@@ -128,7 +128,7 @@ func (b *Backup) HealthCheck(_ context.Context) []domain.HealthCheck {
 	}
 	var retentionCheck domain.HealthCheck
 	if b.cfg.Backup.MaxBackups <= 0 {
-		retentionCheck = domain.HealthCheck{Name: "Backup retention", Status: domain.StatusWarn, Message: "Invalid max_backups"}
+		retentionCheck = domain.HealthCheck{Name: "Backup retention", Status: domain.StatusOK, Message: "Unlimited"}
 	} else {
 		retentionCheck = domain.HealthCheck{Name: "Backup retention", Status: domain.StatusOK, Message: fmt.Sprintf("Keeping %d backups", b.cfg.Backup.MaxBackups)}
 	}
@@ -273,6 +273,9 @@ func (b *Backup) shouldExclude(relPath string, isDir bool) bool {
 }
 
 func (b *Backup) cleanup() {
+	if b.cfg.Backup.MaxBackups <= 0 {
+		return
+	}
 	backups, err := b.List()
 	if err != nil {
 		b.logger.Warn("Failed to list backups for cleanup", zap.Error(err))

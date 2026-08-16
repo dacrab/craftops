@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -267,6 +268,56 @@ func TestMods_ListInstalled_Metadata(t *testing.T) {
 	}
 	if m.Size != int64(len(content)) {
 		t.Errorf("Size = %d, want %d", m.Size, len(content))
+	}
+}
+
+func TestMods_UpdateAll_SendsJSONArrayFilters(t *testing.T) {
+	cfg, logger, ctx := setup(t)
+	cfg.Minecraft.Version = "1.20.1"
+	cfg.Minecraft.Modloader = "fabric"
+	cfg.Mods.ModrinthSources = []string{"fabric-api"}
+	cfg.Mods.MaxRetries = 0
+	cfg.Mods.Timeout = 5
+
+	var query string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v2/project/") {
+			query = r.URL.RawQuery
+			w.Header().Set("Content-Type", "application/json")
+			dlURL := "http://" + r.Host + "/files/mod-1.0.0.jar"
+			_ = json.NewEncoder(w).Encode(modrinthVersionFixture("mod-1.0.0.jar", dlURL))
+			return
+		}
+		if r.URL.Path == "/files/mod-1.0.0.jar" {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("JAR"))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	if result := svc.UpdateAll(ctx, false); len(result.FailedMods) > 0 {
+		t.Fatalf("unexpected failures: %v", result.FailedMods)
+	}
+
+	values, err := url.ParseQuery(query)
+	if err != nil {
+		t.Fatalf("failed to parse query %q: %v", query, err)
+	}
+	for _, tc := range []struct{ key, want string }{
+		{"game_versions", "1.20.1"},
+		{"loaders", "fabric"},
+	} {
+		var decoded []string
+		if err := json.Unmarshal([]byte(values.Get(tc.key)), &decoded); err != nil {
+			t.Errorf("%s=%q does not decode as JSON array: %v", tc.key, values.Get(tc.key), err)
+			continue
+		}
+		if len(decoded) != 1 || decoded[0] != tc.want {
+			t.Errorf("%s decoded to %v, want [%q]", tc.key, decoded, tc.want)
+		}
 	}
 }
 

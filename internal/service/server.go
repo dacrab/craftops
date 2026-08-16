@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,20 +31,45 @@ func NewServer(cfg *config.Config, logger *zap.Logger) *Server {
 
 // Status checks if the server screen session is running.
 func (s *Server) Status(ctx context.Context) (*domain.ServerStatus, error) {
-	cmd := exec.CommandContext(ctx, "screen", "-ls")
+	session := s.sessionName()
+	cmd := exec.CommandContext(ctx, "screen", "-ls", session)
 	output, err := cmd.Output()
 	if err != nil {
-		s.logger.Debug("screen -ls returned error (may be normal)", zap.Error(err))
+		if errors.Is(err, exec.ErrNotFound) {
+			return nil, fmt.Errorf("server.status: screen not found in PATH: %w", err)
+		}
+		// screen exits non-zero when no sockets match; that means "not running".
+		s.logger.Debug("screen -ls returned no matching sessions", zap.Error(err))
 	}
 
-	session := s.sessionName()
-	isRunning := strings.Contains(string(output), "."+session)
-
 	return &domain.ServerStatus{
-		IsRunning:   isRunning,
+		IsRunning:   sessionRunning(string(output), session),
 		SessionName: session,
 		CheckedAt:   time.Now(),
 	}, nil
+}
+
+// sessionRunning reports whether output contains a "pid.<name>" screen
+// listing for the exact session name, avoiding prefix false-positives.
+func sessionRunning(output, session string) bool {
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		name := fields[0]
+		dot := strings.LastIndex(name, ".")
+		if dot <= 0 || dot == len(name)-1 {
+			continue
+		}
+		if _, err := strconv.Atoi(name[:dot]); err != nil {
+			continue
+		}
+		if name[dot+1:] == session {
+			return true
+		}
+	}
+	return false
 }
 
 // Start launches the server in a detached screen session.
@@ -154,7 +180,7 @@ func (s *Server) waitForStatus(ctx context.Context, target bool, timeout int, la
 	}
 
 	start := time.Now()
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {

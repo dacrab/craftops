@@ -62,6 +62,9 @@ type BackupInfo struct {
 	Size      int64     `json:"size_bytes"`
 }
 
+// TimeFormat is the human-readable timestamp layout used across the CLI.
+const TimeFormat = "2006-01-02 15:04:05"
+
 // FormatSize returns a human-readable file size (e.g. "4.2 MB").
 func FormatSize(bytes int64) string {
 	if bytes <= 0 {

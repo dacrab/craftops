@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -37,18 +38,15 @@ func newLogger(cfg *config.Config) *zap.Logger {
 
 	var cores []zapcore.Core
 
-	if cfg.Logging.ConsoleEnabled {
-		cores = append(cores, zapcore.NewCore(
-			zapcore.NewConsoleEncoder(encoderCfg),
-			zapcore.AddSync(os.Stderr),
-			level,
-		))
-	}
-
 	if cfg.Logging.FileEnabled && cfg.Paths.Logs != "" {
-		if err := os.MkdirAll(cfg.Paths.Logs, 0o750); err == nil {
+		if err := os.MkdirAll(cfg.Paths.Logs, 0o750); err != nil {
+			loggerWarnf("failed to create log directory %s: %v", cfg.Paths.Logs, err)
+		} else {
 			logPath := filepath.Join(cfg.Paths.Logs, "craftops.log")
-			if f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+			f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+			if err != nil {
+				loggerWarnf("failed to open log file %s: %v", logPath, err)
+			} else {
 				var enc zapcore.Encoder
 				if cfg.Logging.Format == "text" {
 					enc = zapcore.NewConsoleEncoder(encoderCfg)
@@ -60,10 +58,26 @@ func newLogger(cfg *config.Config) *zap.Logger {
 		}
 	}
 
+	if cfg.Logging.ConsoleEnabled {
+		cores = append(cores, zapcore.NewCore(
+			zapcore.NewConsoleEncoder(encoderCfg),
+			zapcore.AddSync(os.Stderr),
+			level,
+		))
+	}
+
 	if len(cores) == 0 {
-		return zap.NewNop()
+		cores = append(cores, zapcore.NewCore(
+			zapcore.NewConsoleEncoder(encoderCfg),
+			zapcore.AddSync(os.Stderr),
+			level,
+		))
 	}
 	return zap.New(zapcore.NewTee(cores...))
+}
+
+func loggerWarnf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "craftops: warning: "+format+"\n", args...)
 }
 
 func newApp(cfg *config.Config) *app {
