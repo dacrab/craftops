@@ -41,9 +41,6 @@ func NewTerminalWithWriter(out io.Writer, isTTY bool) *Terminal {
 	return &Terminal{out: out, isTTY: isTTY}
 }
 
-// IsTTY reports whether output is a terminal.
-func (t *Terminal) IsTTY() bool { return t.isTTY }
-
 // Banner prints a prominent header.
 func (t *Terminal) Banner(title string) {
 	if !t.isTTY {
@@ -76,7 +73,7 @@ func (t *Terminal) Section(title string) {
 func (t *Terminal) Success(message string) { t.printMsg(successColor, "SUCCESS", message) }
 
 // Successf prints a formatted success message.
-func (t *Terminal) Successf(format string, args ...interface{}) {
+func (t *Terminal) Successf(format string, args ...any) {
 	t.Success(fmt.Sprintf(format, args...))
 }
 
@@ -84,7 +81,7 @@ func (t *Terminal) Successf(format string, args ...interface{}) {
 func (t *Terminal) Error(message string) { t.printMsg(errorColor, "ERROR", message) }
 
 // Errorf prints a formatted error message.
-func (t *Terminal) Errorf(format string, args ...interface{}) {
+func (t *Terminal) Errorf(format string, args ...any) {
 	t.Error(fmt.Sprintf(format, args...))
 }
 
@@ -92,7 +89,7 @@ func (t *Terminal) Errorf(format string, args ...interface{}) {
 func (t *Terminal) Warning(message string) { t.printMsg(warningColor, "WARNING", message) }
 
 // Warningf prints a formatted warning message.
-func (t *Terminal) Warningf(format string, args ...interface{}) {
+func (t *Terminal) Warningf(format string, args ...any) {
 	t.Warning(fmt.Sprintf(format, args...))
 }
 
@@ -113,12 +110,12 @@ func (t *Terminal) Step(current, total int, message string) {
 }
 
 // Printf writes formatted output.
-func (t *Terminal) Printf(format string, args ...interface{}) {
+func (t *Terminal) Printf(format string, args ...any) {
 	_, _ = fmt.Fprintf(t.out, format, args...)
 }
 
 // Println writes a line of output.
-func (t *Terminal) Println(args ...interface{}) {
+func (t *Terminal) Println(args ...any) {
 	_, _ = fmt.Fprintln(t.out, args...)
 }
 

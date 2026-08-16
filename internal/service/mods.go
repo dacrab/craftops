@@ -163,8 +163,8 @@ func (m *Mods) withRetry(ctx context.Context, op func() error) error {
 }
 
 // get performs a GET request with the Modrinth user agent.
-func (m *Mods) get(ctx context.Context, url string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+func (m *Mods) get(ctx context.Context, rawURL string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

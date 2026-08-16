@@ -228,17 +228,17 @@ func (c *Config) Validate() error {
 }
 
 // validateAtLeast rejects values below min.
-func validateAtLeast(name string, value, min int) error {
-	if value < min {
-		return fmt.Errorf("%s must be at least %d, got %d", name, value, min)
+func validateAtLeast(name string, value, minValue int) error {
+	if value < minValue {
+		return fmt.Errorf("%s must be at least %d, got %d", name, minValue, value)
 	}
 	return nil
 }
 
 // validateRange rejects values outside [min, max].
-func validateRange(name string, value, min, max int) error {
-	if value < min || value > max {
-		return fmt.Errorf("%s must be between %d and %d, got %d", name, value, min, max)
+func validateRange(name string, value, minValue, maxValue int) error {
+	if value < minValue || value > maxValue {
+		return fmt.Errorf("%s must be between %d and %d, got %d", name, minValue, maxValue, value)
 	}
 	return nil
 }
