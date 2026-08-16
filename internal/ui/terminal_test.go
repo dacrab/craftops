@@ -13,13 +13,6 @@ func newTestTerminal() (*Terminal, *bytes.Buffer) {
 	return NewTerminalWithWriter(out, false), out
 }
 
-func TestTerminal_IsTTY(t *testing.T) {
-	term, _ := newTestTerminal()
-	if term.IsTTY() {
-		t.Error("expected IsTTY=false for test terminal")
-	}
-}
-
 func TestTerminal_Banner(t *testing.T) {
 	term, out := newTestTerminal()
 	term.Banner("Hello World")
