@@ -2,6 +2,7 @@
 package config
 
 import (
+	"compress/gzip"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -198,6 +199,47 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid log format: %s. Must be one of %v", c.Logging.Format, validFormats)
 	}
 	c.Logging.Format = format
+
+	for _, v := range []struct {
+		name  string
+		value int
+		min   int
+	}{
+		{"mods.concurrent_downloads", c.Mods.ConcurrentDownloads, 1},
+		{"mods.timeout", c.Mods.Timeout, 1},
+		{"mods.max_retries", c.Mods.MaxRetries, 0},
+		{"server.max_stop_wait", c.Server.MaxStopWait, 0},
+		{"server.startup_timeout", c.Server.StartupTimeout, 0},
+		{"backup.max_backups", c.Backup.MaxBackups, 0},
+	} {
+		if err := validateAtLeast(v.name, v.value, v.min); err != nil {
+			return err
+		}
+	}
+
+	if c.Mods.RetryDelay < 0 {
+		return fmt.Errorf("mods.retry_delay must be at least 0, got %g", c.Mods.RetryDelay)
+	}
+
+	if err := validateRange("backup.compression_level", c.Backup.CompressionLevel, gzip.NoCompression, gzip.BestCompression); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateAtLeast rejects values below min.
+func validateAtLeast(name string, value, min int) error {
+	if value < min {
+		return fmt.Errorf("%s must be at least %d, got %d", name, value, min)
+	}
+	return nil
+}
+
+// validateRange rejects values outside [min, max].
+func validateRange(name string, value, min, max int) error {
+	if value < min || value > max {
+		return fmt.Errorf("%s must be between %d and %d, got %d", name, value, min, max)
+	}
 	return nil
 }
 

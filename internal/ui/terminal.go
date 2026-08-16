@@ -52,6 +52,9 @@ func (t *Terminal) Banner(title string) {
 	}
 	width := 60
 	padding := (width - len(title) - 4) / 2
+	if padding < 0 {
+		padding = 0
+	}
 	_, _ = headerColor.Fprintln(t.out, strings.Repeat("═", width))
 	_, _ = headerColor.Fprintf(t.out, "║%s %s %s║\n",
 		strings.Repeat(" ", padding), title, strings.Repeat(" ", padding))

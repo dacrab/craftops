@@ -15,25 +15,6 @@ import (
 	"craftops/internal/ui"
 )
 
-var (
-	forceUpdate bool
-	noBackup    bool
-	outputPath  string
-	force       bool
-)
-
-func init() {
-	rootCmd.AddCommand(serverCmd, modsCmd, backupCmd, healthCmd, initCmd)
-	serverCmd.AddCommand(serverStartCmd, serverStopCmd, serverRestartCmd, serverStatusCmd)
-	modsCmd.AddCommand(modsUpdateCmd, modsListCmd)
-	backupCmd.AddCommand(backupCreateCmd, backupListCmd, backupDeleteCmd)
-
-	modsUpdateCmd.Flags().BoolVar(&forceUpdate, "force", false, "force update even if mod is current")
-	modsUpdateCmd.Flags().BoolVar(&noBackup, "no-backup", false, "skip pre-update backup")
-	initCmd.Flags().StringVarP(&outputPath, "output", "o", "", "config file output path")
-	initCmd.Flags().BoolVar(&force, "force", false, "overwrite existing config file")
-}
-
 // ── Server ──
 
 var serverCmd = &cobra.Command{
@@ -110,7 +91,7 @@ var serverStatusCmd = &cobra.Command{
 			a.Terminal.Warning("Server is not running")
 		}
 		a.Terminal.Printf("  Session : %s\n", status.SessionName)
-		a.Terminal.Printf("  Checked : %s\n", status.CheckedAt.Format("2006-01-02 15:04:05"))
+		a.Terminal.Printf("  Checked : %s\n", status.CheckedAt.Format(domain.TimeFormat))
 		return nil
 	},
 }
@@ -127,16 +108,18 @@ var modsUpdateCmd = &cobra.Command{
 	Short: "Update all configured mods",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx, a := cmd.Context(), appFrom(cmd)
+		noBackup, _ := cmd.Flags().GetBool("no-backup")
 		a.Terminal.Banner("Mod Update Manager")
 		if !noBackup && a.Config.Backup.Enabled {
 			a.Terminal.Info("Creating pre-update backup...")
-			if path, err := a.Backup.Create(ctx); err != nil && !errors.Is(err, domain.ErrBackupsDisabled) {
+			if path, err := a.Backup.Create(ctx); err != nil {
 				return err
 			} else if path != "" {
 				a.Terminal.Successf("Backup created: %s", path)
 			}
 		}
 		a.Terminal.Info("Updating mods...")
+		forceUpdate, _ := cmd.Flags().GetBool("force")
 		displayModResults(a, a.Mods.UpdateAll(ctx, forceUpdate))
 		return nil
 	},
@@ -160,7 +143,7 @@ var modsListCmd = &cobra.Command{
 		headers := []string{"Name", "Size", "Modified"}
 		rows := make([][]string, len(mods))
 		for i, m := range mods {
-			rows[i] = []string{m.Name, domain.FormatSize(m.Size), m.Modified.Format("2006-01-02 15:04:05")}
+			rows[i] = []string{m.Name, domain.FormatSize(m.Size), m.Modified.Format(domain.TimeFormat)}
 		}
 		a.Terminal.Table(headers, rows)
 		return nil
@@ -242,7 +225,7 @@ var backupListCmd = &cobra.Command{
 		headers := []string{"Name", "Date", "Size"}
 		rows := make([][]string, len(backups))
 		for i, b := range backups {
-			rows[i] = []string{b.Name, b.CreatedAt.Format("2006-01-02 15:04:05"), domain.FormatSize(b.Size)}
+			rows[i] = []string{b.Name, b.CreatedAt.Format(domain.TimeFormat), domain.FormatSize(b.Size)}
 		}
 		a.Terminal.Table(headers, rows)
 		return nil
@@ -324,12 +307,14 @@ var initCmd = &cobra.Command{
 	Short: "Initialize a new configuration file",
 	// Skip normal app initialization — config may not exist yet.
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error { return nil },
-	RunE: func(_ *cobra.Command, _ []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		t := ui.NewTerminal()
 
+		outputPath, _ := cmd.Flags().GetString("output")
 		if outputPath == "" {
 			outputPath = "config.toml"
 		}
+		force, _ := cmd.Flags().GetBool("force")
 
 		t.Step(1, 3, "Checking output path: "+outputPath)
 		if info, err := os.Stat(outputPath); err == nil && !force {

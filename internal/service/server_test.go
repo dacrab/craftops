@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"os/exec"
 	"testing"
 
 	"craftops/internal/service"
@@ -27,6 +28,9 @@ func TestServer_HealthCheck(t *testing.T) {
 }
 
 func TestServer_Status_ReturnsResult(t *testing.T) {
+	if _, err := exec.LookPath("screen"); err != nil {
+		t.Skip("screen not installed")
+	}
 	cfg, logger, ctx := setup(t)
 	svc := service.NewServer(cfg, logger)
 

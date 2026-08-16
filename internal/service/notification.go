@@ -134,8 +134,8 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 		return nil
 	}
 
-	if len(message) > 2000 {
-		message = message[:1997] + "..."
+	if r := []rune(message); len(r) > 2000 {
+		message = string(r[:1997]) + "..."
 	}
 
 	payload := discordPayload{

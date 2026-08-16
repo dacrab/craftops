@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -245,7 +246,6 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 		return false, err
 	}
 
-	_ = os.Remove(finalPath)
 	if err := os.Rename(tmpPath, finalPath); err != nil {
 		return false, err
 	}
@@ -297,8 +297,10 @@ type modrinthVersion struct {
 }
 
 func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domain.ModInfo, error) {
-	apiURL := fmt.Sprintf("%s/project/%s/version?game_versions=%q&loaders=%q",
-		m.baseURL, projectID, m.cfg.Minecraft.Version, m.cfg.Minecraft.Modloader)
+	q := url.Values{}
+	q.Set("game_versions", "[\""+m.cfg.Minecraft.Version+"\"]")
+	q.Set("loaders", "[\""+m.cfg.Minecraft.Modloader+"\"]")
+	apiURL := fmt.Sprintf("%s/project/%s/version?%s", m.baseURL, projectID, q.Encode())
 
 	var versions []modrinthVersion
 	if err := m.apiRequest(ctx, apiURL, &versions); err != nil {
@@ -321,7 +323,11 @@ func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domai
 }
 
 func (m *Mods) checkAPI(ctx context.Context) domain.HealthCheck {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	timeout := m.cfg.Mods.Timeout
+	if timeout <= 0 {
+		timeout = 10
+	}
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
 
 	resp, err := m.get(ctx, m.baseURL)

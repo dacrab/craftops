@@ -5,26 +5,35 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-// resetGlobals resets all global CLI state between tests.
-// Cobra registers flags as globals, so tests must restore them to avoid bleed-through.
+// resetGlobals restores global CLI state between tests. pflag persists flag
+// values across parses, so all command flags are reset to their defaults.
 func resetGlobals(t *testing.T) {
 	t.Helper()
 	origArgs := os.Args
-	origCfgFile := cfgFile
-	origOutputPath := outputPath
-	origForce := force
-	origDebug := debug
-	origDryRun := dryRun
+	origApp := activeApp
 	t.Cleanup(func() {
 		os.Args = origArgs
-		cfgFile = origCfgFile
-		outputPath = origOutputPath
-		force = origForce
-		debug = origDebug
-		dryRun = origDryRun
+		activeApp = origApp
+		resetFlags(rootCmd)
 	})
+}
+
+// resetFlags restores every flag on cmd and its subcommands to its default.
+func resetFlags(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		_ = f.Value.Set(f.DefValue)
+	})
+	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		_ = f.Value.Set(f.DefValue)
+	})
+	for _, sub := range cmd.Commands() {
+		resetFlags(sub)
+	}
 }
 
 func TestInitConfig_CreatesFile(t *testing.T) {
@@ -32,9 +41,6 @@ func TestInitConfig_CreatesFile(t *testing.T) {
 	tmp := t.TempDir()
 	out := filepath.Join(tmp, "config.toml")
 
-	cfgFile = ""
-	outputPath = out
-	force = false
 	os.Args = []string{"craftops", "init", "-o", out}
 
 	if err := Execute(context.Background()); err != nil {
@@ -53,9 +59,6 @@ func TestInitConfig_ForceOverwrite(t *testing.T) {
 	// Write a sentinel value first
 	_ = os.WriteFile(out, []byte("sentinel"), 0o600)
 
-	cfgFile = ""
-	outputPath = out
-	force = true
 	os.Args = []string{"craftops", "init", "-o", out, "--force"}
 
 	if err := Execute(context.Background()); err != nil {
@@ -78,9 +81,6 @@ func TestInitConfig_NoForce_ExistingFile(t *testing.T) {
 	// Pre-create the file
 	_ = os.WriteFile(out, []byte("original"), 0o600)
 
-	cfgFile = ""
-	outputPath = out
-	force = false
 	os.Args = []string{"craftops", "init", "-o", out}
 
 	if err := Execute(context.Background()); err != nil {
@@ -97,9 +97,6 @@ func TestInitConfig_OutputIsDirectory(t *testing.T) {
 	resetGlobals(t)
 	tmp := t.TempDir()
 
-	cfgFile = ""
-	outputPath = tmp // directory, not a file
-	force = true
 	os.Args = []string{"craftops", "init", "-o", tmp, "--force"}
 
 	if err := Execute(context.Background()); err == nil {
@@ -116,9 +113,6 @@ func TestInitConfig_DefaultPath(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-	cfgFile = ""
-	outputPath = "" // let it default to "config.toml"
-	force = false
 	os.Args = []string{"craftops", "init"}
 
 	if err := Execute(context.Background()); err != nil {

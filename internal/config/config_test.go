@@ -82,6 +82,22 @@ func TestValidation(t *testing.T) {
 		{name: "invalid log format", mutate: func(c *Config) { c.Logging.Format = "xml" }, wantErr: true},
 		{name: "valid log level debug", mutate: func(c *Config) { c.Logging.Level = "debug" }, wantErr: false},
 		{name: "valid format text", mutate: func(c *Config) { c.Logging.Format = "text" }, wantErr: false},
+		{name: "negative concurrent downloads", mutate: func(c *Config) { c.Mods.ConcurrentDownloads = -1 }, wantErr: true},
+		{name: "zero concurrent downloads", mutate: func(c *Config) { c.Mods.ConcurrentDownloads = 0 }, wantErr: true},
+		{name: "zero mods timeout", mutate: func(c *Config) { c.Mods.Timeout = 0 }, wantErr: true},
+		{name: "negative mods timeout", mutate: func(c *Config) { c.Mods.Timeout = -5 }, wantErr: true},
+		{name: "zero max retries", mutate: func(c *Config) { c.Mods.MaxRetries = 0 }, wantErr: false},
+		{name: "negative max retries", mutate: func(c *Config) { c.Mods.MaxRetries = -1 }, wantErr: true},
+		{name: "negative retry delay", mutate: func(c *Config) { c.Mods.RetryDelay = -1 }, wantErr: true},
+		{name: "zero retry delay", mutate: func(c *Config) { c.Mods.RetryDelay = 0 }, wantErr: false},
+		{name: "negative max stop wait", mutate: func(c *Config) { c.Server.MaxStopWait = -1 }, wantErr: true},
+		{name: "zero startup timeout", mutate: func(c *Config) { c.Server.StartupTimeout = 0 }, wantErr: false},
+		{name: "negative startup timeout", mutate: func(c *Config) { c.Server.StartupTimeout = -1 }, wantErr: true},
+		{name: "zero max backups unlimited", mutate: func(c *Config) { c.Backup.MaxBackups = 0 }, wantErr: false},
+		{name: "negative max backups", mutate: func(c *Config) { c.Backup.MaxBackups = -1 }, wantErr: true},
+		{name: "compression level below range", mutate: func(c *Config) { c.Backup.CompressionLevel = -1 }, wantErr: true},
+		{name: "compression level above range", mutate: func(c *Config) { c.Backup.CompressionLevel = 10 }, wantErr: true},
+		{name: "valid compression level", mutate: func(c *Config) { c.Backup.CompressionLevel = 9 }, wantErr: false},
 	}
 
 	for _, tt := range tests {
