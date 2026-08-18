@@ -170,7 +170,7 @@ func (s *Server) sessionName() string {
 	if s.cfg.Server.SessionName != "" {
 		return s.cfg.Server.SessionName
 	}
-	return "minecraft"
+	return domain.DefaultSessionName
 }
 
 // waitForStatus polls until the server reaches the target state or timeout.

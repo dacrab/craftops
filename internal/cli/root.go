@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"craftops/internal/config"
+	"craftops/internal/domain"
 	"craftops/internal/service"
 	"craftops/internal/ui"
 )
@@ -69,7 +70,7 @@ func newLogger(cfg *config.Config) *zap.Logger {
 
 	var cores []zapcore.Core
 	if cfg.Logging.FileEnabled && cfg.Paths.Logs != "" {
-		if err := os.MkdirAll(cfg.Paths.Logs, 0o750); err != nil {
+		if err := os.MkdirAll(cfg.Paths.Logs, domain.DirPerm); err != nil {
 			loggerWarnf("failed to create log directory %s: %v", cfg.Paths.Logs, err)
 		} else {
 			logPath := filepath.Join(cfg.Paths.Logs, "craftops.log")

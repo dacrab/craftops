@@ -55,7 +55,7 @@ func (b *Backup) Create(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("%s: %s", check.Name, check.Message)
 	}
 
-	if err := os.MkdirAll(b.cfg.Paths.Backups, 0o750); err != nil {
+	if err := os.MkdirAll(b.cfg.Paths.Backups, domain.DirPerm); err != nil {
 		return "", fmt.Errorf("failed to create backup directory: %w", err)
 	}
 
@@ -85,7 +85,7 @@ func (b *Backup) List() ([]domain.BackupInfo, error) {
 		}
 		info, err := entry.Info()
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("failed to read backup %s: %w", entry.Name(), err)
 		}
 		backups = append(backups, domain.BackupInfo{
 			Name:      entry.Name(),
