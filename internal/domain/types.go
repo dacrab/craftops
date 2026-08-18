@@ -65,6 +65,13 @@ type BackupInfo struct {
 // TimeFormat is the human-readable timestamp layout used across the CLI.
 const TimeFormat = "2006-01-02 15:04:05"
 
+// DefaultSessionName is the GNU screen session used to run the server when
+// no session_name is configured.
+const DefaultSessionName = "minecraft"
+
+// DirPerm is the permission mode applied to directories created by craftops.
+const DirPerm = 0o750
+
 // FormatSize returns a human-readable file size (e.g. "4.2 MB").
 func FormatSize(bytes int64) string {
 	if bytes <= 0 {

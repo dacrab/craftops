@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"craftops/internal/domain"
 )
 
 // Config is the top-level application configuration.
@@ -113,7 +115,7 @@ func DefaultConfig() *Config {
 			StopCommand:    "stop",
 			MaxStopWait:    300,
 			StartupTimeout: 120,
-			SessionName:    "minecraft",
+			SessionName:    domain.DefaultSessionName,
 		},
 		Mods: ModsConfig{
 			ConcurrentDownloads: 5,

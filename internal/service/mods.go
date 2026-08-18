@@ -110,7 +110,7 @@ func (m *Mods) ListInstalled() ([]domain.InstalledMod, error) {
 	for _, file := range files {
 		info, err := os.Stat(file)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("failed to stat mod %s: %w", file, err)
 		}
 		filename := filepath.Base(file)
 		mods = append(mods, domain.InstalledMod{
@@ -172,27 +172,12 @@ func (m *Mods) get(ctx context.Context, rawURL string) (*http.Response, error) {
 	return m.client.Do(req)
 }
 
-func (m *Mods) apiRequest(ctx context.Context, apiURL string, result any) error {
-	return m.withRetry(ctx, func() error {
-		resp, err := m.get(ctx, apiURL)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = resp.Body.Close() }()
-
-		if resp.StatusCode != http.StatusOK {
-			return &domain.APIError{URL: apiURL, StatusCode: resp.StatusCode, Message: "request failed"}
-		}
-		return json.NewDecoder(resp.Body).Decode(result)
-	})
-}
-
 func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool) (bool, error) {
 	if m.cfg.DryRun {
 		m.logger.Info("Dry run: Would download mod", zap.String("filename", info.Filename))
 		return true, nil
 	}
-	if err := os.MkdirAll(m.cfg.Paths.Mods, 0o750); err != nil {
+	if err := os.MkdirAll(m.cfg.Paths.Mods, domain.DirPerm); err != nil {
 		return false, err
 	}
 
@@ -303,7 +288,18 @@ func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domai
 	apiURL := fmt.Sprintf("%s/project/%s/version?%s", m.baseURL, projectID, q.Encode())
 
 	var versions []modrinthVersion
-	if err := m.apiRequest(ctx, apiURL, &versions); err != nil {
+	if err := m.withRetry(ctx, func() error {
+		resp, err := m.get(ctx, apiURL)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != http.StatusOK {
+			return &domain.APIError{URL: apiURL, StatusCode: resp.StatusCode, Message: "request failed"}
+		}
+		return json.NewDecoder(resp.Body).Decode(&versions)
+	}); err != nil {
 		return nil, err
 	}
 	if len(versions) == 0 {
