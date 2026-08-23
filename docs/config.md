@@ -3,6 +3,9 @@
 Run `craftops init` to generate a default config, then edit it. Below is the full set of options with their defaults.
 
 ```toml
+# Global options (must appear before the first [section]).
+dry_run = false
+
 [minecraft]
 version   = "1.20.1"
 modloader = "fabric"   # fabric | forge | quilt | neoforge
@@ -39,6 +42,7 @@ timeout              = 30    # seconds per request
 enabled            = true
 max_backups        = 5
 compression_level  = 6
+include_logs       = false
 exclude_patterns   = ["*.log", "*.log.*", "cache/", "temp/", ".DS_Store", "Thumbs.db"]
 
 [notifications]
@@ -50,7 +54,7 @@ success_notifications = true
 error_notifications   = true
 
 [logging]
-level          = "INFO"   # DEBUG | INFO | WARNING | ERROR | CRITICAL
+level          = "INFO"   # DEBUG | INFO | WARN | ERROR
 format         = "json"   # json | text
 file_enabled   = true
 console_enabled = true

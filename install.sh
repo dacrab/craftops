@@ -34,10 +34,12 @@ esac
 if [ -z "${VERSION:-}" ]; then
   printf 'Checking latest version...\n'
   # Parse tag_name from GitHub API response without relying on jq
-  VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+  if ! VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
     | grep '"tag_name"' \
     | head -1 \
-    | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+    | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/'); then
+    die "Failed to query GitHub releases (check network or API rate limits)"
+  fi
 fi
 [ -n "$VERSION" ] || die "Failed to determine latest version"
 

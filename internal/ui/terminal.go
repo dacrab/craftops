@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/fatih/color"
 	"golang.org/x/term"
@@ -32,13 +33,44 @@ var (
 // NewTerminal creates a terminal linked to stdout.
 func NewTerminal() *Terminal {
 	isTTY := term.IsTerminal(int(os.Stdout.Fd()))
-	color.NoColor = !isTTY
 	return &Terminal{out: os.Stdout, isTTY: isTTY}
 }
 
 // NewTerminalWithWriter creates a terminal with a custom writer (for testing).
 func NewTerminalWithWriter(out io.Writer, isTTY bool) *Terminal {
 	return &Terminal{out: out, isTTY: isTTY}
+}
+
+// TimeFormat is the human-readable timestamp layout used across the CLI.
+const TimeFormat = "2006-01-02 15:04:05"
+
+// FormatSize returns a human-readable file size (e.g. "4.2 MB").
+func FormatSize(bytes int64) string {
+	if bytes <= 0 {
+		return "0 B"
+	}
+	const unit = 1000
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "kMGTPE"[exp])
+}
+
+// CheckPath verifies if a path exists and is a directory.
+func CheckPath(name, path string) domain.HealthCheck {
+	info, err := os.Stat(path)
+	if err != nil {
+		return domain.HealthCheck{Name: name, Status: domain.StatusWarn, Message: "Does not exist"}
+	}
+	if !info.IsDir() {
+		return domain.HealthCheck{Name: name, Status: domain.StatusError, Message: "Not a directory"}
+	}
+	return domain.HealthCheck{Name: name, Status: domain.StatusOK, Message: "OK"}
 }
 
 // Banner prints a prominent header.
@@ -48,13 +80,15 @@ func (t *Terminal) Banner(title string) {
 		return
 	}
 	width := 60
-	padding := (width - len(title) - 4) / 2
-	if padding < 0 {
-		padding = 0
+	gap := width - utf8.RuneCountInString(title) - 4
+	if gap < 0 {
+		gap = 0
 	}
+	left := gap / 2
+	right := gap - left
 	_, _ = headerColor.Fprintln(t.out, strings.Repeat("═", width))
 	_, _ = headerColor.Fprintf(t.out, "║%s %s %s║\n",
-		strings.Repeat(" ", padding), title, strings.Repeat(" ", padding))
+		strings.Repeat(" ", left), title, strings.Repeat(" ", right))
 	_, _ = headerColor.Fprintln(t.out, strings.Repeat("═", width))
 	_, _ = fmt.Fprintln(t.out)
 }
@@ -102,11 +136,6 @@ func (t *Terminal) printMsg(c *color.Color, label, msg string) {
 	} else {
 		_, _ = fmt.Fprintf(t.out, "%s: %s\n", label, msg)
 	}
-}
-
-// Step prints a progress indicator like [1/5].
-func (t *Terminal) Step(current, total int, message string) {
-	_, _ = fmt.Fprintf(t.out, "[%d/%d] %s\n", current, total, message)
 }
 
 // Printf writes formatted output.

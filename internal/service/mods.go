@@ -18,13 +18,16 @@ import (
 
 	"craftops/internal/config"
 	"craftops/internal/domain"
+	"craftops/internal/ui"
 )
 
 const (
-	userAgent     = "craftops/2.0"
 	apiBase       = "https://api.modrinth.com/v2"
 	apiHealthName = "Modrinth API"
 )
+
+// Version is set by ldflags during build.
+var Version = "dev"
 
 // Mods handles automated mod updates from Modrinth.
 type Mods struct {
@@ -34,14 +37,30 @@ type Mods struct {
 	baseURL string
 }
 
-// NewMods creates a mod manager.
+// NewMods creates a mod manager. The HTTP client has no global timeout;
+// API calls get a per-request deadline from cfg.Mods.Timeout while mod
+// downloads are bounded only by the parent context (large jars on slow
+// links must not be killed mid-transfer).
 func NewMods(cfg *config.Config, logger *zap.Logger) *Mods {
 	return &Mods{
 		cfg:     cfg,
 		logger:  logger,
-		client:  &http.Client{Timeout: time.Duration(cfg.Mods.Timeout) * time.Second},
+		client:  &http.Client{},
 		baseURL: apiBase,
 	}
+}
+
+func (m *Mods) userAgent() string {
+	return "craftops/" + Version
+}
+
+// requestCtx bounds a metadata/health API call by cfg.Mods.Timeout.
+func (m *Mods) requestCtx(ctx context.Context) (context.Context, context.CancelFunc) {
+	timeout := m.cfg.Mods.Timeout
+	if timeout <= 0 {
+		timeout = 10
+	}
+	return context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 }
 
 // UpdateAll downloads the latest versions of all configured mods concurrently.
@@ -115,7 +134,6 @@ func (m *Mods) ListInstalled() ([]domain.InstalledMod, error) {
 		filename := filepath.Base(file)
 		mods = append(mods, domain.InstalledMod{
 			Name:     strings.TrimSuffix(filename, filepath.Ext(filename)),
-			Filename: filename,
 			Size:     info.Size(),
 			Modified: info.ModTime(),
 		})
@@ -133,7 +151,7 @@ func (m *Mods) HealthCheck(ctx context.Context) []domain.HealthCheck {
 		sourcesCheck = domain.HealthCheck{Name: "Mod sources", Status: domain.StatusOK, Message: fmt.Sprintf("%d sources", total)}
 	}
 	return []domain.HealthCheck{
-		domain.CheckPath("Mods directory", m.cfg.Paths.Mods),
+		ui.CheckPath("Mods directory", m.cfg.Paths.Mods),
 		sourcesCheck,
 		m.checkAPI(ctx),
 	}
@@ -168,7 +186,7 @@ func (m *Mods) get(ctx context.Context, rawURL string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("User-Agent", m.userAgent())
 	return m.client.Do(req)
 }
 
@@ -217,7 +235,7 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("download failed: status %d", resp.StatusCode)
+			return &domain.APIError{URL: info.DownloadURL, StatusCode: resp.StatusCode, Message: "download failed"}
 		}
 
 		_, err = io.Copy(tmpFile, resp.Body)
@@ -225,7 +243,7 @@ func (m *Mods) downloadMod(ctx context.Context, info *domain.ModInfo, force bool
 	})
 
 	if closeErr := tmpFile.Close(); closeErr != nil {
-		m.logger.Warn("Failed to close temporary file", zap.Error(closeErr))
+		return false, fmt.Errorf("closing temporary file: %w", closeErr)
 	}
 	if err != nil {
 		return false, err
@@ -282,6 +300,9 @@ type modrinthVersion struct {
 }
 
 func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domain.ModInfo, error) {
+	ctx, cancel := m.requestCtx(ctx)
+	defer cancel()
+
 	q := url.Values{}
 	q.Set("game_versions", "[\""+m.cfg.Minecraft.Version+"\"]")
 	q.Set("loaders", "[\""+m.cfg.Minecraft.Modloader+"\"]")
@@ -319,11 +340,7 @@ func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domai
 }
 
 func (m *Mods) checkAPI(ctx context.Context) domain.HealthCheck {
-	timeout := m.cfg.Mods.Timeout
-	if timeout <= 0 {
-		timeout = 10
-	}
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+	ctx, cancel := m.requestCtx(ctx)
 	defer cancel()
 
 	resp, err := m.get(ctx, m.baseURL)

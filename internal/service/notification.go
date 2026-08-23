@@ -74,15 +74,15 @@ func (n *Notification) SendRestartWarnings(ctx context.Context) error {
 			return err
 		}
 
+		wait := time.Duration(minutes) * time.Minute
 		if i < len(intervals)-1 {
-			next := intervals[i+1]
-			wait := time.Duration(minutes-next) * time.Minute
-			n.logger.Info("Waiting before next warning", zap.Duration("wait", wait))
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(wait):
-			}
+			wait = time.Duration(minutes-intervals[i+1]) * time.Minute
+		}
+		n.logger.Info("Waiting between restart warnings", zap.Duration("wait", wait))
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(wait):
 		}
 	}
 	return nil
@@ -111,12 +111,16 @@ func (n *Notification) HealthCheck(_ context.Context) []domain.HealthCheck {
 	return []domain.HealthCheck{webhookCheck, settingsCheck}
 }
 
+type discordFooter struct {
+	Text string `json:"text"`
+}
+
 type discordEmbed struct {
-	Footer      map[string]string `json:"footer"`
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Timestamp   string            `json:"timestamp"`
-	Color       int               `json:"color"`
+	Footer      discordFooter `json:"footer"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	Timestamp   string        `json:"timestamp"`
+	Color       int           `json:"color"`
 }
 
 type discordPayload struct {
@@ -144,7 +148,7 @@ func (n *Notification) sendDiscord(ctx context.Context, title, message string, c
 			Description: message,
 			Color:       color,
 			Timestamp:   time.Now().UTC().Format(time.RFC3339),
-			Footer:      map[string]string{"text": "CraftOps"},
+			Footer:      discordFooter{Text: "CraftOps"},
 		}},
 	}
 

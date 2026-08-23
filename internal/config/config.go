@@ -2,6 +2,7 @@
 package config
 
 import (
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"os"
@@ -86,13 +87,13 @@ type LoggingConfig struct {
 	ConsoleEnabled bool   `toml:"console_enabled"`
 }
 
-// DefaultConfig returns production-ready defaults.
+// DefaultConfig returns production-ready defaults. Inside a container
+// (detected via /.dockerenv) paths target the image layout under /minecraft.
 func DefaultConfig() *Config {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		homeDir = ""
+	serverPath := filepath.Join(homeDir(), "minecraft", "server")
+	if containerServerDir := containerServerDir(); containerServerDir != "" {
+		serverPath = containerServerDir
 	}
-	serverPath := filepath.Join(homeDir, "minecraft", "server")
 
 	return &Config{
 		Minecraft: MinecraftConfig{
@@ -102,8 +103,8 @@ func DefaultConfig() *Config {
 		Paths: PathsConfig{
 			Server:  serverPath,
 			Mods:    filepath.Join(serverPath, "mods"),
-			Backups: filepath.Join(homeDir, "minecraft", "backups"),
-			Logs:    filepath.Join(homeDir, ".local", "share", "craftops", "logs"),
+			Backups: filepath.Join(filepath.Dir(serverPath), "backups"),
+			Logs:    filepath.Join(homeDir(), ".local", "share", "craftops", "logs"),
 		},
 		Server: ServerConfig{
 			JarName: "server.jar",
@@ -151,32 +152,34 @@ func DefaultConfig() *Config {
 
 // LoadConfig reads config from file (or defaults) and validates it.
 func LoadConfig(configPath string) (*Config, error) {
-	config := DefaultConfig()
+	cfg := DefaultConfig()
 
 	if configPath == "" {
 		configPath = findDefaultConfig()
 	}
 	if configPath != "" {
-		if _, err := toml.DecodeFile(configPath, config); err != nil {
+		if _, err := toml.DecodeFile(configPath, cfg); err != nil {
 			return nil, fmt.Errorf("failed to load config file %s: %w", configPath, err)
 		}
 	}
 
-	if err := config.Validate(); err != nil {
+	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %w", err)
 	}
 
-	return config, nil
+	return cfg, nil
 }
 
 // SaveConfig writes the configuration as TOML.
 func (c *Config) SaveConfig(configPath string) error {
-	file, err := os.Create(configPath)
-	if err != nil {
-		return fmt.Errorf("failed to create config file: %w", err)
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Encode(c); err != nil {
+		return fmt.Errorf("failed to encode config: %w", err)
 	}
-	defer func() { _ = file.Close() }()
-	return toml.NewEncoder(file).Encode(c)
+	if err := os.WriteFile(configPath, buf.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+	return nil
 }
 
 // Validate checks that all settings are within supported bounds and normalizes case.
@@ -188,7 +191,7 @@ func (c *Config) Validate() error {
 	}
 	c.Minecraft.Modloader = modloader
 
-	validLevels := []string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+	validLevels := []string{"DEBUG", "INFO", "WARN", "ERROR"}
 	level := strings.ToUpper(c.Logging.Level)
 	if !slices.Contains(validLevels, level) {
 		return fmt.Errorf("invalid log level: %s. Must be one of %v", c.Logging.Level, validLevels)
@@ -250,7 +253,7 @@ func findDefaultConfig() string {
 	if cfgDir, err := os.UserConfigDir(); err == nil {
 		candidates = append(candidates, filepath.Join(cfgDir, "craftops", "config.toml"))
 	}
-	candidates = append(candidates, "/etc/craftops/config.toml")
+	candidates = append(candidates, "/config/config.toml", "/etc/craftops/config.toml")
 
 	for _, p := range candidates {
 		if _, err := os.Stat(p); err == nil {
@@ -258,4 +261,25 @@ func findDefaultConfig() string {
 		}
 	}
 	return ""
+}
+
+func homeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return home
+}
+
+// containerServerDir returns the container image's server root when running
+// inside a container that provides it, or "" on a normal host.
+func containerServerDir() string {
+	if _, err := os.Stat("/.dockerenv"); err != nil {
+		return ""
+	}
+	const root = "/minecraft/server"
+	if _, err := os.Stat(root); err != nil {
+		return ""
+	}
+	return root
 }

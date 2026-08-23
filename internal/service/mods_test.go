@@ -1,4 +1,4 @@
-package service_test
+package service
 
 import (
 	"encoding/json"
@@ -10,8 +10,17 @@ import (
 	"strings"
 	"testing"
 
-	"craftops/internal/service"
+	"go.uber.org/zap"
+
+	"craftops/internal/config"
 )
+
+// newModsWithBaseURL creates a Mods service targeting a test API server.
+func newModsWithBaseURL(cfg *config.Config, logger *zap.Logger, baseURL string) *Mods {
+	m := NewMods(cfg, logger)
+	m.baseURL = strings.TrimRight(baseURL, "/")
+	return m
+}
 
 // modrinthVersionFixture returns a minimal Modrinth API version response.
 func modrinthVersionFixture(filename, downloadURL string) []map[string]any {
@@ -66,7 +75,7 @@ func TestMods_UpdateAll_Downloads(t *testing.T) {
 	cfg.Mods.MaxRetries = 0
 	cfg.Mods.Timeout = 5
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
 	result := svc.UpdateAll(ctx, false)
 
@@ -105,7 +114,7 @@ func TestMods_UpdateAll_SkipsExisting(t *testing.T) {
 	// Pre-place the jar so it appears "already installed"
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "mod-1.0.0.jar"), []byte("OLD"), 0o600)
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
 	result := svc.UpdateAll(ctx, false)
 	if len(result.SkippedMods) != 1 {
@@ -130,7 +139,7 @@ func TestMods_UpdateAll_ForceRedownload(t *testing.T) {
 	// Pre-place old jar
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "mod-1.0.0.jar"), []byte("OLD"), 0o600)
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
 	result := svc.UpdateAll(ctx, true) // force=true
 	if len(result.UpdatedMods) != 1 {
@@ -156,7 +165,7 @@ func TestMods_UpdateAll_API404(t *testing.T) {
 	cfg.Mods.MaxRetries = 0
 	cfg.Mods.Timeout = 5
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
 	result := svc.UpdateAll(ctx, false)
 	if len(result.FailedMods) != 1 {
@@ -177,7 +186,7 @@ func TestMods_UpdateAll_NoCompatibleVersions(t *testing.T) {
 	cfg.Mods.MaxRetries = 0
 	cfg.Mods.Timeout = 5
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
 	result := svc.UpdateAll(ctx, false)
 	if len(result.FailedMods) != 1 {
@@ -187,7 +196,7 @@ func TestMods_UpdateAll_NoCompatibleVersions(t *testing.T) {
 
 func TestMods_ListInstalled_Empty(t *testing.T) {
 	cfg, logger, _ := setup(t)
-	svc := service.NewMods(cfg, logger)
+	svc := NewMods(cfg, logger)
 
 	mods, err := svc.ListInstalled()
 	if err != nil {
@@ -200,7 +209,7 @@ func TestMods_ListInstalled_Empty(t *testing.T) {
 
 func TestMods_ListInstalled(t *testing.T) {
 	cfg, logger, _ := setup(t)
-	svc := service.NewMods(cfg, logger)
+	svc := NewMods(cfg, logger)
 
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "fabric-api.jar"), []byte("jar"), 0o600)
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "sodium.jar"), []byte("jar"), 0o600)
@@ -227,7 +236,7 @@ func TestParseProjectID(t *testing.T) {
 		{"https://invalid.com/notamod", "", true},
 	}
 	for _, tt := range tests {
-		got, err := service.ParseProjectID(tt.input)
+		got, err := parseProjectID(tt.input)
 		if (err != nil) != tt.wantErr {
 			t.Errorf("ParseProjectID(%q) err=%v, wantErr=%v", tt.input, err, tt.wantErr)
 		}
@@ -240,7 +249,7 @@ func TestParseProjectID(t *testing.T) {
 func TestMods_UpdateAll_NoSources(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.Mods.ModrinthSources = []string{}
-	svc := service.NewMods(cfg, logger)
+	svc := NewMods(cfg, logger)
 
 	result := svc.UpdateAll(ctx, false)
 	if len(result.UpdatedMods) != 0 || len(result.FailedMods) != 0 || len(result.SkippedMods) != 0 {
@@ -250,7 +259,7 @@ func TestMods_UpdateAll_NoSources(t *testing.T) {
 
 func TestMods_ListInstalled_Metadata(t *testing.T) {
 	cfg, logger, _ := setup(t)
-	svc := service.NewMods(cfg, logger)
+	svc := NewMods(cfg, logger)
 
 	content := []byte("fake jar content")
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "fabric-api.jar"), content, 0o600)
@@ -297,7 +306,7 @@ func TestMods_UpdateAll_SendsJSONArrayFilters(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 	if result := svc.UpdateAll(ctx, false); len(result.FailedMods) > 0 {
 		t.Fatalf("unexpected failures: %v", result.FailedMods)
 	}
@@ -329,7 +338,7 @@ func TestMods_HealthCheck(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	svc := service.NewModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
 
 	checks := svc.HealthCheck(ctx)
 	if len(checks) < 2 {

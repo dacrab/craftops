@@ -2,6 +2,8 @@ package ui
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -52,21 +54,58 @@ func TestTerminal_Messages(t *testing.T) {
 	}
 }
 
-func TestTerminal_Step(t *testing.T) {
-	term, out := newTestTerminal()
-	term.Step(2, 5, "doing something")
-	got := out.String()
-	if !strings.Contains(got, "[2/5]") || !strings.Contains(got, "doing something") {
-		t.Errorf("Step output wrong: %q", got)
-	}
-}
-
 func TestTerminal_Printf(t *testing.T) {
 	term, out := newTestTerminal()
 	term.Printf("value=%d", 42)
 	if !strings.Contains(out.String(), "value=42") {
 		t.Errorf("Printf output wrong: %q", out.String())
 	}
+}
+
+func TestFormatSize(t *testing.T) {
+	tests := []struct {
+		want string
+		size int64
+	}{
+		{size: 0, want: "0 B"},
+		{size: 999, want: "999 B"},
+		{size: 1000, want: "kB"},
+		{size: 1000 * 1000, want: "MB"},
+		{size: -1, want: "0 B"},
+	}
+	for _, tt := range tests {
+		got := FormatSize(tt.size)
+		if !strings.Contains(got, tt.want) {
+			t.Errorf("FormatSize(%d) = %q, want it to contain %q", tt.size, got, tt.want)
+		}
+	}
+}
+
+func TestCheckPath(t *testing.T) {
+	tmp := t.TempDir()
+
+	t.Run("exists and is dir", func(t *testing.T) {
+		c := CheckPath("test", tmp)
+		if c.Status != domain.StatusOK {
+			t.Errorf("expected OK, got %s: %s", c.Status, c.Message)
+		}
+	})
+
+	t.Run("does not exist", func(t *testing.T) {
+		c := CheckPath("test", filepath.Join(tmp, "nonexistent"))
+		if c.Status != domain.StatusWarn {
+			t.Errorf("expected WARN, got %s: %s", c.Status, c.Message)
+		}
+	})
+
+	t.Run("exists but is a file", func(t *testing.T) {
+		f := filepath.Join(tmp, "file.txt")
+		_ = os.WriteFile(f, []byte("x"), 0o600)
+		c := CheckPath("test", f)
+		if c.Status != domain.StatusError {
+			t.Errorf("expected ERROR, got %s: %s", c.Status, c.Message)
+		}
+	})
 }
 
 func TestTerminal_SprintColors_NoTTY(t *testing.T) {

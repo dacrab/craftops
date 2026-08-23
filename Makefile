@@ -2,7 +2,7 @@
 
 BIN := craftops
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X craftops/internal/cli.Version=$(VERSION)
+LDFLAGS := -s -w -X craftops/internal/cli.Version=$(VERSION) -X craftops/internal/service.Version=$(VERSION)
 BUILDFLAGS := -trimpath -buildvcs=auto
 
 build:
@@ -19,7 +19,8 @@ test:
 	go test -race -cover -coverprofile=coverage.out ./...
 
 lint:
-	@command -v golangci-lint >/dev/null && golangci-lint run -c .github/.golangci.yml || go vet ./...
+	@command -v golangci-lint >/dev/null || { echo "Error: golangci-lint is not installed"; exit 1; }
+	golangci-lint run -c .github/.golangci.yml
 
 fmt:
 	gofmt -w .
