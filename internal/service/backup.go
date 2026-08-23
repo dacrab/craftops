@@ -20,6 +20,7 @@ import (
 
 	"craftops/internal/config"
 	"craftops/internal/domain"
+	"craftops/internal/ui"
 )
 
 const (
@@ -51,8 +52,12 @@ func (b *Backup) Create(ctx context.Context) (string, error) {
 		return "", nil
 	}
 
-	if check := domain.CheckPath("Server", b.cfg.Paths.Server); check.Status != domain.StatusOK {
-		return "", fmt.Errorf("%s: %s", check.Name, check.Message)
+	info, err := os.Stat(b.cfg.Paths.Server)
+	if err != nil {
+		return "", fmt.Errorf("server directory: %w", err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("server path is not a directory: %s", b.cfg.Paths.Server)
 	}
 
 	if err := os.MkdirAll(b.cfg.Paths.Backups, domain.DirPerm); err != nil {
@@ -133,7 +138,7 @@ func (b *Backup) HealthCheck(_ context.Context) []domain.HealthCheck {
 		retentionCheck = domain.HealthCheck{Name: "Backup retention", Status: domain.StatusOK, Message: fmt.Sprintf("Keeping %d backups", b.cfg.Backup.MaxBackups)}
 	}
 	return []domain.HealthCheck{
-		domain.CheckPath("Backup directory", b.cfg.Paths.Backups),
+		ui.CheckPath("Backup directory", b.cfg.Paths.Backups),
 		retentionCheck,
 	}
 }
@@ -161,34 +166,30 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 	}
 	tarWriter := tar.NewWriter(gzWriter)
 
-	if err := b.addFiles(ctx, tarWriter); err != nil {
+	abort := func(cause error) (string, error) {
 		_ = tarWriter.Close()
 		_ = gzWriter.Close()
 		_ = file.Close()
 		_ = os.Remove(backupPath)
-		return "", err
+		return "", cause
 	}
 
+	if err := b.addFiles(ctx, tarWriter); err != nil {
+		return abort(err)
+	}
 	if err := tarWriter.Close(); err != nil {
-		_ = gzWriter.Close()
-		_ = file.Close()
-		_ = os.Remove(backupPath)
-		return "", fmt.Errorf("finalizing tar: %w", err)
+		return abort(fmt.Errorf("finalizing tar: %w", err))
 	}
 	if err := gzWriter.Close(); err != nil {
-		_ = file.Close()
-		_ = os.Remove(backupPath)
-		return "", fmt.Errorf("finalizing gzip: %w", err)
+		return abort(fmt.Errorf("finalizing gzip: %w", err))
 	}
 	if err := file.Close(); err != nil {
-		_ = os.Remove(backupPath)
-		return "", fmt.Errorf("closing backup file: %w", err)
+		return abort(fmt.Errorf("closing backup file: %w", err))
 	}
 
 	info, err := os.Stat(backupPath)
 	if err != nil || info.Size() == 0 {
-		_ = os.Remove(backupPath)
-		return "", errors.New("backup file empty or not created")
+		return abort(errors.New("backup file empty or not created"))
 	}
 
 	b.logger.Info("Backup created", zap.String("name", backupName), zap.Int64("size", info.Size()))

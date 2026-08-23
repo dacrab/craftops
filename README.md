@@ -14,7 +14,7 @@ Modern CLI for Minecraft server operations and Modrinth mod management — built
 
 - Linux or macOS (amd64 or arm64)
 - GNU screen
-- Java 17+ (host installs; not required inside Docker)
+- Java 17+ (bundled in the Docker image via `openjdk17-jre-headless`)
 
 ## Install
 
@@ -40,9 +40,15 @@ make install
 
 ### Docker
 
+No prebuilt image is published yet; build one locally from the repo root:
+
 ```bash
-docker pull ghcr.io/dacrab/craftops:latest
+docker build -t craftops .
+docker run -it --rm -v "$PWD/data:/minecraft" craftops server status
 ```
+
+Mount your config at `/config/config.toml` (or `/minecraft/config.toml`) and it
+is picked up automatically.
 
 ## Quick Start
 

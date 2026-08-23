@@ -4,7 +4,6 @@ package domain
 import (
 	"errors"
 	"fmt"
-	"os"
 	"time"
 )
 
@@ -50,7 +49,6 @@ type ModUpdateResult struct {
 type InstalledMod struct {
 	Modified time.Time `json:"modified"`
 	Name     string    `json:"name"`
-	Filename string    `json:"filename"`
 	Size     int64     `json:"size"`
 }
 
@@ -62,44 +60,12 @@ type BackupInfo struct {
 	Size      int64     `json:"size_bytes"`
 }
 
-// TimeFormat is the human-readable timestamp layout used across the CLI.
-const TimeFormat = "2006-01-02 15:04:05"
-
 // DefaultSessionName is the GNU screen session used to run the server when
 // no session_name is configured.
 const DefaultSessionName = "minecraft"
 
 // DirPerm is the permission mode applied to directories created by craftops.
 const DirPerm = 0o750
-
-// FormatSize returns a human-readable file size (e.g. "4.2 MB").
-func FormatSize(bytes int64) string {
-	if bytes <= 0 {
-		return "0 B"
-	}
-	const unit = 1000
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "kMGTPE"[exp])
-}
-
-// CheckPath verifies if a path exists and is a directory.
-func CheckPath(name, path string) HealthCheck {
-	info, err := os.Stat(path)
-	if err != nil {
-		return HealthCheck{Name: name, Status: StatusWarn, Message: "Does not exist"}
-	}
-	if !info.IsDir() {
-		return HealthCheck{Name: name, Status: StatusError, Message: "Not a directory"}
-	}
-	return HealthCheck{Name: name, Status: StatusOK, Message: "OK"}
-}
 
 // Sentinel errors.
 var (

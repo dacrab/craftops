@@ -7,7 +7,7 @@ RUN go mod download
 COPY . .
 ARG VERSION=dev
 RUN CGO_ENABLED=0 go build -trimpath -buildvcs=auto \
-    -ldflags "-s -w -X craftops/internal/cli.Version=${VERSION}" \
+    -ldflags "-s -w -X craftops/internal/cli.Version=${VERSION} -X craftops/internal/service.Version=${VERSION}" \
     -o /craftops ./cmd/craftops
 
 FROM alpine:3.24
@@ -22,7 +22,7 @@ USER minecraft
 WORKDIR /minecraft
 VOLUME ["/minecraft/server", "/minecraft/mods", "/minecraft/backups", "/config", "/logs"]
 
-HEALTHCHECK --interval=60s --timeout=10s CMD ["craftops", "health"]
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s CMD ["craftops", "server", "status"]
 ENTRYPOINT ["craftops"]
 CMD ["--help"]
 

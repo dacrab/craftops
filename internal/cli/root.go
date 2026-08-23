@@ -51,10 +51,11 @@ func (a *app) Close() {
 }
 
 func newLogger(cfg *config.Config) *zap.Logger {
-	level := zap.NewAtomicLevelAt(zap.InfoLevel)
-	if cfg.Logging.Level == "DEBUG" {
-		level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	level, err := zapcore.ParseLevel(cfg.Logging.Level)
+	if err != nil {
+		level = zapcore.InfoLevel
 	}
+	atomicLevel := zap.NewAtomicLevelAt(level)
 
 	encoderCfg := zap.NewProductionEncoderConfig()
 	if cfg.Logging.Format == "text" {
@@ -65,7 +66,7 @@ func newLogger(cfg *config.Config) *zap.Logger {
 	consoleCore := zapcore.NewCore(
 		zapcore.NewConsoleEncoder(encoderCfg),
 		zapcore.AddSync(os.Stderr),
-		level,
+		atomicLevel,
 	)
 
 	var cores []zapcore.Core
@@ -82,7 +83,7 @@ func newLogger(cfg *config.Config) *zap.Logger {
 				if cfg.Logging.Format == "text" {
 					enc = zapcore.NewConsoleEncoder(encoderCfg)
 				}
-				cores = append(cores, zapcore.NewCore(enc, zapcore.AddSync(f), level))
+				cores = append(cores, zapcore.NewCore(enc, zapcore.AddSync(f), atomicLevel))
 			}
 		}
 	}
@@ -99,7 +100,7 @@ func loggerWarnf(format string, args ...any) {
 }
 
 // activeApp holds the initialized app for the duration of a command run.
-// It is set in PersistentPreRunE and cleared in PersistentPostRun.
+// It is set in PersistentPreRunE and cleared when Execute returns.
 var activeApp *app
 
 var rootCmd = &cobra.Command{
@@ -108,12 +109,6 @@ var rootCmd = &cobra.Command{
 	SilenceErrors:     true,
 	SilenceUsage:      true,
 	PersistentPreRunE: initApp,
-	PersistentPostRun: func(_ *cobra.Command, _ []string) {
-		if activeApp != nil {
-			activeApp.Close()
-			activeApp = nil
-		}
-	},
 }
 
 func init() {
@@ -135,8 +130,15 @@ func init() {
 	initCmd.Flags().Bool("force", false, "overwrite existing config file")
 }
 
-// Execute runs the root command.
+// Execute runs the root command. The app is closed after the command
+// completes, including on error paths where cobra skips post-run hooks.
 func Execute(ctx context.Context) error {
+	defer func() {
+		if activeApp != nil {
+			activeApp.Close()
+			activeApp = nil
+		}
+	}()
 	return rootCmd.ExecuteContext(ctx)
 }
 

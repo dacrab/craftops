@@ -1,4 +1,4 @@
-package service_test
+package service
 
 import (
 	"archive/tar"
@@ -11,13 +11,12 @@ import (
 	"time"
 
 	"craftops/internal/domain"
-	"craftops/internal/service"
 )
 
 func TestBackup_Create(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.Backup.Enabled = true
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "data.txt"), []byte("data"), 0o600)
 	path, err := svc.Create(ctx)
@@ -35,7 +34,7 @@ func TestBackup_Create(t *testing.T) {
 func TestBackup_Create_Disabled(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.Backup.Enabled = false
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	_, err := svc.Create(ctx)
 	if !errors.Is(err, domain.ErrBackupsDisabled) {
@@ -47,7 +46,7 @@ func TestBackup_Create_DryRun(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.Backup.Enabled = true
 	cfg.DryRun = true
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	path, err := svc.Create(ctx)
 	if err != nil {
@@ -60,7 +59,7 @@ func TestBackup_Create_DryRun(t *testing.T) {
 
 func TestBackup_List_Empty(t *testing.T) {
 	cfg, logger, _ := setup(t)
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	backups, err := svc.List()
 	if err != nil {
@@ -73,7 +72,7 @@ func TestBackup_List_Empty(t *testing.T) {
 
 func TestBackup_List_SortedNewestFirst(t *testing.T) {
 	cfg, logger, _ := setup(t)
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	now := time.Now()
 	older := filepath.Join(cfg.Paths.Backups, "minecraft_backup_20000101_000001.tar.gz")
@@ -99,7 +98,7 @@ func TestBackup_Retention(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.Backup.Enabled = true
 	cfg.Backup.MaxBackups = 2
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "x.txt"), []byte("x"), 0o600)
 	for i := range 3 {
@@ -124,7 +123,7 @@ func TestBackup_Retention(t *testing.T) {
 
 func TestBackup_Delete(t *testing.T) {
 	cfg, logger, _ := setup(t)
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	name := "minecraft_backup_20000101_000001.tar.gz"
 	p := filepath.Join(cfg.Paths.Backups, name)
@@ -140,7 +139,7 @@ func TestBackup_Delete(t *testing.T) {
 
 func TestBackup_Delete_NotFound(t *testing.T) {
 	cfg, logger, _ := setup(t)
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	if err := svc.Delete("nonexistent.tar.gz"); err == nil {
 		t.Error("expected error deleting nonexistent backup")
@@ -150,7 +149,7 @@ func TestBackup_Delete_NotFound(t *testing.T) {
 func TestBackup_HealthCheck_Disabled(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.Backup.Enabled = false
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	checks := svc.HealthCheck(ctx)
 	if len(checks) == 0 {
@@ -164,7 +163,7 @@ func TestBackup_HealthCheck_Disabled(t *testing.T) {
 func TestBackup_HealthCheck_Enabled(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.Backup.Enabled = true
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	checks := svc.HealthCheck(ctx)
 	if len(checks) < 2 {
@@ -186,7 +185,7 @@ func TestBackup_Create_InvalidServerDir(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.Backup.Enabled = true
 	cfg.Paths.Server = filepath.Join(t.TempDir(), "nonexistent")
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	_, err := svc.Create(ctx)
 	if err == nil {
@@ -196,7 +195,7 @@ func TestBackup_Create_InvalidServerDir(t *testing.T) {
 
 func TestBackup_List_IgnoresNonTarGz(t *testing.T) {
 	cfg, logger, _ := setup(t)
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Backups, "minecraft_backup_20000101_000001.tar.gz"), []byte("real"), 0o600)
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Backups, "readme.txt"), []byte("ignore"), 0o600)
@@ -217,7 +216,7 @@ func TestBackup_ExcludePatterns(t *testing.T) {
 	cfg.Backup.Enabled = true
 	cfg.Backup.ExcludePatterns = []string{"*.log"}
 	cfg.Backup.IncludeLogs = false
-	svc := service.NewBackup(cfg, logger)
+	svc := NewBackup(cfg, logger)
 
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "server.log"), []byte("log data"), 0o600)
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Server, "data.txt"), []byte("data"), 0o600)

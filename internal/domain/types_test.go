@@ -1,8 +1,6 @@
 package domain
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -39,51 +37,5 @@ func TestAPIError_Error(t *testing.T) {
 	got2 := e2.Error()
 	if !strings.Contains(got2, "bad gateway") || strings.Contains(got2, "[0]") {
 		t.Errorf("APIError.Error() (no status) = %q", got2)
-	}
-}
-
-func TestCheckPath(t *testing.T) {
-	tmp := t.TempDir()
-
-	t.Run("exists and is dir", func(t *testing.T) {
-		c := CheckPath("test", tmp)
-		if c.Status != StatusOK {
-			t.Errorf("expected OK, got %s: %s", c.Status, c.Message)
-		}
-	})
-
-	t.Run("does not exist", func(t *testing.T) {
-		c := CheckPath("test", filepath.Join(tmp, "nonexistent"))
-		if c.Status != StatusWarn {
-			t.Errorf("expected WARN, got %s: %s", c.Status, c.Message)
-		}
-	})
-
-	t.Run("exists but is a file", func(t *testing.T) {
-		f := filepath.Join(tmp, "file.txt")
-		_ = os.WriteFile(f, []byte("x"), 0o600)
-		c := CheckPath("test", f)
-		if c.Status != StatusError {
-			t.Errorf("expected ERROR, got %s: %s", c.Status, c.Message)
-		}
-	})
-}
-
-func TestFormatSize(t *testing.T) {
-	tests := []struct {
-		want string
-		size int64
-	}{
-		{size: 0, want: "0 B"},
-		{size: 999, want: "999 B"},
-		{size: 1000, want: "kB"},
-		{size: 1000 * 1000, want: "MB"},
-		{size: -1, want: "0 B"},
-	}
-	for _, tt := range tests {
-		got := FormatSize(tt.size)
-		if !strings.Contains(got, tt.want) {
-			t.Errorf("FormatSize(%d) = %q, want it to contain %q", tt.size, got, tt.want)
-		}
 	}
 }

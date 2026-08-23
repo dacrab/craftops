@@ -91,7 +91,7 @@ var serverStatusCmd = &cobra.Command{
 			a.Terminal.Warning("Server is not running")
 		}
 		a.Terminal.Printf("  Session : %s\n", status.SessionName)
-		a.Terminal.Printf("  Checked : %s\n", status.CheckedAt.Format(domain.TimeFormat))
+		a.Terminal.Printf("  Checked : %s\n", status.CheckedAt.Format(ui.TimeFormat))
 		return nil
 	},
 }
@@ -135,17 +135,11 @@ var modsListCmd = &cobra.Command{
 			a.Terminal.Errorf("Failed to list mods: %v", err)
 			return err
 		}
-		if len(mods) == 0 {
-			a.Terminal.Warning("No mods installed in " + a.Config.Paths.Mods)
-			return nil
-		}
-		a.Terminal.Section(fmt.Sprintf("Installed Mods (%d)", len(mods)))
-		headers := []string{"Name", "Size", "Modified"}
 		rows := make([][]string, len(mods))
 		for i, m := range mods {
-			rows[i] = []string{m.Name, domain.FormatSize(m.Size), m.Modified.Format(domain.TimeFormat)}
+			rows[i] = []string{m.Name, ui.FormatSize(m.Size), m.Modified.Format(ui.TimeFormat)}
 		}
-		a.Terminal.Table(headers, rows)
+		renderList(a, "No mods installed in "+a.Config.Paths.Mods, "Installed Mods", []string{"Name", "Size", "Modified"}, rows)
 		return nil
 	},
 }
@@ -217,19 +211,23 @@ var backupListCmd = &cobra.Command{
 			a.Terminal.Errorf("Failed to list backups: %v", err)
 			return err
 		}
-		if len(backups) == 0 {
-			a.Terminal.Warning("No backups found in " + a.Config.Paths.Backups)
-			return nil
-		}
-		a.Terminal.Section(fmt.Sprintf("Backups (%d)", len(backups)))
-		headers := []string{"Name", "Date", "Size"}
 		rows := make([][]string, len(backups))
 		for i, b := range backups {
-			rows[i] = []string{b.Name, b.CreatedAt.Format(domain.TimeFormat), domain.FormatSize(b.Size)}
+			rows[i] = []string{b.Name, b.CreatedAt.Format(ui.TimeFormat), ui.FormatSize(b.Size)}
 		}
-		a.Terminal.Table(headers, rows)
+		renderList(a, "No backups found in "+a.Config.Paths.Backups, "Backups", []string{"Name", "Date", "Size"}, rows)
 		return nil
 	},
+}
+
+// renderList warns on empty listings, otherwise renders a titled table.
+func renderList(a *app, emptyMsg, sectionTitle string, headers []string, rows [][]string) {
+	if len(rows) == 0 {
+		a.Terminal.Warning(emptyMsg)
+		return
+	}
+	a.Terminal.Section(fmt.Sprintf("%s (%d)", sectionTitle, len(rows)))
+	a.Terminal.Table(headers, rows)
 }
 
 var backupDeleteCmd = &cobra.Command{
@@ -256,18 +254,14 @@ var healthCmd = &cobra.Command{
 		a.Terminal.Banner("System Health Check")
 
 		var checks []domain.HealthCheck
-		a.Terminal.Step(1, 4, "Checking paths...")
-		checks = append(checks, domain.CheckPath("Server directory", a.Config.Paths.Server))
-		checks = append(checks, domain.CheckPath("Mods directory", a.Config.Paths.Mods))
-		checks = append(checks, domain.CheckPath("Backups directory", a.Config.Paths.Backups))
-		checks = append(checks, domain.CheckPath("Logs directory", a.Config.Paths.Logs))
-		a.Terminal.Step(2, 4, "Checking server...")
+		checks = append(checks, ui.CheckPath("Server directory", a.Config.Paths.Server))
+		checks = append(checks, ui.CheckPath("Mods directory", a.Config.Paths.Mods))
+		checks = append(checks, ui.CheckPath("Backups directory", a.Config.Paths.Backups))
+		checks = append(checks, ui.CheckPath("Logs directory", a.Config.Paths.Logs))
 		checks = append(checks, a.Server.HealthCheck(ctx)...)
 		checks = append(checks, a.Mods.HealthCheck(ctx)...)
-		a.Terminal.Step(3, 4, "Checking backup & notifications...")
 		checks = append(checks, a.Backup.HealthCheck(ctx)...)
 		checks = append(checks, a.Notification.HealthCheck(ctx)...)
-		a.Terminal.Step(4, 4, "Done")
 
 		a.Terminal.Section("Results")
 		a.Terminal.HealthCheckTable(checks)
@@ -316,7 +310,6 @@ var initCmd = &cobra.Command{
 		}
 		force, _ := cmd.Flags().GetBool("force")
 
-		t.Step(1, 3, "Checking output path: "+outputPath)
 		if info, err := os.Stat(outputPath); err == nil && !force {
 			if info.IsDir() {
 				return errors.New("output path is a directory")
@@ -326,14 +319,12 @@ var initCmd = &cobra.Command{
 			return nil
 		}
 
-		if err := os.MkdirAll(filepath.Dir(outputPath), 0o750); err != nil {
+		if err := os.MkdirAll(filepath.Dir(outputPath), domain.DirPerm); err != nil {
 			return fmt.Errorf("failed to create directory: %w", err)
 		}
 
-		t.Step(2, 3, "Generating default configuration...")
 		cfg := config.DefaultConfig()
 
-		t.Step(3, 3, "Saving...")
 		if err := cfg.SaveConfig(outputPath); err != nil {
 			return fmt.Errorf("failed to save config: %w", err)
 		}

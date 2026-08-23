@@ -16,6 +16,7 @@ import (
 
 	"craftops/internal/config"
 	"craftops/internal/domain"
+	"craftops/internal/ui"
 )
 
 // Server manages the Minecraft server process lifecycle.
@@ -142,7 +143,7 @@ func (s *Server) Restart(ctx context.Context) error {
 // HealthCheck verifies server dependencies (Java, screen, paths).
 func (s *Server) HealthCheck(_ context.Context) []domain.HealthCheck {
 	checks := []domain.HealthCheck{
-		domain.CheckPath("Server directory", s.cfg.Paths.Server),
+		ui.CheckPath("Server directory", s.cfg.Paths.Server),
 	}
 
 	serverJar := filepath.Join(s.cfg.Paths.Server, s.cfg.Server.JarName)
@@ -184,21 +185,21 @@ func (s *Server) waitForStatus(ctx context.Context, target bool, timeout int, la
 	defer ticker.Stop()
 
 	for {
+		status, err := s.Status(ctx)
+		if err != nil {
+			return err
+		}
+		if status.IsRunning == target {
+			s.logger.Info("Server "+label, zap.Duration("duration", time.Since(start)))
+			return nil
+		}
+		if time.Since(start) > time.Duration(timeout)*time.Second {
+			return fmt.Errorf("server failed to %s within %ds", label, timeout)
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			status, err := s.Status(ctx)
-			if err != nil {
-				return err
-			}
-			if status.IsRunning == target {
-				s.logger.Info("Server "+label, zap.Duration("duration", time.Since(start)))
-				return nil
-			}
-			if time.Since(start) > time.Duration(timeout)*time.Second {
-				return fmt.Errorf("server failed to %s within %ds", label, timeout)
-			}
 		}
 	}
 }

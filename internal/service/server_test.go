@@ -1,15 +1,13 @@
-package service_test
+package service
 
 import (
 	"os/exec"
 	"testing"
-
-	"craftops/internal/service"
 )
 
 func TestServer_HealthCheck(t *testing.T) {
 	cfg, logger, ctx := setup(t)
-	svc := service.NewServer(cfg, logger)
+	svc := NewServer(cfg, logger)
 
 	checks := svc.HealthCheck(ctx)
 	if len(checks) < 2 {
@@ -32,7 +30,7 @@ func TestServer_Status_ReturnsResult(t *testing.T) {
 		t.Skip("screen not installed")
 	}
 	cfg, logger, ctx := setup(t)
-	svc := service.NewServer(cfg, logger)
+	svc := NewServer(cfg, logger)
 
 	status, err := svc.Status(ctx)
 	if err != nil {
@@ -52,7 +50,7 @@ func TestServer_Status_ReturnsResult(t *testing.T) {
 func TestServer_Start_DryRun(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.DryRun = true
-	svc := service.NewServer(cfg, logger)
+	svc := NewServer(cfg, logger)
 
 	if err := svc.Start(ctx); err != nil {
 		t.Errorf("Start() dry-run error: %v", err)
@@ -62,7 +60,7 @@ func TestServer_Start_DryRun(t *testing.T) {
 func TestServer_Stop_DryRun(t *testing.T) {
 	cfg, logger, ctx := setup(t)
 	cfg.DryRun = true
-	svc := service.NewServer(cfg, logger)
+	svc := NewServer(cfg, logger)
 
 	if err := svc.Stop(ctx); err != nil {
 		t.Errorf("Stop() dry-run error: %v", err)
