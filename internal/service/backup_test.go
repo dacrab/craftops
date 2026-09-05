@@ -173,8 +173,8 @@ func TestBackup_HealthCheck_Enabled(t *testing.T) {
 	for _, c := range checks {
 		names[c.Name] = c.Status
 	}
-	if _, ok := names["Backup directory"]; !ok {
-		t.Error("expected 'Backup directory' health check")
+	if _, ok := names["Backups directory"]; !ok {
+		t.Error("expected 'Backups directory' health check")
 	}
 	if _, ok := names["Backup retention"]; !ok {
 		t.Error("expected 'Backup retention' health check")

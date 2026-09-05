@@ -254,14 +254,11 @@ var healthCmd = &cobra.Command{
 		a.Terminal.Banner("System Health Check")
 
 		var checks []domain.HealthCheck
-		checks = append(checks, ui.CheckPath("Server directory", a.Config.Paths.Server))
-		checks = append(checks, ui.CheckPath("Mods directory", a.Config.Paths.Mods))
-		checks = append(checks, ui.CheckPath("Backups directory", a.Config.Paths.Backups))
-		checks = append(checks, ui.CheckPath("Logs directory", a.Config.Paths.Logs))
 		checks = append(checks, a.Server.HealthCheck(ctx)...)
 		checks = append(checks, a.Mods.HealthCheck(ctx)...)
 		checks = append(checks, a.Backup.HealthCheck(ctx)...)
 		checks = append(checks, a.Notification.HealthCheck(ctx)...)
+		checks = append(checks, ui.CheckPath("Logs directory", a.Config.Paths.Logs))
 
 		a.Terminal.Section("Results")
 		a.Terminal.HealthCheckTable(checks)
