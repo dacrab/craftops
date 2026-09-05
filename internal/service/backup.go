@@ -138,7 +138,7 @@ func (b *Backup) HealthCheck(_ context.Context) []domain.HealthCheck {
 		retentionCheck = domain.HealthCheck{Name: "Backup retention", Status: domain.StatusOK, Message: fmt.Sprintf("Keeping %d backups", b.cfg.Backup.MaxBackups)}
 	}
 	return []domain.HealthCheck{
-		ui.CheckPath("Backup directory", b.cfg.Paths.Backups),
+		ui.CheckPath("Backups directory", b.cfg.Paths.Backups),
 		retentionCheck,
 	}
 }
