@@ -332,11 +332,37 @@ func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domai
 		return nil, errors.New("no files in version")
 	}
 
+	file := v.Files[0]
+	if err := validateRemoteFile(file); err != nil {
+		return nil, err
+	}
+
 	return &domain.ModInfo{
-		DownloadURL: v.Files[0].URL,
-		Filename:    v.Files[0].Filename,
+		DownloadURL: file.URL,
+		Filename:    file.Filename,
 		ProjectName: projectID,
 	}, nil
+}
+
+// validateRemoteFile rejects Modrinth-supplied filenames and download URLs
+// before they enter domain.ModInfo. Both values are remote-controlled (any
+// project author can publish them), so they must never be trusted: the
+// filename is joined under the mods directory and the fetched URL's bytes
+// land in the JVM's load path.
+func validateRemoteFile(file modrinthFile) error {
+	filename := file.Filename
+	if filename == "" ||
+		filename != filepath.Base(filename) ||
+		strings.ContainsAny(filename, `\/`) ||
+		strings.HasPrefix(filename, ".") {
+		return fmt.Errorf("modrinth returned unsafe filename %q", filename)
+	}
+
+	downloadURL, err := url.Parse(file.URL)
+	if err != nil || downloadURL.Scheme != "https" || downloadURL.Host == "" {
+		return fmt.Errorf("modrinth returned unsafe download URL %q", file.URL)
+	}
+	return nil
 }
 
 func (m *Mods) checkAPI(ctx context.Context) domain.HealthCheck {

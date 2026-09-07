@@ -33,7 +33,7 @@ func NewServer(cfg *config.Config, logger *zap.Logger) *Server {
 // Status checks if the server screen session is running.
 func (s *Server) Status(ctx context.Context) (*domain.ServerStatus, error) {
 	session := s.sessionName()
-	cmd := exec.CommandContext(ctx, "screen", "-ls", session)
+	cmd := exec.CommandContext(ctx, "screen", "-ls", session) //nolint:gosec // session name comes from the user's own TOML config; fixed binary, no shell
 	output, err := cmd.Output()
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
@@ -97,7 +97,7 @@ func (s *Server) Start(ctx context.Context) error {
 	javaArgs := slices.Concat(s.cfg.Server.JavaFlags, []string{"-jar", s.cfg.Server.JarName, "nogui"})
 	cmdArgs := append([]string{"-dmS", s.sessionName(), "java"}, javaArgs...)
 
-	cmd := exec.CommandContext(ctx, "screen", cmdArgs...)
+	cmd := exec.CommandContext(ctx, "screen", cmdArgs...) //nolint:gosec // args come from the user's own TOML config (java flags/jar name) as a []string, no shell
 	cmd.Dir = s.cfg.Paths.Server
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("server.start: %w", err)
@@ -123,7 +123,7 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 
 	stopCmd := s.cfg.Server.StopCommand + "\n"
-	cmd := exec.CommandContext(ctx, "screen", "-S", s.sessionName(), "-X", "stuff", stopCmd)
+	cmd := exec.CommandContext(ctx, "screen", "-S", s.sessionName(), "-X", "stuff", stopCmd) //nolint:gosec // session and stop command come from the user's own TOML config; fixed binary, no shell
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("server.stop: %w", err)
 	}

@@ -75,7 +75,7 @@ func newLogger(cfg *config.Config) *zap.Logger {
 			loggerWarnf("failed to create log directory %s: %v", cfg.Paths.Logs, err)
 		} else {
 			logPath := filepath.Join(cfg.Paths.Logs, "craftops.log")
-			f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+			f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // logPath is built from the user's own config paths, not untrusted input
 			if err != nil {
 				loggerWarnf("failed to open log file %s: %v", logPath, err)
 			} else {
