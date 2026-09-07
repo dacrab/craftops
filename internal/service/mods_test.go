@@ -35,16 +35,18 @@ func modrinthVersionFixture(filename, downloadURL string) []map[string]any {
 	}
 }
 
-// newMockModrinth spins up a test HTTP server simulating the Modrinth API.
+// newMockModrinth spins up a test HTTPS server simulating the Modrinth API.
+// TLS is required because fetchLatestVersion rejects non-https download
+// URLs; tests must point svc.client at srv.Client() to trust its cert.
 // versionPath is the path prefix that returns versions (e.g. "/v2/project/fabric-api/version").
 // downloadPath is the path that serves the jar bytes.
 func newMockModrinth(t *testing.T, versionPath, downloadPath string, jarContent []byte) *httptest.Server {
 	t.Helper()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasPrefix(r.URL.Path, versionPath):
 			filename := "mod-1.0.0.jar"
-			dlURL := "http://" + r.Host + downloadPath
+			dlURL := "https://" + r.Host + downloadPath
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(modrinthVersionFixture(filename, dlURL))
 
@@ -76,6 +78,7 @@ func TestMods_UpdateAll_Downloads(t *testing.T) {
 	cfg.Mods.Timeout = 5
 
 	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc.client = srv.Client()
 
 	result := svc.UpdateAll(ctx, false)
 
@@ -89,7 +92,7 @@ func TestMods_UpdateAll_Downloads(t *testing.T) {
 
 	// Verify the jar was written to disk
 	jar := filepath.Join(cfg.Paths.Mods, "mod-1.0.0.jar")
-	data, err := os.ReadFile(jar)
+	data, err := os.ReadFile(jar) //nolint:gosec // test reads a jar it downloaded into t.TempDir()
 	if err != nil {
 		t.Fatalf("jar not written to disk: %v", err)
 	}
@@ -115,6 +118,7 @@ func TestMods_UpdateAll_SkipsExisting(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "mod-1.0.0.jar"), []byte("OLD"), 0o600)
 
 	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc.client = srv.Client()
 
 	result := svc.UpdateAll(ctx, false)
 	if len(result.SkippedMods) != 1 {
@@ -140,6 +144,7 @@ func TestMods_UpdateAll_ForceRedownload(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(cfg.Paths.Mods, "mod-1.0.0.jar"), []byte("OLD"), 0o600)
 
 	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc.client = srv.Client()
 
 	result := svc.UpdateAll(ctx, true) // force=true
 	if len(result.UpdatedMods) != 1 {
@@ -289,11 +294,11 @@ func TestMods_UpdateAll_SendsJSONArrayFilters(t *testing.T) {
 	cfg.Mods.Timeout = 5
 
 	var query string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/v2/project/") {
 			query = r.URL.RawQuery
 			w.Header().Set("Content-Type", "application/json")
-			dlURL := "http://" + r.Host + "/files/mod-1.0.0.jar"
+			dlURL := "https://" + r.Host + "/files/mod-1.0.0.jar"
 			_ = json.NewEncoder(w).Encode(modrinthVersionFixture("mod-1.0.0.jar", dlURL))
 			return
 		}
@@ -307,6 +312,7 @@ func TestMods_UpdateAll_SendsJSONArrayFilters(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	svc := newModsWithBaseURL(cfg, logger, srv.URL+"/v2")
+	svc.client = srv.Client()
 	if result := svc.UpdateAll(ctx, false); len(result.FailedMods) > 0 {
 		t.Fatalf("unexpected failures: %v", result.FailedMods)
 	}

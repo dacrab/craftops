@@ -158,8 +158,12 @@ func LoadConfig(configPath string) (*Config, error) {
 		configPath = findDefaultConfig()
 	}
 	if configPath != "" {
-		if _, err := toml.DecodeFile(configPath, cfg); err != nil {
+		md, err := toml.DecodeFile(configPath, cfg)
+		if err != nil {
 			return nil, fmt.Errorf("failed to load config file %s: %w", configPath, err)
+		}
+		if undecoded := md.Undecoded(); len(undecoded) > 0 {
+			return nil, fmt.Errorf("config file %s contains unknown keys: %v", configPath, undecoded)
 		}
 	}
 
@@ -216,6 +220,7 @@ func (c *Config) Validate() error {
 		{"server.max_stop_wait", c.Server.MaxStopWait, 0},
 		{"server.startup_timeout", c.Server.StartupTimeout, 0},
 		{"backup.max_backups", c.Backup.MaxBackups, 0},
+		{"notifications.timeout", c.Notifications.Timeout, 1},
 	} {
 		if err := validateAtLeast(v.name, v.value, v.min); err != nil {
 			return err
@@ -224,6 +229,12 @@ func (c *Config) Validate() error {
 
 	if c.Mods.RetryDelay < 0 {
 		return fmt.Errorf("mods.retry_delay must be at least 0, got %g", c.Mods.RetryDelay)
+	}
+
+	for _, interval := range c.Notifications.WarningIntervals {
+		if interval < 1 {
+			return fmt.Errorf("notifications.warning_intervals must be at least 1, got %d", interval)
+		}
 	}
 
 	if err := validateRange("backup.compression_level", c.Backup.CompressionLevel, gzip.NoCompression, gzip.BestCompression); err != nil {

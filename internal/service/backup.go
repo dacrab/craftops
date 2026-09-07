@@ -150,7 +150,7 @@ func (b *Backup) createArchive(ctx context.Context) (string, error) {
 
 	b.logger.Info("Creating backup", zap.String("name", backupName))
 
-	file, err := os.Create(backupPath)
+	file, err := os.Create(backupPath) //nolint:gosec // backupPath is derived from the user's config backups dir plus a generated timestamp name
 	if err != nil {
 		return "", err
 	}

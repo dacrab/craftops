@@ -226,7 +226,7 @@ func TestBackup_ExcludePatterns(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // test reads a backup file it created in t.TempDir()
 	if err != nil {
 		t.Fatalf("open archive: %v", err)
 	}

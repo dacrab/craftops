@@ -27,16 +27,16 @@ linters:
       disable:
         - shadow
     gosec:
+      # G204/G304 (subprocess launched / file opened with variable input) are
+      # deliberately NOT excluded: remote Modrinth data flows into file paths
+      # in internal/service/mods.go. Sites where the variable legitimately
+      # comes from the user's own TOML config carry narrow //nolint:gosec
+      # directives instead of a repo-wide exclusion.
       excludes:
         - G104
         - G115
         - G703
         - G704
-        # G204/G304: paths and subprocess args come from the user's own TOML
-        # config, and exec uses []string args (no shell), so there is no
-        # untrusted input to protect against.
-        - G204
-        - G304
     gocritic:
       enabled-tags:
         - diagnostic
