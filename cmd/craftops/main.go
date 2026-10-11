@@ -12,7 +12,6 @@ import (
 )
 
 func main() {
-	// Context cancelled on SIGINT/SIGTERM.
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
 	err := cli.Execute(ctx)

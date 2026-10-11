@@ -56,7 +56,6 @@ func TestInitConfig_ForceOverwrite(t *testing.T) {
 	tmp := t.TempDir()
 	out := filepath.Join(tmp, "config.toml")
 
-	// Write a sentinel value first
 	_ = os.WriteFile(out, []byte("sentinel"), 0o600)
 
 	os.Args = []string{"craftops", "init", "-o", out, "--force"}
@@ -78,7 +77,6 @@ func TestInitConfig_NoForce_ExistingFile(t *testing.T) {
 	tmp := t.TempDir()
 	out := filepath.Join(tmp, "config.toml")
 
-	// Pre-create the file
 	_ = os.WriteFile(out, []byte("original"), 0o600)
 
 	os.Args = []string{"craftops", "init", "-o", out}
@@ -86,7 +84,6 @@ func TestInitConfig_NoForce_ExistingFile(t *testing.T) {
 	if err := Execute(context.Background()); err != nil {
 		t.Fatalf("Execute should not error when file exists without --force: %v", err)
 	}
-	// File should be unchanged
 	data, _ := os.ReadFile(out) //nolint:gosec // test reads a file it created in t.TempDir()
 	if string(data) != "original" {
 		t.Error("file should not be overwritten without --force")

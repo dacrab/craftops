@@ -15,8 +15,6 @@ import (
 	"craftops/internal/ui"
 )
 
-// ── Server ──
-
 var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Minecraft server management",
@@ -96,8 +94,6 @@ var serverStatusCmd = &cobra.Command{
 	},
 }
 
-// ── Mods ──
-
 var modsCmd = &cobra.Command{
 	Use:   "mods",
 	Short: "Mod management",
@@ -173,8 +169,6 @@ func displayModResults(a *app, result *domain.ModUpdateResult) {
 	printList(fmt.Sprintf("Skipped (%d):", len(result.SkippedMods)), result.SkippedMods, a.Terminal.WarningSprint)
 }
 
-// ── Backup ──
-
 var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Backup management",
@@ -220,7 +214,6 @@ var backupListCmd = &cobra.Command{
 	},
 }
 
-// renderList warns on empty listings, otherwise renders a titled table.
 func renderList(a *app, emptyMsg, sectionTitle string, headers []string, rows [][]string) {
 	if len(rows) == 0 {
 		a.Terminal.Warning(emptyMsg)
@@ -243,8 +236,6 @@ var backupDeleteCmd = &cobra.Command{
 		return nil
 	},
 }
-
-// ── Health ──
 
 var healthCmd = &cobra.Command{
 	Use:   "health",
@@ -290,8 +281,6 @@ func healthSummary(a *app, checks []domain.HealthCheck) error {
 	}
 	return nil
 }
-
-// ── Init ──
 
 var initCmd = &cobra.Command{
 	Use:   "init",

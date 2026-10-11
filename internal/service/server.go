@@ -151,20 +151,20 @@ func (s *Server) HealthCheck(_ context.Context) []domain.HealthCheck {
 		checks = append(checks, domain.HealthCheck{
 			Name:    "Server JAR",
 			Status:  domain.StatusOK,
-			Message: fmt.Sprintf("Found (%.1f MB)", float64(info.Size())/(1024*1024)),
+			Message: "Found (" + ui.FormatSize(info.Size()) + ")",
 		})
 	} else {
 		checks = append(checks, domain.HealthCheck{Name: "Server JAR", Status: domain.StatusError, Message: "Not found"})
 	}
 
-	for _, b := range []struct{ bin, name string }{{"java", "Java Runtime"}, {"screen", "GNU screen"}} {
-		if _, err := exec.LookPath(b.bin); err == nil {
-			checks = append(checks, domain.HealthCheck{Name: b.name, Status: domain.StatusOK, Message: "Available"})
-		} else {
-			checks = append(checks, domain.HealthCheck{Name: b.name, Status: domain.StatusError, Message: b.bin + " not found in PATH"})
-		}
+	return append(checks, binaryCheck("Java Runtime", "java"), binaryCheck("GNU screen", "screen"))
+}
+
+func binaryCheck(name, bin string) domain.HealthCheck {
+	if _, err := exec.LookPath(bin); err != nil {
+		return domain.HealthCheck{Name: name, Status: domain.StatusError, Message: bin + " not found in PATH"}
 	}
-	return checks
+	return domain.HealthCheck{Name: name, Status: domain.StatusOK, Message: "Available"}
 }
 
 func (s *Server) sessionName() string {

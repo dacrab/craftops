@@ -41,7 +41,7 @@ type PathsConfig struct {
 	Logs    string `toml:"logs"`
 }
 
-// ServerConfig holds JVM flags and lifecycle settings.
+// ServerConfig holds the server JAR, screen session, and lifecycle timing.
 type ServerConfig struct {
 	JarName        string   `toml:"jar_name"`
 	StopCommand    string   `toml:"stop_command"`
@@ -222,8 +222,8 @@ func (c *Config) Validate() error {
 		{"backup.max_backups", c.Backup.MaxBackups, 0},
 		{"notifications.timeout", c.Notifications.Timeout, 1},
 	} {
-		if err := validateAtLeast(v.name, v.value, v.min); err != nil {
-			return err
+		if v.value < v.min {
+			return fmt.Errorf("%s must be at least %d, got %d", v.name, v.min, v.value)
 		}
 	}
 
@@ -237,24 +237,10 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	if err := validateRange("backup.compression_level", c.Backup.CompressionLevel, gzip.NoCompression, gzip.BestCompression); err != nil {
-		return err
-	}
-	return nil
-}
-
-// validateAtLeast rejects values below min.
-func validateAtLeast(name string, value, minValue int) error {
-	if value < minValue {
-		return fmt.Errorf("%s must be at least %d, got %d", name, minValue, value)
-	}
-	return nil
-}
-
-// validateRange rejects values outside [min, max].
-func validateRange(name string, value, minValue, maxValue int) error {
-	if value < minValue || value > maxValue {
-		return fmt.Errorf("%s must be between %d and %d, got %d", name, minValue, maxValue, value)
+	compression := c.Backup.CompressionLevel
+	if compression < gzip.NoCompression || compression > gzip.BestCompression {
+		return fmt.Errorf("backup.compression_level must be between %d and %d, got %d",
+			gzip.NoCompression, gzip.BestCompression, compression)
 	}
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 // HealthStatus represents a diagnostic check outcome.
 type HealthStatus string
 
-// Health status values.
+// Health check outcomes.
 const (
 	StatusOK    HealthStatus = "OK"
 	StatusWarn  HealthStatus = "WARN"
@@ -67,7 +67,7 @@ const DefaultSessionName = "minecraft"
 // DirPerm is the permission mode applied to directories created by craftops.
 const DirPerm = 0o750
 
-// Sentinel errors.
+// Sentinel errors returned by the service layer.
 var (
 	ErrServerJarNotFound = errors.New("server JAR file not found")
 	ErrBackupsDisabled   = errors.New("backups are disabled")
@@ -80,7 +80,6 @@ type APIError struct {
 	StatusCode int
 }
 
-// Error implements the error interface.
 func (e *APIError) Error() string {
 	if e.StatusCode > 0 {
 		return fmt.Sprintf("API error [%d]: %s (url: %s)", e.StatusCode, e.Message, e.URL)
