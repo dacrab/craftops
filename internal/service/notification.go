@@ -61,22 +61,17 @@ func (n *Notification) SendError(ctx context.Context, message string) error {
 
 // SendRestartWarnings sends timed alerts before a restart.
 func (n *Notification) SendRestartWarnings(ctx context.Context) error {
-	intervals := n.sortedIntervals
-	if len(intervals) == 0 {
-		return nil
-	}
+	n.logger.Info("Sending restart warnings", zap.Ints("intervals", n.sortedIntervals))
 
-	n.logger.Info("Sending restart warnings", zap.Ints("intervals", intervals))
-
-	for i, minutes := range intervals {
+	for i, minutes := range n.sortedIntervals {
 		msg := strings.ReplaceAll(n.cfg.Notifications.WarningMessage, "{minutes}", strconv.Itoa(minutes))
 		if err := n.sendDiscord(ctx, "Server Restart Warning", msg, colorOrange); err != nil {
 			return err
 		}
 
 		wait := time.Duration(minutes) * time.Minute
-		if i < len(intervals)-1 {
-			wait = time.Duration(minutes-intervals[i+1]) * time.Minute
+		if i < len(n.sortedIntervals)-1 {
+			wait = time.Duration(minutes-n.sortedIntervals[i+1]) * time.Minute
 		}
 		n.logger.Info("Waiting between restart warnings", zap.Duration("wait", wait))
 		select {

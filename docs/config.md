@@ -23,10 +23,11 @@ java_flags = [
 ]
 
 [paths]
-server  = "/home/minecraft/server"
-mods    = "/home/minecraft/server/mods"
-backups = "/home/minecraft/backups"
-logs    = "/home/minecraft/logs"
+server  = "~/minecraft/server"
+mods    = "~/minecraft/server/mods"
+backups = "~/minecraft/backups"
+logs    = "~/.local/share/craftops/logs"
+# Inside the official Docker image the server path is /minecraft/server.
 
 [mods]
 modrinth_sources     = [

@@ -97,7 +97,7 @@ func (t *Terminal) Banner(title string) {
 func (t *Terminal) Section(title string) {
 	if t.isTTY {
 		_, _ = accentColor.Fprintf(t.out, "\n▶ %s\n", title)
-		_, _ = dimColor.Fprintln(t.out, strings.Repeat("─", len(title)+2))
+		_, _ = dimColor.Fprintln(t.out, strings.Repeat("─", utf8.RuneCountInString(title)+2))
 	} else {
 		_, _ = fmt.Fprintf(t.out, "\n== %s ==\n", title)
 	}
@@ -201,14 +201,15 @@ func (t *Terminal) Table(headers []string, rows [][]string) {
 
 	_, _ = fmt.Fprintln(t.out, formatRow(headers))
 	if t.isTTY {
-		_, _ = fmt.Fprintln(t.out, strings.Repeat("─", len(formatRow(headers))))
+		headerRow := formatRow(headers)
+		_, _ = fmt.Fprintln(t.out, strings.Repeat("─", visibleLen(headerRow)))
 	}
 	for _, row := range rows {
 		_, _ = fmt.Fprintln(t.out, formatRow(row))
 	}
 }
 
-// visibleLen returns the string length ignoring ANSI escape sequences.
+// visibleLen returns the rune count ignoring ANSI escape sequences.
 func visibleLen(s string) int {
 	n := 0
 	for i := 0; i < len(s); {
@@ -220,13 +221,13 @@ func visibleLen(s string) int {
 			i++
 			continue
 		}
+		_, size := utf8.DecodeRuneInString(s[i:])
 		n++
-		i++
+		i += size
 	}
 	return n
 }
 
-// pad pads s to width w using visible (non-ANSI) length.
 func pad(s string, w int) string {
 	if v := visibleLen(s); v < w {
 		return s + strings.Repeat(" ", w-v)

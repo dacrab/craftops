@@ -48,7 +48,9 @@ func TestLoadAndSave(t *testing.T) {
 }
 
 func TestLoadConfig_NoFile(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	cfg, err := LoadConfig("")
 	if err != nil {
 		t.Fatalf("LoadConfig with no file should not error: %v", err)
