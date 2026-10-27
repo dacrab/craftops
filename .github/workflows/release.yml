@@ -29,14 +29,7 @@ jobs:
       - name: Prepare release notes
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-          awk -v header="## ${tag}" '
-            /^## / {
-              if (index($0, header) == 1) { found = 1; print; next }
-              if (found) exit
-            }
-            found { print }
-          ' CHANGELOG.md > release-notes.md
-          [ -s release-notes.md ] || { echo "Missing CHANGELOG.md section for ${tag}" >&2; exit 1; }
+          ./scripts/changelog.sh "$tag" > release-notes.md
           printf '\n' >> release-notes.md
           cat .github/release-notes.md >> release-notes.md
 
