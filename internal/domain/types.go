@@ -35,7 +35,6 @@ type ServerStatus struct {
 type ModInfo struct {
 	DownloadURL string
 	Filename    string
-	ProjectName string
 }
 
 // ModUpdateResult aggregates outcomes of a bulk mod update.

@@ -40,7 +40,14 @@ make install
 
 ### Docker
 
-No prebuilt image is published yet; build one locally from the repo root:
+Prebuilt images are published to the GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/dacrab/craftops:latest
+docker run -it --rm -v "$PWD/data:/minecraft" ghcr.io/dacrab/craftops:latest server status
+```
+
+To build locally instead:
 
 ```bash
 docker build -t craftops .
