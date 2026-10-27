@@ -26,7 +26,21 @@ jobs:
       - name: Build
         run: VERSION="${GITHUB_REF#refs/tags/v}" make package
 
+      - name: Prepare release notes
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          awk -v header="## ${tag}" '
+            /^## / {
+              if (index($0, header) == 1) { found = 1; print; next }
+              if (found) exit
+            }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          [ -s release-notes.md ] || { echo "Missing CHANGELOG.md section for ${tag}" >&2; exit 1; }
+          printf '\n' >> release-notes.md
+          cat .github/release-notes.md >> release-notes.md
+
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: dist/*
-          body_path: .github/release-notes.md
+          body_path: release-notes.md
