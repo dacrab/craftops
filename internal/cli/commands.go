@@ -24,7 +24,7 @@ var serverStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the Minecraft server",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := appFrom()
+		a := appFrom(cmd)
 		a.Terminal.Info("Starting server...")
 		if err := a.Server.Start(cmd.Context()); err != nil {
 			a.Terminal.Errorf("Failed to start server: %v", err)
@@ -39,7 +39,7 @@ var serverStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the Minecraft server",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := appFrom()
+		a := appFrom(cmd)
 		a.Terminal.Info("Stopping server...")
 		if err := a.Server.Stop(cmd.Context()); err != nil {
 			a.Terminal.Errorf("Failed to stop server: %v", err)
@@ -54,7 +54,7 @@ var serverRestartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restart the Minecraft server",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		ctx, a := cmd.Context(), appFrom()
+		ctx, a := cmd.Context(), appFrom(cmd)
 		if len(a.Config.Notifications.WarningIntervals) > 0 {
 			a.Terminal.Info("Sending restart warnings...")
 			if err := a.Notification.SendRestartWarnings(ctx); err != nil {
@@ -77,7 +77,7 @@ var serverStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show server status",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := appFrom()
+		a := appFrom(cmd)
 		status, err := a.Server.Status(cmd.Context())
 		if err != nil {
 			a.Terminal.Errorf("Failed to get status: %v", err)
@@ -103,7 +103,7 @@ var modsUpdateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update all configured mods",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		ctx, a := cmd.Context(), appFrom()
+		ctx, a := cmd.Context(), appFrom(cmd)
 		noBackup, _ := cmd.Flags().GetBool("no-backup")
 		a.Terminal.Banner("Mod Update Manager")
 		if !noBackup && a.Config.Backup.Enabled {
@@ -124,8 +124,8 @@ var modsUpdateCmd = &cobra.Command{
 var modsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List installed mods",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		a := appFrom()
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		a := appFrom(cmd)
 		mods, err := a.Mods.ListInstalled()
 		if err != nil {
 			a.Terminal.Errorf("Failed to list mods: %v", err)
@@ -178,7 +178,7 @@ var backupCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a backup",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		a := appFrom()
+		a := appFrom(cmd)
 		a.Terminal.Info("Creating backup...")
 		path, err := a.Backup.Create(cmd.Context())
 		if err != nil {
@@ -198,8 +198,8 @@ var backupCreateCmd = &cobra.Command{
 var backupListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available backups",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		a := appFrom()
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		a := appFrom(cmd)
 		backups, err := a.Backup.List()
 		if err != nil {
 			a.Terminal.Errorf("Failed to list backups: %v", err)
@@ -227,8 +227,8 @@ var backupDeleteCmd = &cobra.Command{
 	Use:   "delete <name>",
 	Short: "Delete a backup by name",
 	Args:  cobra.ExactArgs(1),
-	RunE: func(_ *cobra.Command, args []string) error {
-		a := appFrom()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a := appFrom(cmd)
 		if err := a.Backup.Delete(args[0]); err != nil {
 			return err
 		}
@@ -241,7 +241,7 @@ var healthCmd = &cobra.Command{
 	Use:   "health",
 	Short: "Run system health checks",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		ctx, a := cmd.Context(), appFrom()
+		ctx, a := cmd.Context(), appFrom(cmd)
 		a.Terminal.Banner("System Health Check")
 
 		var checks []domain.HealthCheck

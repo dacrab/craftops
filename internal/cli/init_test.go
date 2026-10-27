@@ -15,10 +15,8 @@ import (
 func resetGlobals(t *testing.T) {
 	t.Helper()
 	origArgs := os.Args
-	origApp := activeApp
 	t.Cleanup(func() {
 		os.Args = origArgs
-		activeApp = origApp
 		resetFlags(rootCmd)
 	})
 }
