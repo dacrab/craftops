@@ -12,7 +12,7 @@ import (
 
 func newTestTerminal() (*Terminal, *bytes.Buffer) {
 	out := &bytes.Buffer{}
-	return NewTerminalWithWriter(out, false), out
+	return &Terminal{out: out}, out
 }
 
 func TestTerminal_Banner(t *testing.T) {

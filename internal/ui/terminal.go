@@ -36,11 +36,6 @@ func NewTerminal() *Terminal {
 	return &Terminal{out: os.Stdout, isTTY: isTTY}
 }
 
-// NewTerminalWithWriter creates a terminal with a custom writer (for testing).
-func NewTerminalWithWriter(out io.Writer, isTTY bool) *Terminal {
-	return &Terminal{out: out, isTTY: isTTY}
-}
-
 // TimeFormat is the human-readable timestamp layout used across the CLI.
 const TimeFormat = "2006-01-02 15:04:05"
 

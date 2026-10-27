@@ -268,7 +268,7 @@ func (m *Mods) updateMod(ctx context.Context, modURL string, force bool) (update
 	}
 
 	updated, err = m.downloadMod(ctx, info, force)
-	return updated, info.ProjectName, err
+	return updated, projectID, err
 }
 
 // parseProjectID extracts the Modrinth slug from a full URL or bare slug.
@@ -338,7 +338,6 @@ func (m *Mods) fetchLatestVersion(ctx context.Context, projectID string) (*domai
 	return &domain.ModInfo{
 		DownloadURL: file.URL,
 		Filename:    file.Filename,
-		ProjectName: projectID,
 	}, nil
 }
 

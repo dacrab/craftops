@@ -3,6 +3,24 @@
 Notable changes to CraftOps. Older releases are available on the
 [GitHub releases page](https://github.com/dacrab/craftops/releases).
 
+## v2.8.3 - 2026-10-27
+
+A small maintenance release with packaging and reliability improvements.
+
+### Added
+
+- Prebuilt Docker images are now published to the GitHub Container Registry.
+
+### Fixed
+
+- Config files are now saved atomically, so an interrupted write cannot leave
+  a damaged file.
+- Local builds now show the correct version without a duplicated `v` prefix.
+
+### Improved
+
+- Removed duplicated build information and unused internal code.
+
 ## v2.8.2 - 2026-10-27
 
 A maintenance release focused on reliability, security, and clearer
