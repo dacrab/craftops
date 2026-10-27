@@ -174,14 +174,29 @@ func LoadConfig(configPath string) (*Config, error) {
 	return cfg, nil
 }
 
-// SaveConfig writes the configuration as TOML.
+// SaveConfig writes the configuration as TOML, replacing the file atomically.
 func (c *Config) SaveConfig(configPath string) error {
 	var buf bytes.Buffer
 	if err := toml.NewEncoder(&buf).Encode(c); err != nil {
 		return fmt.Errorf("failed to encode config: %w", err)
 	}
-	if err := os.WriteFile(configPath, buf.Bytes(), 0o600); err != nil {
+
+	tmp, err := os.CreateTemp(filepath.Dir(configPath), ".craftops-config-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary config file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
+
+	if _, err := tmp.Write(buf.Bytes()); err != nil {
+		_ = tmp.Close()
 		return fmt.Errorf("failed to write config file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("failed to close config file: %w", err)
+	}
+	if err := os.Rename(tmpPath, configPath); err != nil {
+		return fmt.Errorf("failed to replace config file: %w", err)
 	}
 	return nil
 }

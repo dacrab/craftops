@@ -54,7 +54,7 @@ is picked up automatically.
 
 ```bash
 # 1. Generate a default config
-craftops init
+craftops init -o ~/.config/craftops/config.toml
 
 # 2. Edit the config
 $EDITOR ~/.config/craftops/config.toml

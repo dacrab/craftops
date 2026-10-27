@@ -16,6 +16,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"craftops/internal/buildinfo"
 	"craftops/internal/config"
 	"craftops/internal/domain"
 	"craftops/internal/ui"
@@ -25,9 +26,6 @@ const (
 	apiBase       = "https://api.modrinth.com/v2"
 	apiHealthName = "Modrinth API"
 )
-
-// Version is set by ldflags during build.
-var Version = "dev"
 
 // Mods handles automated mod updates from Modrinth.
 type Mods struct {
@@ -51,7 +49,7 @@ func NewMods(cfg *config.Config, logger *zap.Logger) *Mods {
 }
 
 func (m *Mods) userAgent() string {
-	return "craftops/" + Version
+	return "craftops/" + buildinfo.Version
 }
 
 // requestCtx bounds a metadata/health API call by cfg.Mods.Timeout.

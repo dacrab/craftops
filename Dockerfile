@@ -7,7 +7,7 @@ RUN go mod download
 COPY . .
 ARG VERSION=dev
 RUN CGO_ENABLED=0 go build -trimpath -buildvcs=auto \
-    -ldflags "-s -w -X craftops/internal/cli.Version=${VERSION} -X craftops/internal/service.Version=${VERSION}" \
+    -ldflags "-s -w -X craftops/internal/buildinfo.Version=${VERSION}" \
     -o /craftops ./cmd/craftops
 
 FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a

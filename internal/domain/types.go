@@ -19,45 +19,45 @@ const (
 
 // HealthCheck is the result of a single diagnostic check.
 type HealthCheck struct {
-	Name    string       `json:"name"`
-	Status  HealthStatus `json:"status"`
-	Message string       `json:"message"`
+	Name    string
+	Status  HealthStatus
+	Message string
 }
 
 // ServerStatus describes whether the Minecraft server process is active.
 type ServerStatus struct {
-	CheckedAt   time.Time `json:"checked_at"`
-	SessionName string    `json:"session_name,omitempty"`
-	IsRunning   bool      `json:"is_running"`
+	CheckedAt   time.Time
+	SessionName string
+	IsRunning   bool
 }
 
 // ModInfo holds metadata for a mod version from Modrinth.
 type ModInfo struct {
-	DownloadURL string `json:"download_url"`
-	Filename    string `json:"filename"`
-	ProjectName string `json:"project_name"`
+	DownloadURL string
+	Filename    string
+	ProjectName string
 }
 
 // ModUpdateResult aggregates outcomes of a bulk mod update.
 type ModUpdateResult struct {
-	UpdatedMods []string          `json:"updated_mods"`
-	FailedMods  map[string]string `json:"failed_mods"`
-	SkippedMods []string          `json:"skipped_mods"`
+	UpdatedMods []string
+	FailedMods  map[string]string
+	SkippedMods []string
 }
 
 // InstalledMod represents a .jar file in the mods directory.
 type InstalledMod struct {
-	Modified time.Time `json:"modified"`
-	Name     string    `json:"name"`
-	Size     int64     `json:"size"`
+	Modified time.Time
+	Name     string
+	Size     int64
 }
 
 // BackupInfo holds metadata for a backup archive.
 type BackupInfo struct {
-	CreatedAt time.Time `json:"created_at"`
-	Name      string    `json:"name"`
-	Path      string    `json:"path"`
-	Size      int64     `json:"size_bytes"`
+	CreatedAt time.Time
+	Name      string
+	Path      string
+	Size      int64
 }
 
 // DefaultSessionName is the GNU screen session used to run the server when

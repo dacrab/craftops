@@ -199,9 +199,9 @@ func (t *Terminal) Table(headers []string, rows [][]string) {
 		return strings.TrimRight(b.String(), " ")
 	}
 
-	_, _ = fmt.Fprintln(t.out, formatRow(headers))
+	headerRow := formatRow(headers)
+	_, _ = fmt.Fprintln(t.out, headerRow)
 	if t.isTTY {
-		headerRow := formatRow(headers)
 		_, _ = fmt.Fprintln(t.out, strings.Repeat("─", visibleLen(headerRow)))
 	}
 	for _, row := range rows {

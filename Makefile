@@ -1,8 +1,8 @@
 .PHONY: build install clean test lint fmt tidy package
 
 BIN := craftops
-VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X craftops/internal/cli.Version=$(VERSION) -X craftops/internal/service.Version=$(VERSION)
+VERSION ?= $(shell git describe --tags --always 2>/dev/null | sed 's/^v//' || echo dev)
+LDFLAGS := -s -w -X craftops/internal/buildinfo.Version=$(VERSION)
 BUILDFLAGS := -trimpath -buildvcs=auto
 
 build:

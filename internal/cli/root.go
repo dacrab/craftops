@@ -11,14 +11,12 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"craftops/internal/buildinfo"
 	"craftops/internal/config"
 	"craftops/internal/domain"
 	"craftops/internal/service"
 	"craftops/internal/ui"
 )
-
-// Version is set by ldflags during build.
-var Version = "dev"
 
 // app bundles the services shared by all commands for a single run.
 type app struct {
@@ -99,9 +97,7 @@ func loggerWarnf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "craftops: warning: "+format+"\n", args...)
 }
 
-// activeApp holds the initialized app for the duration of a command run.
-// It is set in PersistentPreRunE and cleared when Execute returns.
-var activeApp *app
+type appContextKey struct{}
 
 var rootCmd = &cobra.Command{
 	Use:               "craftops",
@@ -115,7 +111,7 @@ func init() {
 	rootCmd.PersistentFlags().String("config", "", "config file path")
 	rootCmd.PersistentFlags().Bool("debug", false, "enable debug mode")
 	rootCmd.PersistentFlags().Bool("dry-run", false, "show what would be done")
-	rootCmd.Version = Version
+	rootCmd.Version = buildinfo.Version
 	rootCmd.SetVersionTemplate("CraftOps v{{.Version}}\n")
 	rootCmd.Run = func(cmd *cobra.Command, _ []string) { _ = cmd.Help() }
 
@@ -134,10 +130,10 @@ func init() {
 // completes, including on error paths where cobra skips post-run hooks.
 func Execute(ctx context.Context) error {
 	defer func() {
-		if activeApp != nil {
-			activeApp.Close()
-			activeApp = nil
+		if a := appFrom(rootCmd); a != nil {
+			a.Close()
 		}
+		rootCmd.SetContext(ctx)
 	}()
 	return rootCmd.ExecuteContext(ctx)
 }
@@ -156,11 +152,18 @@ func initApp(cmd *cobra.Command, _ []string) error {
 		cfg.DryRun = true
 	}
 
-	activeApp = newApp(cfg)
+	ctx := context.WithValue(cmd.Root().Context(), appContextKey{}, newApp(cfg))
+	cmd.Root().SetContext(ctx)
 	return nil
 }
 
-// appFrom returns the initialized app, or nil if initApp was skipped.
-func appFrom() *app {
-	return activeApp
+// appFrom returns the app attached to the root command, or nil when the
+// command skips normal initialization (for example, init).
+func appFrom(cmd *cobra.Command) *app {
+	ctx := cmd.Root().Context()
+	if ctx == nil {
+		return nil
+	}
+	a, _ := ctx.Value(appContextKey{}).(*app)
+	return a
 }

@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"craftops/internal/config"
+	"craftops/internal/domain"
 )
 
 const testDiscordWebhook = "https://discord.com/api/webhooks/123/abc"
@@ -24,7 +25,7 @@ func setup(t *testing.T) (*config.Config, *zap.Logger, context.Context) {
 	cfg.Paths.Logs = filepath.Join(tmp, "logs")
 
 	for _, p := range []string{cfg.Paths.Server, cfg.Paths.Mods, cfg.Paths.Backups, cfg.Paths.Logs} {
-		if err := os.MkdirAll(p, 0o750); err != nil {
+		if err := os.MkdirAll(p, domain.DirPerm); err != nil {
 			t.Fatalf("setup: MkdirAll(%s): %v", p, err)
 		}
 	}
