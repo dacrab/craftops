@@ -20,27 +20,26 @@ case "$VERSION_TYPE" in
 esac
 
 NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
 
-# Build changelog into a temp file (avoids subshell variable loss)
+# Use the curated CHANGELOG.md section for the release.
 TMPFILE=$(mktemp)
 trap 'rm -f "$TMPFILE"' EXIT
 
-printf '## What'\''s New\n\n' >> "$TMPFILE"
-if [ -n "$RELEASE_MESSAGE" ]; then
-  printf '%s\n\n' "$RELEASE_MESSAGE" >> "$TMPFILE"
+awk -v header="## ${NEW_VERSION}" '
+  /^## / {
+    if (index($0, header) == 1) { found = 1; print; next }
+    if (found) exit
+  }
+  found { print }
+' CHANGELOG.md > "$TMPFILE"
+
+if [ ! -s "$TMPFILE" ]; then
+  printf 'Error: add a "%s" section to CHANGELOG.md first.\n' "## ${NEW_VERSION}" >&2
+  exit 1
 fi
 
-if [ -n "$LAST_TAG" ]; then
-  printf '### Changes since %s\n\n' "$LAST_TAG" >> "$TMPFILE"
-  git log "${LAST_TAG}..HEAD" --oneline --no-decorate | while IFS= read -r line; do
-    printf -- '- %s\n' "$line" >> "$TMPFILE"
-  done
-else
-  printf '### Changes since initial release\n\n' >> "$TMPFILE"
-  git log --oneline --no-decorate | while IFS= read -r line; do
-    printf -- '- %s\n' "$line" >> "$TMPFILE"
-  done
+if [ -n "$RELEASE_MESSAGE" ]; then
+  printf '\n### Notes\n\n%s\n' "$RELEASE_MESSAGE" >> "$TMPFILE"
 fi
 
 CHANGELOG=$(cat "$TMPFILE")
