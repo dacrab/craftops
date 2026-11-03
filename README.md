@@ -1,85 +1,43 @@
 # CraftOps
 
-Modern CLI for Minecraft server operations and Modrinth mod management — built with Go.
+A small Go CLI for the unglamorous side of running a modded Minecraft server.
 
-## Features
-
-- **Lifecycle** — Start, stop, and restart your server via GNU screen sessions
-- **Mods** — Automated updates from Modrinth with concurrent downloads, retries, and dry-run support
-- **Backups** — Compressed `.tar.gz` archives with configurable retention and glob-based exclusion patterns
-- **Alerts** — Discord webhook notifications for restarts and warnings
-- **Health** — Integrated diagnostic suite for paths, dependencies, and API connectivity
-
-## Requirements
-
-- Linux or macOS (amd64 or arm64)
-- GNU screen
-- Java 17+ (bundled in the Docker image via `openjdk17-jre-headless`)
+CraftOps starts and stops the server, keeps Modrinth mods current, makes backups, and pings Discord when something happens. One TOML file holds the settings.
 
 ## Install
 
-### One-liner (recommended)
+Works on Linux and macOS. GNU screen and Java 17+ are required to run the server itself.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh | bash
 ```
 
-Pin a specific version:
-
-```bash
-VERSION=v2.8.0 bash <(curl -fsSL https://raw.githubusercontent.com/dacrab/craftops/main/install.sh)
-```
-
-### From source
-
-Requires Go 1.26+:
+Building from source needs Go 1.27+:
 
 ```bash
 make install
 ```
 
-### Docker
+A Docker image is available at `ghcr.io/dacrab/craftops` if you prefer containers.
 
-Prebuilt images are published to the GitHub Container Registry:
-
-```bash
-docker pull ghcr.io/dacrab/craftops:latest
-docker run -it --rm -v "$PWD/data:/minecraft" ghcr.io/dacrab/craftops:latest server status
-```
-
-To build locally instead:
+## First run
 
 ```bash
-docker build -t craftops .
-docker run -it --rm -v "$PWD/data:/minecraft" craftops server status
-```
-
-Mount your config at `/config/config.toml` (or `/minecraft/config.toml`) and it
-is picked up automatically.
-
-## Quick Start
-
-```bash
-# 1. Generate a default config
 craftops init -o ~/.config/craftops/config.toml
-
-# 2. Edit the config
-$EDITOR ~/.config/craftops/config.toml
-
-# 3. Verify everything looks good
 craftops health
-
-# 4. Start your server
 craftops server start
 ```
 
-See `craftops --help` for all commands and flags.
+Edit the generated config first so the paths, mods, and backup folder point at your setup. `craftops --help` lists the rest.
 
-## Documentation
+## What it handles
 
-- [Configuration reference](docs/config.md)
-- [Contributing & development](CONTRIBUTING.md)
+- Server lifecycle through GNU screen: start, stop, restart, and status
+- Modrinth mod updates in one command, with retries and a dry-run mode
+- Compressed `.tar.gz` backups with retention limits and exclude patterns
+- Optional Discord warnings before restarts and alerts on failures
+- Health checks for paths, dependencies, and API access
 
-## License
+Backups are plain archives, so keep a copy somewhere safe. Mods come from the Modrinth project pages you list in the config.
 
-[MIT](LICENSE)
+MIT licensed — see [LICENSE](LICENSE).
